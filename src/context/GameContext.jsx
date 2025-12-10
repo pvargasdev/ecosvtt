@@ -1,7 +1,9 @@
 import React, { createContext, useState, useContext, useEffect, useCallback } from 'react';
 import { imageDB } from './db';
+import JSZip from 'jszip'; // Certifique-se de importar
+import { saveAs } from 'file-saver'; // Certifique-se de importar
 
-// Chaves de armazenamento
+// ... (constantes STORAGE_KEYS mantidas igual) ...
 const STORAGE_CHARACTERS_KEY = 'ecos_vtt_chars_v6';
 const STORAGE_ADVENTURES_KEY = 'ecos_vtt_adventures_v2';
 const PRESETS_KEY = 'ecos_vtt_presets_v1';
@@ -10,9 +12,7 @@ const ACTIVE_PRESET_KEY = 'ecos_vtt_active_preset_id';
 const GameContext = createContext({});
 
 export const GameProvider = ({ children }) => {
-  // ==========================================
-  // 1. ESTADO
-  // ==========================================
+  // ... (Estados characters, presets, adventures mantidos igual) ...
   const [characters, setCharacters] = useState(() => {
     try { return JSON.parse(localStorage.getItem(STORAGE_CHARACTERS_KEY)) || []; } catch (e) { return []; }
   });
@@ -29,20 +29,11 @@ export const GameProvider = ({ children }) => {
 
   const [activeAdventureId, setActiveAdventureId] = useState(null);
 
-  // ==========================================
-  // 2. PERSISTÊNCIA
-  // ==========================================
-  
+  // ... (persistência useEffects mantidos igual) ...
   const safeSave = (key, data) => {
-      try {
-          localStorage.setItem(key, JSON.stringify(data));
-      } catch (e) {
-          if (e.name === 'QuotaExceededError') {
-              console.error("ERRO CRÍTICO: LocalStorage cheio.");
-          }
-      }
+      try { localStorage.setItem(key, JSON.stringify(data)); } 
+      catch (e) { if (e.name === 'QuotaExceededError') console.error("ERRO CRÍTICO: LocalStorage cheio."); }
   };
-
   useEffect(() => { safeSave(STORAGE_CHARACTERS_KEY, characters); }, [characters]);
   useEffect(() => { safeSave(PRESETS_KEY, presets); }, [presets]);
   useEffect(() => { safeSave(STORAGE_ADVENTURES_KEY, adventures); }, [adventures]);
@@ -53,37 +44,20 @@ export const GameProvider = ({ children }) => {
   }, [activePresetId]);
 
   const generateUUID = () => crypto.randomUUID();
-
-  // Helpers
   const activeAdventure = adventures.find(a => a.id === activeAdventureId);
   const activeScene = activeAdventure?.scenes.find(s => s.id === activeAdventure.activeSceneId);
 
-  // ==========================================
-  // 3. GERENCIAMENTO DE IMAGENS
-  // ==========================================
-
+  // ... (handleImageUpload mantido igual) ...
   const handleImageUpload = async (file) => {
       if (!file) return null;
-      try {
-          const id = await imageDB.saveImage(file);
-          return id;
-      } catch (e) {
-          console.error(e);
-          return null;
-      }
+      try { return await imageDB.saveImage(file); } catch (e) { console.error(e); return null; }
   };
 
-  // ==========================================
-  // 4. LÓGICA DE AVENTURAS
-  // ==========================================
-
+  // ... (Funções de Adventure CRUD mantidas, adicione as novas abaixo) ...
   const createAdventure = useCallback((name) => {
     const newSceneId = generateUUID();
     const newAdventure = {
-        id: generateUUID(),
-        name: name,
-        activeSceneId: newSceneId,
-        tokenLibrary: [], 
+        id: generateUUID(), name: name, activeSceneId: newSceneId, tokenLibrary: [], 
         scenes: [{ id: newSceneId, name: "Cena 1", mapImageId: null, mapScale: 1.0, tokens: [] }]
     };
     setAdventures(prev => [...prev, newAdventure]);
@@ -95,13 +69,95 @@ export const GameProvider = ({ children }) => {
       if (activeAdventureId === id) setActiveAdventureId(null);
   }, [activeAdventureId]);
 
-  // --- Cenas ---
+  // ==========================================
+  // NOVO: IMPORTAR / EXPORTAR AVENTURAS
+  // ==========================================
 
+  const exportAdventure = useCallback(async (advId) => {
+      const adv = adventures.find(a => a.id === advId);
+      if (!adv) return;
+
+      const zip = new JSZip();
+      zip.file("adventure.json", JSON.stringify(adv));
+      const imgFolder = zip.folder("images");
+
+      // 1. Coletar IDs de imagens usadas
+      const imageIds = new Set();
+      
+      // Imagens de Mapas das Cenas
+      adv.scenes.forEach(scene => {
+          if (scene.mapImageId) imageIds.add(scene.mapImageId);
+          // Imagens dos tokens nas cenas
+          scene.tokens.forEach(t => {
+              if (t.imageId) imageIds.add(t.imageId);
+          });
+      });
+      
+      // Imagens da Biblioteca de Tokens
+      if (adv.tokenLibrary) {
+          adv.tokenLibrary.forEach(t => {
+              if (t.imageId) imageIds.add(t.imageId);
+          });
+      }
+
+      // 2. Buscar Blobs no DB e adicionar ao ZIP
+      for (const id of imageIds) {
+          const blob = await imageDB.getImage(id);
+          if (blob) {
+              imgFolder.file(id, blob);
+          }
+      }
+
+      // 3. Gerar e baixar
+      const content = await zip.generateAsync({ type: "blob" });
+      saveAs(content, `adventure_${adv.name.replace(/\s+/g, '_')}.zip`);
+  }, [adventures]);
+
+  const importAdventure = useCallback(async (file) => {
+      if (!file) return;
+      try {
+          const zip = await JSZip.loadAsync(file);
+          
+          // 1. Ler JSON da aventura
+          const jsonFile = zip.file("adventure.json");
+          if (!jsonFile) throw new Error("Arquivo inválido (adventure.json não encontrado)");
+          
+          const advData = JSON.parse(await jsonFile.async("string"));
+          
+          // 2. Restaurar imagens
+          const imgFolder = zip.folder("images");
+          if (imgFolder) {
+              const images = [];
+              imgFolder.forEach((relativePath, file) => {
+                  images.push({ id: relativePath, file });
+              });
+
+              for (const img of images) {
+                  const blob = await img.file.async("blob");
+                  // Salva com o ID original para manter os links do JSON funcionando
+                  await imageDB.saveImage(blob, img.id); 
+              }
+          }
+
+          // 3. Adicionar aventura ao estado
+          // Gera um novo ID para a aventura para evitar conflito se já existir, 
+          // mas mantém os IDs internos (cenas/imagens)
+          const newAdv = { ...advData, id: generateUUID(), name: `${advData.name}` };
+          
+          setAdventures(prev => [...prev, newAdv]);
+
+      } catch (e) {
+          console.error(e);
+          alert("Erro ao importar aventura.");
+      }
+  }, []);
+
+
+  // ... (Resto das funções de Cenas, Tokens, Personagens mantidas igual) ...
   const addScene = useCallback((name) => {
       if (!activeAdventureId) return;
       const newId = generateUUID();
       const newScene = { id: newId, name: name || "Nova Cena", mapImageId: null, mapScale: 1.0, tokens: [] };
-      
       setAdventures(prev => prev.map(adv => {
           if (adv.id !== activeAdventureId) return adv;
           return { ...adv, scenes: [...adv.scenes, newScene], activeSceneId: newId };
@@ -111,13 +167,9 @@ export const GameProvider = ({ children }) => {
   const updateSceneMap = useCallback(async (sceneId, file) => {
       if (!activeAdventureId || !file) return;
       const imageId = await handleImageUpload(file);
-      
       setAdventures(prev => prev.map(adv => {
           if (adv.id !== activeAdventureId) return adv;
-          return {
-              ...adv,
-              scenes: adv.scenes.map(s => s.id === sceneId ? { ...s, mapImageId: imageId } : s)
-          };
+          return { ...adv, scenes: adv.scenes.map(s => s.id === sceneId ? { ...s, mapImageId: imageId } : s) };
       }));
   }, [activeAdventureId]);
 
@@ -125,10 +177,7 @@ export const GameProvider = ({ children }) => {
       if (!activeAdventureId) return;
       setAdventures(prev => prev.map(adv => {
           if (adv.id !== activeAdventureId) return adv;
-          return {
-              ...adv,
-              scenes: adv.scenes.map(s => s.id === sceneId ? { ...s, ...updates } : s)
-          };
+          return { ...adv, scenes: adv.scenes.map(s => s.id === sceneId ? { ...s, ...updates } : s) };
       }));
   }, [activeAdventureId]);
 
@@ -151,18 +200,12 @@ export const GameProvider = ({ children }) => {
       }));
   }, [activeAdventureId]);
 
-  // --- Biblioteca de Tokens ---
-
   const addTokenToLibrary = useCallback(async (file) => {
       if (!activeAdventureId || !file) return;
       const imageId = await handleImageUpload(file);
-
       setAdventures(prev => prev.map(adv => {
           if (adv.id !== activeAdventureId) return adv;
-          return {
-              ...adv,
-              tokenLibrary: [...(adv.tokenLibrary || []), { id: generateUUID(), imageId }]
-          };
+          return { ...adv, tokenLibrary: [...(adv.tokenLibrary || []), { id: generateUUID(), imageId }] };
       }));
   }, [activeAdventureId]);
 
@@ -174,8 +217,6 @@ export const GameProvider = ({ children }) => {
       }));
   }, [activeAdventureId]);
 
-  // --- Instâncias de Tokens ---
-
   const addTokenInstance = useCallback((sceneId, tokenData) => {
       if (!activeAdventureId) return;
       setAdventures(prev => prev.map(adv => {
@@ -184,10 +225,7 @@ export const GameProvider = ({ children }) => {
               ...adv,
               scenes: adv.scenes.map(s => {
                   if (s.id !== sceneId) return s;
-                  return {
-                      ...s,
-                      tokens: [...s.tokens, { id: generateUUID(), x: 0, y: 0, scale: 1, ...tokenData }]
-                  };
+                  return { ...s, tokens: [...s.tokens, { id: generateUUID(), x: 0, y: 0, scale: 1, ...tokenData }] };
               })
           };
       }));
@@ -221,55 +259,6 @@ export const GameProvider = ({ children }) => {
     }));
   }, [activeAdventureId]);
 
-  const importCharacterAsToken = useCallback(async (characterId) => {
-      const char = characters.find(c => c.id === characterId);
-      if (!char || !char.photo) return null;
-
-      // Se a foto já for um ID do banco de imagens (sistema novo), retorna ele mesmo
-      // Mas se for base64 (sistema antigo/atual de chars), precisamos salvar no ImageDB
-      
-      // Tentativa simples: Salvar o conteúdo da foto (seja base64 ou blob) no ImageDB
-      // A função saveImage do db.js lida com File ou Blob. Base64 precisa de conversão.
-      
-      let imageId = null;
-
-      try {
-          // Verifica se é Base64
-          if (char.photo.startsWith('data:')) {
-              const res = await fetch(char.photo);
-              const blob = await res.blob();
-              imageId = await imageDB.saveImage(blob);
-          } else {
-              // Assume que já é um ID ou URL válida que trataremos como upload novo para garantir
-              // Nota: Se você já salva IDs no char.photo, basta retornar char.photo
-              // Aqui assumo que char.photo é Base64 na maioria dos casos
-              imageId = await imageDB.saveImage(char.photo); 
-          }
-
-          if (imageId && activeAdventureId) {
-             // Adiciona à biblioteca da aventura atual se não existir
-             setAdventures(prev => prev.map(adv => {
-                 if (adv.id !== activeAdventureId) return adv;
-                 
-                 // Evita duplicatas na biblioteca visual
-                 const exists = adv.tokenLibrary?.some(t => t.imageId === imageId);
-                 if (exists) return adv;
-
-                 return {
-                     ...adv,
-                     tokenLibrary: [...(adv.tokenLibrary || []), { id: generateUUID(), imageId }]
-                 };
-             }));
-          }
-
-          return imageId;
-      } catch (e) {
-          console.error("Erro ao importar token do personagem:", e);
-          return null;
-      }
-  }, [characters, activeAdventureId, generateUUID]);
-
-  // NOVO: Deletar múltiplos tokens de uma vez
   const deleteMultipleTokenInstances = useCallback((sceneId, tokenIdsArray) => {
       if (!activeAdventureId) return;
       const idsSet = new Set(tokenIdsArray);
@@ -285,7 +274,30 @@ export const GameProvider = ({ children }) => {
       }));
   }, [activeAdventureId]);
 
-  // --- Characters & Presets ---
+  const importCharacterAsToken = useCallback(async (characterId) => {
+    const char = characters.find(c => c.id === characterId);
+    if (!char || !char.photo) return null;
+    try {
+        let imageId = null;
+        if (char.photo.startsWith('data:')) {
+            const res = await fetch(char.photo);
+            const blob = await res.blob();
+            imageId = await imageDB.saveImage(blob);
+        } else {
+            imageId = await imageDB.saveImage(char.photo); 
+        }
+        if (imageId && activeAdventureId) {
+           setAdventures(prev => prev.map(adv => {
+               if (adv.id !== activeAdventureId) return adv;
+               const exists = adv.tokenLibrary?.some(t => t.imageId === imageId);
+               if (exists) return adv;
+               return { ...adv, tokenLibrary: [...(adv.tokenLibrary || []), { id: generateUUID(), imageId }] };
+           }));
+        }
+        return imageId;
+    } catch (e) { console.error("Erro import char token:", e); return null; }
+  }, [characters, activeAdventureId]);
+
   const addCharacter = useCallback((charData) => {
     const newChar = {
       id: generateUUID(), name: "Novo Personagem", description: "", photo: null, karma: 0, karmaMax: 3,
@@ -309,17 +321,15 @@ export const GameProvider = ({ children }) => {
   const deletePreset = useCallback((id) => { setPresets(prev => prev.filter(p => p.id !== id)); if(activePresetId === id) { setActivePresetId(null); setCharacters([]); } }, [activePresetId]);
   const mergePresets = useCallback((list) => { setPresets(prev => { const ids = new Set(prev.map(p => p.id)); return [...prev, ...list.filter(p => !ids.has(p.id))]; }); }, []);
 
-  const resetAllData = async () => {
-      localStorage.clear();
-      await imageDB.clearAll();
-      window.location.reload();
-  };
+  const resetAllData = async () => { localStorage.clear(); await imageDB.clearAll(); window.location.reload(); };
 
   const value = {
     adventures, activeAdventureId, activeAdventure, activeScene,
     createAdventure, deleteAdventure, setActiveAdventureId,
+    exportAdventure, importAdventure, // NOVAS FUNÇÕES EXPORTADAS
     addScene, updateScene, updateSceneMap, setActiveScene, deleteScene,
-    addTokenToLibrary, removeTokenFromLibrary, addTokenInstance, updateTokenInstance, deleteTokenInstance, deleteMultipleTokenInstances, importCharacterAsToken,
+    addTokenToLibrary, removeTokenFromLibrary, addTokenInstance, updateTokenInstance, deleteTokenInstance, deleteMultipleTokenInstances,
+    importCharacterAsToken, 
     gameState: { characters },
     presets, activePresetId,
     addCharacter, updateCharacter, deleteCharacter, importCharacters, setAllCharacters,

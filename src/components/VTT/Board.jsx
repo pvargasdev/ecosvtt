@@ -3,7 +3,7 @@ import { useGame } from '../../context/GameContext';
 import Token from './Token';
 import { VTTLayout } from './VTTLayout';
 import { imageDB } from '../../context/db';
-import { Plus, Trash2, AlertTriangle } from 'lucide-react';
+import { Plus, Trash2, AlertTriangle, Download, Upload } from 'lucide-react'; // NOVOS ÍCONES
 
 // --- CONFIGURAÇÕES DE SEGURANÇA ---
 const MIN_SCALE = 0.25; 
@@ -15,10 +15,12 @@ const Board = () => {
     activeAdventureId, activeAdventure, activeScene, 
     addTokenInstance, updateTokenInstance, deleteMultipleTokenInstances,
     importCharacterAsToken, 
-    createAdventure, adventures, setActiveAdventureId, deleteAdventure, resetAllData
+    createAdventure, adventures, setActiveAdventureId, deleteAdventure, resetAllData,
+    exportAdventure, importAdventure // IMPORTAR AS NOVAS FUNÇÕES
   } = useGame();
 
   const containerRef = useRef(null);
+  const importInputRef = useRef(null); // Ref para o input de arquivo
 
   // Viewport State
   const [view, setView] = useState({ x: 0, y: 0, scale: 1 });
@@ -222,15 +224,55 @@ const Board = () => {
                 <div className="max-h-[200px] overflow-y-auto space-y-2 mb-4 scrollbar-thin">
                     {adventures.map(adv => (
                         <div key={adv.id} onClick={() => setActiveAdventureId(adv.id)} 
-                             className="flex justify-between items-center p-3 rounded bg-white/5 hover:bg-neon-green/10 cursor-pointer border border-transparent hover:border-neon-green/30">
+                             className="group flex justify-between items-center p-3 rounded bg-white/5 hover:bg-neon-green/10 cursor-pointer border border-transparent hover:border-neon-green/30 transition-all">
                             <span>{adv.name}</span>
-                            <button onClick={(e)=>{e.stopPropagation(); deleteAdventure(adv.id)}} className="text-red-400 hover:text-red-500"><Trash2 size={16}/></button>
+                            <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                {/* Botão de Exportar */}
+                                <button 
+                                    onClick={(e)=>{e.stopPropagation(); exportAdventure(adv.id)}} 
+                                    className="text-text-muted hover:text-neon-blue p-1"
+                                    title="Exportar Aventura"
+                                >
+                                    <Download size={16}/>
+                                </button>
+                                {/* Botão de Deletar */}
+                                <button 
+                                    onClick={(e)=>{e.stopPropagation(); deleteAdventure(adv.id)}} 
+                                    className="text-text-muted hover:text-red-500 p-1"
+                                    title="Excluir Aventura"
+                                >
+                                    <Trash2 size={16}/>
+                                </button>
+                            </div>
                         </div>
                     ))}
                 </div>
                 <div className="flex gap-2 pt-4 border-t border-glass-border">
                     <input className="flex-1 bg-black/50 border border-glass-border rounded p-2 text-white" placeholder="Nova Aventura..." value={newAdvName} onChange={e=>setNewAdvName(e.target.value)}/>
                     <button onClick={()=>{if(newAdvName) createAdventure(newAdvName)}} className="bg-neon-green text-black font-bold px-4 rounded"><Plus/></button>
+                    
+                    {/* Botão de Importar */}
+                    <div className="relative">
+                        <button 
+                            onClick={() => importInputRef.current?.click()} 
+                            className="bg-glass border border-glass-border text-white px-3 py-2 rounded h-full hover:bg-white/10"
+                            title="Importar Aventura (.zip)"
+                        >
+                            <Upload size={20}/>
+                        </button>
+                        <input 
+                            ref={importInputRef}
+                            type="file" 
+                            accept=".zip" 
+                            className="hidden" 
+                            onChange={(e) => {
+                                const file = e.target.files[0];
+                                if(file) importAdventure(file);
+                                e.target.value = null;
+                            }}
+                        />
+                    </div>
+
                 </div>
                 <div className="mt-8 pt-4 border-t border-glass-border text-center">
                     <p className="text-xs text-red-400 mb-2 flex items-center justify-center gap-1"><AlertTriangle size={12}/> Problemas de Memória?</p>
@@ -242,13 +284,10 @@ const Board = () => {
   }
 
   return (
-    // FIX PRINCIPAL: 'relative' e 'overflow-hidden' rigoroso no container pai.
     <div className="w-full h-full relative overflow-hidden bg-[#15151a]" ref={containerRef}
         onMouseDown={handleMouseDown} onMouseMove={handleMouseMove} onMouseUp={handleMouseUp} onMouseLeave={handleMouseUp}
         onDrop={handleDrop} onDragOver={e => e.preventDefault()}
     >
-        {/* CAMADA DO MAPA - AGORA É 'ABSOLUTE'
-            Isso tira o mapa do fluxo de documento. Ele não empurra mais as bordas da div pai. */}
         <div className="absolute top-0 left-0 w-full h-full origin-top-left"
              style={{ transform: `translate(${view.x}px, ${view.y}px) scale(${view.scale})` }}>
             
@@ -266,8 +305,6 @@ const Board = () => {
             ))}
         </div>
         
-        {/* CAMADA DE UI - ABSOLUTE INSET-0
-            Como o pai tem tamanho fixo (w-full h-full do flex), o inset-0 vai pegar exatamente a tela visível. */}
         <div className="vtt-ui-layer absolute inset-0 pointer-events-none"
             onMouseDown={(e) => e.stopPropagation()} onMouseUp={(e) => e.stopPropagation()} onWheel={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()} onDoubleClick={(e) => e.stopPropagation()}>
             <VTTLayout />
