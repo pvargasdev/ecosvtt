@@ -121,7 +121,7 @@ export const VTTLayout = ({ zoomValue, onZoomChange }) => {
       if (!uiState.libraryOpen) return null;
       // POSIÇÃO: Right-4 (Ajustado)
       return (
-          <WindowWrapper className="absolute top-24 right-4 w-[290px] bg-black/90 border border-glass-border backdrop-blur-sm rounded-xl flex flex-col max-h-[60vh] z-40 animate-in fade-in slide-in-from-top-2 shadow-2xl scale-90 origin-top-right">
+          <WindowWrapper className="absolute top-24 right-4 w-[288px] bg-black/90 border border-glass-border backdrop-blur-sm rounded-xl flex flex-col max-h-[60vh] z-40 animate-in fade-in slide-in-from-top-2 shadow-2xl scale-90 origin-top-right">
               <div className="p-3 border-b border-glass-border flex justify-between items-center bg-white/5 rounded-t-xl">
                   <h3 className="font-bold text-white flex gap-2 items-center text-sm"><Box size={16} className="text-neon-blue"/> Biblioteca</h3>
                   <button onClick={(e) => toggle('libraryOpen', e)}><X size={16} className="text-text-muted hover:text-white"/></button>
@@ -160,7 +160,7 @@ export const VTTLayout = ({ zoomValue, onZoomChange }) => {
                   ))}
               </div>
               <button onClick={(e) => { e.stopPropagation(); setInputModal({ open: true, title: "Nome da Cena", value: "", onConfirm: (name) => addScene(name) }); }} 
-                      className="w-full p-3 bg-black/40 hover:bg-neon-green/20 text-neon-green text-xs font-bold flex items-center justify-center gap-2 border-t border-glass-border"><Plus size={14}/> NOVA CENA</button>
+                      className="w-full p-3 bg-black/20 hover:bg-neon-green/20 text-neon-green text-xs font-bold flex items-center justify-center gap-2 border-t border-glass-border"><Plus size={14}/> NOVA CENA</button>
           </WindowWrapper>
       );
   };
@@ -211,8 +211,8 @@ export const VTTLayout = ({ zoomValue, onZoomChange }) => {
                     <Search size={15} className="text-text-muted"/>
                     <input 
                         type="range" 
-                        min="10" 
-                        max="400" 
+                        min="30" 
+                        max="300" 
                         value={zoomValue || 100} 
                         onChange={onZoomChange}
                         className="

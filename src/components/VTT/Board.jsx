@@ -5,8 +5,8 @@ import { VTTLayout } from './VTTLayout';
 import { imageDB } from '../../context/db';
 import { Plus, Trash2, AlertTriangle, Download, Upload, Copy, Edit2, X, Check, Search } from 'lucide-react';
 
-const MIN_SCALE = 0.1;   // 10%
-const MAX_SCALE = 4;    // 400%
+const MIN_SCALE = 0.3;   // 30%
+const MAX_SCALE = 3;    // 300%
 const PAN_LIMIT = 2000; 
 const CAMERA_SMOOTHING = 0.15; // Suavização unificada (Zoom e Pan)
 
