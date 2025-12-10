@@ -3,20 +3,18 @@ import { useGame } from '../../context/GameContext';
 import { Plus, X, Image as ImageIcon, Trash2, Map } from 'lucide-react';
 
 const SceneManager = ({ onClose }) => {
-  // CORREÇÃO 1: Pegamos activeAdventure e activeScene em vez de gameState
   const { activeAdventure, activeScene, addScene, setActiveScene, deleteScene } = useGame();
   
   const [isCreating, setIsCreating] = useState(false);
   const [newSceneName, setNewSceneName] = useState("");
   const [newMapImage, setNewMapImage] = useState(null);
 
-  // CORREÇÃO 2: Se não houver aventura carregada, não renderiza nada (evita erro fatal)
   if (!activeAdventure) return null;
 
   const handleCreate = () => {
-    if (!newSceneName) return alert("Dê um nome para a cena.");
+    // Usando alert aqui apenas se for erro de validação, não popup de fluxo
+    if (!newSceneName) return; 
     addScene(newSceneName, newMapImage);
-    
     setNewSceneName("");
     setNewMapImage(null);
     setIsCreating(false);
@@ -32,20 +30,18 @@ const SceneManager = ({ onClose }) => {
   };
 
   return (
-    <div className="absolute top-16 right-4 w-80 bg-ecos-bg border border-glass-border rounded-xl shadow-2xl overflow-hidden flex flex-col animate-in fade-in slide-in-from-top-5 z-50 max-h-[80vh]">
+    <div className="absolute top-16 right-4 w-80 bg-ecos-bg border border-glass-border rounded-xl shadow-2xl overflow-hidden flex flex-col animate-in fade-in slide-in-from-top-5 z-50 max-h-[80vh] pointer-events-auto">
       
       {/* Header */}
       <div className="p-4 border-b border-glass-border flex justify-between items-center bg-black/40">
         <h3 className="font-rajdhani font-bold text-white flex items-center gap-2">
             <Map size={18} className="text-neon-green"/> GERENCIAR CENAS
         </h3>
-        {/* Adicionei checagem se onClose existe antes de chamar */}
         <button onClick={() => onClose && onClose()} className="text-text-muted hover:text-white"><X size={18}/></button>
       </div>
 
       {/* Lista de Cenas */}
       <div className="flex-1 overflow-y-auto p-4 space-y-3 scrollbar-thin">
-        {/* CORREÇÃO 3: Usamos activeAdventure.scenes aqui */}
         {activeAdventure.scenes.length === 0 && !isCreating && (
             <div className="text-center text-text-muted text-sm py-4">
                 Nenhuma cena criada.
@@ -61,7 +57,6 @@ const SceneManager = ({ onClose }) => {
                     ${activeScene?.id === scene.id ? 'bg-neon-green/10 border-neon-green' : 'bg-glass border-glass-border hover:bg-white/5'}
                 `}
             >
-                {/* Thumbnail do Mapa */}
                 <div className="w-12 h-12 bg-black rounded border border-glass-border shrink-0 overflow-hidden flex items-center justify-center">
                     {scene.mapImage ? (
                         <img src={scene.mapImage} className="w-full h-full object-cover" alt="Map" />
@@ -78,7 +73,7 @@ const SceneManager = ({ onClose }) => {
                 </div>
 
                 <button 
-                    onClick={(e) => { e.stopPropagation(); if(confirm('Excluir cena?')) deleteScene(scene.id); }}
+                    onClick={(e) => { e.stopPropagation(); deleteScene(scene.id); }}
                     className="p-2 text-text-muted hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
                 >
                     <Trash2 size={14} />
