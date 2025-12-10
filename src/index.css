@@ -1,0 +1,24 @@
+/* 1. Imports devem vir PRIMEIRO */
+@import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;600;700&family=Inter:wght@300;400;600&display=swap');
+
+/* 2. Depois o Tailwind */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-ecos-bg text-text-main font-inter overflow-hidden;
+    background-image: radial-gradient(circle at top left, #1a1a2e, #000);
+  }
+  
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-rajdhani uppercase tracking-wider;
+  }
+}
+
+/* Scrollbar estilizada */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: #1a1a1a; }
+::-webkit-scrollbar-thumb { background: #333; border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { @apply bg-gray-600; }
