@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useGame } from '../../context/GameContext';
-import { Settings, Image as ImageIcon, Box, Map, Plus, Trash2, X, ChevronDown, LogOut } from 'lucide-react';
-import { imageDB } from '../../context/db'; // Caminho corrigido
+import { Settings, Image as ImageIcon, Box, Map, Plus, Trash2, X, ChevronDown, LogOut, Edit2 } from 'lucide-react';
+import { imageDB } from '../../context/db';
 
 const LibraryThumb = ({ token }) => {
     const [src, setSrc] = useState(null);
@@ -57,7 +57,7 @@ export const VTTLayout = () => {
   const MapConfigModal = () => {
       if (!uiState.mapConfigOpen) return null;
       return (
-          <WindowWrapper className="absolute top-16 left-1/2 -translate-x-1/2 bg-ecos-bg border border-glass-border p-4 rounded-xl shadow-2xl z-50 w-72 animate-in fade-in slide-in-from-top-2">
+          <WindowWrapper className="fixed top-16 left-1/2 -translate-x-1/2 bg-ecos-bg border border-glass-border p-4 rounded-xl shadow-2xl z-50 w-72 animate-in fade-in slide-in-from-top-2">
               <div className="flex justify-between items-center mb-4">
                   <h3 className="font-rajdhani font-bold text-white">Configurar Mapa</h3>
                   <button onClick={(e) => toggle('mapConfigOpen', e)}><X size={16} className="text-text-muted hover:text-white"/></button>
@@ -85,7 +85,7 @@ export const VTTLayout = () => {
   const AssetDock = () => {
       if (!uiState.libraryOpen) return null;
       return (
-          <WindowWrapper className="absolute top-16 left-1/2 -translate-x-1/2 w-[400px] bg-black/90 border border-glass-border rounded-xl flex flex-col max-h-[60vh] z-40 animate-in fade-in slide-in-from-top-2 shadow-2xl">
+          <WindowWrapper className="fixed top-16 left-1/2 -translate-x-1/2 w-[400px] bg-black/90 border border-glass-border rounded-xl flex flex-col max-h-[60vh] z-40 animate-in fade-in slide-in-from-top-2 shadow-2xl">
               <div className="p-3 border-b border-glass-border flex justify-between items-center bg-white/5 rounded-t-xl">
                   <h3 className="font-bold text-white flex gap-2 items-center text-sm"><Box size={16} className="text-neon-blue"/> Biblioteca</h3>
                   <button onClick={(e) => toggle('libraryOpen', e)}><X size={16} className="text-text-muted hover:text-white"/></button>
@@ -115,13 +115,23 @@ export const VTTLayout = () => {
   const SceneSelector = () => {
       if (!uiState.menuOpen) return null;
       return (
-          <WindowWrapper className="absolute top-14 left-1/2 -translate-x-1/2 w-64 bg-ecos-bg border border-glass-border rounded-xl shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2">
+          <WindowWrapper className="fixed top-14 left-1/2 -translate-x-1/2 w-72 bg-ecos-bg border border-glass-border rounded-xl shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2">
               <div className="max-h-[300px] overflow-y-auto scrollbar-thin">
                   {activeAdventure?.scenes.map(s => (
                       <div key={s.id} onClick={(e) => { e.stopPropagation(); setActiveScene(s.id); toggle('menuOpen', e); }}
-                           className={`p-3 flex justify-between items-center cursor-pointer hover:bg-white/5 border-l-2 ${activeScene?.id === s.id ? 'border-neon-green bg-white/5' : 'border-transparent'}`}>
-                          <span className="text-sm font-bold text-white">{s.name}</span>
-                          <button onClick={(e) => { e.stopPropagation(); setConfirmModal({ open: true, message: `Excluir "${s.name}"?`, onConfirm: () => deleteScene(s.id) }); }} className="text-text-muted hover:text-red-500"><Trash2 size={14}/></button>
+                           className={`p-3 flex justify-between items-center cursor-pointer hover:bg-white/5 border-l-2 group ${activeScene?.id === s.id ? 'border-neon-green bg-white/5' : 'border-transparent'}`}>
+                          <span className="text-sm font-bold text-white truncate max-w-[150px]">{s.name}</span>
+                          <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <button onClick={(e) => { 
+                                  e.stopPropagation(); 
+                                  setInputModal({ open: true, title: "Renomear Cena", value: s.name, onConfirm: (val) => updateScene(s.id, { name: val }) }); 
+                              }} className="text-text-muted hover:text-white p-1"><Edit2 size={14}/></button>
+                              
+                              <button onClick={(e) => { 
+                                  e.stopPropagation(); 
+                                  setConfirmModal({ open: true, message: `Excluir "${s.name}"?`, onConfirm: () => deleteScene(s.id) }); 
+                              }} className="text-text-muted hover:text-red-500 p-1"><Trash2 size={14}/></button>
+                          </div>
                       </div>
                   ))}
               </div>
@@ -131,23 +141,69 @@ export const VTTLayout = () => {
       );
   };
   
-  const ConfirmationModal = () => { if (!confirmModal.open) return null; return ( <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm pointer-events-auto" onMouseDown={e=>e.stopPropagation()}><div className="bg-ecos-bg border border-glass-border p-6 rounded-xl shadow-2xl max-w-sm w-full"><h3 className="text-xl font-bold text-white mb-2">Confirmação</h3><p className="text-text-muted mb-6">{confirmModal.message}</p><div className="flex gap-3"><button onClick={()=>setConfirmModal({open:false,message:'',onConfirm:null})} className="flex-1 py-2 bg-glass rounded text-white">Cancelar</button><button onClick={()=>{confirmModal.onConfirm();setConfirmModal({open:false,message:'',onConfirm:null})}} className="flex-1 py-2 bg-red-600 rounded text-white font-bold">Confirmar</button></div></div></div> ); };
-  const InputModal = () => { if (!inputModal.open) return null; return ( <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm pointer-events-auto" onMouseDown={e=>e.stopPropagation()}><div className="bg-ecos-bg border border-glass-border p-6 rounded-xl shadow-2xl max-w-sm w-full"><h3 className="text-xl font-bold text-white mb-4">{inputModal.title}</h3><input autoFocus className="w-full bg-black/50 border border-glass-border rounded p-3 text-white mb-6 outline-none focus:border-neon-green" value={inputModal.value} onChange={(e)=>setInputModal(prev=>({...prev,value:e.target.value}))} onKeyDown={(e)=>{if(e.key==='Enter'&&inputModal.value){inputModal.onConfirm(inputModal.value);setInputModal({open:false,title:'',value:'',onConfirm:null});}}} /><div className="flex gap-3"><button onClick={()=>setInputModal({open:false,title:'',value:'',onConfirm:null})} className="flex-1 py-2 bg-glass rounded text-white">Cancelar</button><button onClick={()=>{if(inputModal.value){inputModal.onConfirm(inputModal.value);setInputModal({open:false,title:'',value:'',onConfirm:null});}}} className="flex-1 py-2 bg-neon-green rounded text-black font-bold">Criar</button></div></div></div> ); };
+  const ConfirmationModal = () => { 
+      if (!confirmModal.open) return null; 
+      return ( 
+          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm pointer-events-auto" onMouseDown={e=>e.stopPropagation()}>
+              <div className="bg-ecos-bg border border-glass-border p-6 rounded-xl shadow-2xl max-w-sm w-full mx-4">
+                  <h3 className="text-xl font-bold text-white mb-2">Confirmação</h3>
+                  <p className="text-text-muted mb-6">{confirmModal.message}</p>
+                  <div className="flex gap-3">
+                      <button onClick={()=>setConfirmModal({open:false,message:'',onConfirm:null})} className="flex-1 py-2 bg-glass rounded text-white hover:bg-white/10">Cancelar</button>
+                      <button onClick={()=>{confirmModal.onConfirm();setConfirmModal({open:false,message:'',onConfirm:null})}} className="flex-1 py-2 bg-red-600 rounded text-white font-bold hover:bg-red-500">Confirmar</button>
+                  </div>
+              </div>
+          </div> 
+      ); 
+  };
+
+  const InputModal = () => { 
+      if (!inputModal.open) return null; 
+      return ( 
+          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm pointer-events-auto" onMouseDown={e=>e.stopPropagation()}>
+              <div className="bg-ecos-bg border border-glass-border p-6 rounded-xl shadow-2xl max-w-sm w-full mx-4">
+                  <h3 className="text-xl font-bold text-white mb-4">{inputModal.title}</h3>
+                  <input autoFocus className="w-full bg-black/50 border border-glass-border rounded p-3 text-white mb-6 outline-none focus:border-neon-green" 
+                      value={inputModal.value} 
+                      onChange={(e)=>setInputModal(prev=>({...prev,value:e.target.value}))} 
+                      onKeyDown={(e)=>{if(e.key==='Enter'&&inputModal.value){inputModal.onConfirm(inputModal.value);setInputModal({open:false,title:'',value:'',onConfirm:null});}}} 
+                  />
+                  <div className="flex gap-3">
+                      <button onClick={()=>setInputModal({open:false,title:'',value:'',onConfirm:null})} className="flex-1 py-2 bg-glass rounded text-white hover:bg-white/10">Cancelar</button>
+                      <button onClick={()=>{if(inputModal.value){inputModal.onConfirm(inputModal.value);setInputModal({open:false,title:'',value:'',onConfirm:null});}}} className="flex-1 py-2 bg-neon-green rounded text-black font-bold hover:bg-white">Salvar</button>
+                  </div>
+              </div>
+          </div> 
+      ); 
+  };
 
   return (
-      <div className="absolute inset-0 z-40 flex justify-center pointer-events-none">
-          <div className="absolute top-4 flex items-center gap-2 bg-black/80 p-1.5 rounded-lg border border-glass-border shadow-lg backdrop-blur-sm pointer-events-auto"
+      // UI FIXA - Resolve o problema de botões movendo
+      <div className="fixed inset-0 pointer-events-none z-50">
+          
+          <div className="absolute top-4 left-1/2 -translate-x-1/2 flex items-center gap-2 bg-black/80 p-1.5 rounded-lg border border-glass-border shadow-lg backdrop-blur-sm pointer-events-auto z-40 w-max"
                onClick={e => e.stopPropagation()} onMouseDown={e => e.stopPropagation()}>
-              <button onClick={(e) => toggle('menuOpen', e)} className="flex items-center gap-2 px-3 py-1.5 hover:bg-white/10 rounded text-white transition border border-transparent hover:border-glass-border"><Map size={16} className="text-neon-green"/><span className="font-rajdhani font-bold uppercase text-sm max-w-[150px] truncate">{activeScene?.name || "Sem Cena"}</span><ChevronDown size={14} className="text-text-muted"/></button>
+              
+              <button onClick={(e) => toggle('menuOpen', e)} className="flex items-center gap-2 px-3 py-1.5 hover:bg-white/10 rounded text-white transition border border-transparent hover:border-glass-border">
+                  <Map size={16} className="text-neon-green"/>
+                  <span className="font-rajdhani font-bold uppercase text-sm max-w-[150px] truncate">{activeScene?.name || "Sem Cena"}</span>
+                  <ChevronDown size={14} className="text-text-muted"/>
+              </button>
+              
               <div className="w-px h-6 bg-glass-border mx-1"></div>
-              <button onClick={(e) => toggle('mapConfigOpen', e)} className={`p-2 rounded hover:bg-white/10 transition ${uiState.mapConfigOpen ? 'text-neon-blue' : 'text-text-muted'}`}><Settings size={18}/></button>
-              <button onClick={(e) => toggle('libraryOpen', e)} className={`p-2 rounded hover:bg-white/10 transition ${uiState.libraryOpen ? 'text-neon-blue' : 'text-text-muted'}`}><Box size={18}/></button>
+              
+              <button onClick={(e) => toggle('mapConfigOpen', e)} className={`p-2 rounded hover:bg-white/10 transition ${uiState.mapConfigOpen ? 'text-neon-blue' : 'text-text-muted'}`} title="Configurar Mapa"><Settings size={18}/></button>
+              <button onClick={(e) => toggle('libraryOpen', e)} className={`p-2 rounded hover:bg-white/10 transition ${uiState.libraryOpen ? 'text-neon-blue' : 'text-text-muted'}`} title="Biblioteca"><Box size={18}/></button>
+              
               <div className="w-px h-6 bg-glass-border mx-1"></div>
-              <button onClick={(e) => { e.stopPropagation(); setConfirmModal({ open: true, message: "Sair da aventura?", onConfirm: () => setActiveAdventureId(null) }); }} className="p-2 rounded hover:bg-red-500/20 text-text-muted hover:text-red-500"><LogOut size={18}/></button>
+              
+              <button onClick={(e) => { e.stopPropagation(); setConfirmModal({ open: true, message: "Sair da aventura?", onConfirm: () => setActiveAdventureId(null) }); }} className="p-2 rounded hover:bg-red-500/20 text-text-muted hover:text-red-500" title="Sair"><LogOut size={18}/></button>
           </div>
+
           <MapConfigModal />
           <AssetDock />
           <SceneSelector />
+          
           <ConfirmationModal />
           <InputModal />
       </div>

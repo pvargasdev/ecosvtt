@@ -4,7 +4,6 @@ import { ArrowLeft, Edit2, Plus, X, Upload, Download, Users, Save, Trash2, LogOu
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
 
-// --- HELPER FUNCTION ---
 const resizeDamageArray = (currentArray, newSize) => {
     const arr = [...(currentArray || [])];
     while(arr.length < newSize) arr.push(false);
@@ -12,11 +11,9 @@ const resizeDamageArray = (currentArray, newSize) => {
     return arr;
 };
 
-// --- COMPONENTE DE FORMULÁRIO (Externo) ---
 const CharacterForm = ({ formData, setFormData, handlePhotoUpload }) => {
     return (
         <div className="space-y-4 pb-4">
-            {/* Preview Grande da Imagem */}
             <div className="flex justify-center mb-4">
                 <div className="relative group cursor-pointer" onClick={() => document.getElementById('edit-photo-input').click()}>
                     <div className={`w-32 h-32 rounded-full border-4 ${formData.photo ? 'border-neon-blue' : 'border-glass-border border-dashed'} overflow-hidden bg-black flex items-center justify-center shadow-2xl`}>
@@ -47,14 +44,12 @@ const CharacterForm = ({ formData, setFormData, handlePhotoUpload }) => {
                            onChange={e=>setFormData({...formData, karmaMax:parseInt(e.target.value)})}/>
                 </div>
             </div>
-
             <div>
                 <label className="text-xs text-text-muted mb-1 block">Descrição</label>
                 <input className="w-full bg-black/50 border border-glass-border rounded p-2 text-white" 
                        value={formData.description||''} 
                        onChange={e=>setFormData({...formData, description:e.target.value})}/>
             </div>
-            
             <div className="bg-white/5 p-2 rounded border border-glass-border">
                 <span className="text-xs uppercase text-text-muted mb-2 block text-center">Atributos</span>
                 <div className="grid grid-cols-4 gap-2">
@@ -68,7 +63,6 @@ const CharacterForm = ({ formData, setFormData, handlePhotoUpload }) => {
                     ))}
                 </div>
             </div>
-
             <div className="bg-red-900/10 p-2 rounded border border-red-900/30">
                 <span className="text-xs uppercase text-neon-red mb-2 block">Slots Dano</span>
                 <div className="flex gap-2">
@@ -85,7 +79,6 @@ const CharacterForm = ({ formData, setFormData, handlePhotoUpload }) => {
                     ))}
                 </div>
             </div>
-
             <div>
                 <label className="text-xs text-text-muted mb-1 block">Perícias</label>
                 <textarea className="w-full bg-black/50 border border-glass-border rounded p-2 text-white h-20 text-sm" 
@@ -96,8 +89,6 @@ const CharacterForm = ({ formData, setFormData, handlePhotoUpload }) => {
     );
 };
 
-
-// --- COMPONENTE PRINCIPAL ---
 const CharacterSidebar = () => {
   const { 
     gameState, presets, activePresetId,
@@ -110,25 +101,20 @@ const CharacterSidebar = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({});
 
-  // Estados para a tela de presets
   const [newPresetName, setNewPresetName] = useState("");
   const [isCreatingPreset, setIsCreatingPreset] = useState(false);
-
-  // Estados de UX (Modal Interno)
-  const [confirmModal, setConfirmModal] = useState({ open: false, title: '', msg: '', onConfirm: null });
   
-  // Estado de Drag & Drop (Reordenação)
-  const [draggedIndex, setDraggedIndex] = useState(null);
+  // Modais
+  const [confirmModal, setConfirmModal] = useState({ open: false, title: '', msg: '', onConfirm: null });
+  const [exitModalOpen, setExitModalOpen] = useState(false); // NOVO MODAL DE SAÍDA
 
-  // Estados da Barra Dinâmica (Squish)
+  const [draggedIndex, setDraggedIndex] = useState(null);
   const footerRef = useRef(null);
   const [footerIconSize, setFooterIconSize] = useState(48);
 
   const activeChar = gameState.characters.find(c => c.id === activeCharId);
   const currentPreset = presets.find(p => p.id === activePresetId);
 
-  // --- EFEITOS ---
-  
   useEffect(() => {
       if (!activePresetId) setView('manager');
       else if (view === 'manager') setView('hub');
@@ -136,56 +122,50 @@ const CharacterSidebar = () => {
 
   useEffect(() => {
       if (!footerRef.current || gameState.characters.length === 0) return;
-      
       const calcSize = () => {
           const containerW = footerRef.current.offsetWidth;
           const count = gameState.characters.length;
-          const gap = 8;
-          const padding = 24;
-          
+          const gap = 8; const padding = 24;
           const availableSpace = containerW - padding - ((count - 1) * gap);
           let size = Math.floor(availableSpace / count);
           size = Math.min(50, Math.max(25, size));
           setFooterIconSize(size);
       };
-
       calcSize();
       window.addEventListener('resize', calcSize);
       return () => window.removeEventListener('resize', calcSize);
   }, [gameState.characters.length, view]);
 
-  // --- AUXILIARES UI ---
   const showAlert = (title, msg) => setConfirmModal({ open: true, title, msg, onConfirm: null });
   const showConfirm = (title, msg, action) => setConfirmModal({ open: true, title, msg, onConfirm: action });
   const closeModal = () => setConfirmModal({ ...confirmModal, open: false });
 
-  // --- LÓGICA DE REORDENAÇÃO ---
+  // REORDENAÇÃO E DRAG PARA O BOARD
   const handleDragSortStart = (e, index, char) => {
       setDraggedIndex(index);
-      e.dataTransfer.setData('application/json', JSON.stringify({ type: 'character', id: char.id, imageSrc: char.photo }));
+      // Dados para reordenação interna
+      // Dados para o VTT (Board.jsx)
+      e.dataTransfer.setData('application/json', JSON.stringify({ 
+          type: 'character_drag', 
+          characterId: char.id 
+      }));
       e.dataTransfer.effectAllowed = 'copyMove';
   };
 
   const handleDragSortDrop = (e, dropIndex) => {
       e.stopPropagation();
       if (draggedIndex === null || draggedIndex === dropIndex) return;
+      if (draggedIndex === -1) return; // Arrastou da ficha detalhada, não reordena
 
       const newList = [...gameState.characters];
       const [removed] = newList.splice(draggedIndex, 1);
       newList.splice(dropIndex, 0, removed);
-      
       setAllCharacters(newList);
       setDraggedIndex(null);
   };
-
-  // Corrige o bug visual (reseta se soltar fora ou cancelar)
-  const handleDragEnd = () => {
-      setDraggedIndex(null);
-  };
-
+  const handleDragEnd = () => setDraggedIndex(null);
   const handleDragOver = (e) => e.preventDefault();
 
-  // --- PRESETS ---
   const handleExportPresetsZip = async () => {
       const zip = new JSZip();
       zip.file("presets.json", JSON.stringify(presets, null, 2));
@@ -224,8 +204,21 @@ const CharacterSidebar = () => {
           showAlert("Salvo", `Grupo "${currentPreset?.name}" atualizado!`);
       }
   };
+  
+  // LOGICA DO MODAL DE SAIR
+  const handleExitRequest = () => setExitModalOpen(true);
+  
+  const handleExitSave = () => {
+      saveToPreset(activePresetId);
+      setExitModalOpen(false);
+      exitPreset();
+  };
+  
+  const handleExitNoSave = () => {
+      setExitModalOpen(false);
+      exitPreset();
+  };
 
-  // --- CRUD PERSONAGEM ---
   const handleSaveChar = () => {
     if (!formData.name) return showAlert("Erro", "Nome é obrigatório");
     if (activeCharId === 'NEW') {
@@ -263,8 +256,6 @@ const CharacterSidebar = () => {
   const navToChar = (id) => { setActiveCharId(id); setView('details'); setIsEditing(false); };
   const navToHub = () => { setView('hub'); setActiveCharId(null); };
 
-  // --- COMPONENTES AUXILIARES ---
-
   const ConfirmationOverlay = () => {
       if (!confirmModal.open) return null;
       return (
@@ -287,22 +278,34 @@ const CharacterSidebar = () => {
       );
   };
 
-  // --- RENDERIZADORES DAS VIEWS ---
+  // NOVO MODAL DE CONFIRMAÇÃO DE SAÍDA
+  const ExitModal = () => {
+      if (!exitModalOpen) return null;
+      return (
+          <div className="absolute inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-center justify-center p-6 animate-in fade-in">
+              <div className="bg-ecos-bg border border-glass-border p-6 rounded-xl shadow-2xl max-w-sm w-full text-center">
+                  <h3 className="text-xl font-rajdhani font-bold text-white mb-2">Sair do Grupo?</h3>
+                  <p className="text-text-muted text-sm mb-6">Você tem alterações não salvas no grupo atual.</p>
+                  <div className="flex flex-col gap-3">
+                      <button onClick={handleExitSave} className="w-full py-2 rounded bg-neon-blue text-black font-bold hover:bg-white transition text-sm">SALVAR E SAIR</button>
+                      <button onClick={handleExitNoSave} className="w-full py-2 rounded bg-red-900/50 border border-red-900 text-white hover:bg-red-900 transition text-sm">SAIR SEM SALVAR</button>
+                      <button onClick={() => setExitModalOpen(false)} className="w-full py-2 rounded bg-transparent text-text-muted hover:text-white transition text-sm">CANCELAR</button>
+                  </div>
+              </div>
+          </div>
+      );
+  };
 
-  // 1. MANAGER (PRESETS)
   if (!activePresetId || view === 'manager') {
       return (
         <div className="h-full flex flex-col p-6 bg-ecos-bg text-text-main overflow-hidden border-r border-glass-border items-center relative">
             <ConfirmationOverlay />
             <h1 className="text-3xl font-rajdhani font-bold text-neon-blue mb-2 tracking-widest mt-10">ECOS RPG</h1>
             <p className="text-text-muted text-sm text-center mb-8">Selecione um grupo para começar.</p>
-
             <div className="w-full max-w-xs space-y-4 flex-1 overflow-y-auto scrollbar-none pb-20">
                 <div className="bg-glass border border-glass-border rounded-lg p-4">
                     {!isCreatingPreset ? (
-                        <button onClick={() => setIsCreatingPreset(true)} className="w-full py-3 bg-neon-blue text-black font-bold rounded hover:bg-white transition flex items-center justify-center gap-2">
-                            <Plus size={18}/> NOVO GRUPO
-                        </button>
+                        <button onClick={() => setIsCreatingPreset(true)} className="w-full py-3 bg-neon-blue text-black font-bold rounded hover:bg-white transition flex items-center justify-center gap-2"><Plus size={18}/> NOVO GRUPO</button>
                     ) : (
                         <div className="flex flex-col gap-3 animate-in fade-in">
                             <input autoFocus placeholder="Nome..." className="w-full bg-black/50 border border-glass-border rounded p-2 text-white" value={newPresetName} onChange={e=>setNewPresetName(e.target.value)} />
@@ -313,11 +316,7 @@ const CharacterSidebar = () => {
                         </div>
                     )}
                 </div>
-
-                <div className="flex items-center gap-2 text-text-muted text-xs uppercase my-4">
-                    <div className="h-px bg-glass-border flex-1"></div><span>Grupos Salvos</span><div className="h-px bg-glass-border flex-1"></div>
-                </div>
-
+                <div className="flex items-center gap-2 text-text-muted text-xs uppercase my-4"><div className="h-px bg-glass-border flex-1"></div><span>Grupos Salvos</span><div className="h-px bg-glass-border flex-1"></div></div>
                 {presets.length === 0 ? <div className="text-center text-text-muted italic text-sm">Vazio.</div> : presets.map(p => (
                     <div key={p.id} onClick={() => loadPreset(p.id)} className="bg-glass border border-glass-border rounded-lg p-3 flex justify-between items-center cursor-pointer hover:bg-white/5 transition">
                         <div><h3 className="font-bold text-white font-rajdhani">{p.name}</h3><div className="text-xs text-text-muted">{p.characters.length} Personagens</div></div>
@@ -325,7 +324,6 @@ const CharacterSidebar = () => {
                     </div>
                 ))}
             </div>
-
             <div className="w-full border-t border-glass-border pt-4 flex justify-between text-xs text-text-muted">
                 <button onClick={handleExportPresetsZip} className="flex gap-1 items-center hover:text-white"><Download size={12}/> Backup</button>
                 <label className="flex gap-1 items-center hover:text-white cursor-pointer"><Upload size={12}/> Restaurar<input type="file" className="hidden" accept=".zip" onChange={handleImportPresetsZip}/></label>
@@ -334,13 +332,12 @@ const CharacterSidebar = () => {
       );
   }
 
-  // 2. HUB (MESA) - GRADE AUMENTADA (2 Colunas)
   if (view === 'hub') {
     return (
       <div className="h-full flex flex-col bg-ecos-bg text-text-main overflow-hidden relative border-r border-glass-border">
         <ConfirmationOverlay />
+        <ExitModal />
         
-        {/* Header Grupo */}
         <div className="p-3 bg-neon-purple/10 border-b border-neon-purple/30 flex justify-between items-center shrink-0">
             <div className="flex items-center gap-2 overflow-hidden">
                 <div className="w-2 h-2 rounded-full bg-neon-green animate-pulse"></div>
@@ -351,18 +348,17 @@ const CharacterSidebar = () => {
             </div>
             <div className="flex gap-1">
                 <button onClick={handleSaveToPreset} className="p-1.5 bg-neon-purple text-black rounded text-xs font-bold hover:bg-white transition flex items-center gap-1"><Save size={14}/> SALVAR</button>
-                <button onClick={exitPreset} className="p-1.5 bg-glass border border-glass-border rounded hover:bg-white/10 text-text-muted transition"><LogOut size={14}/></button>
+                <button onClick={handleExitRequest} className="p-1.5 bg-glass border border-glass-border rounded hover:bg-white/10 text-text-muted transition"><LogOut size={14}/></button>
             </div>
         </div>
 
-        {/* Grade Reordenável (2 Colunas) */}
         <div className="flex-1 overflow-y-auto grid grid-cols-2 gap-3 p-3 content-start scrollbar-thin">
             {gameState.characters.map((char, index) => (
                 <div 
                     key={char.id}
                     draggable
                     onDragStart={(e) => handleDragSortStart(e, index, char)}
-                    onDragEnd={handleDragEnd} // Fix: Limpa o tracejado ao soltar fora
+                    onDragEnd={handleDragEnd}
                     onDragOver={handleDragOver}
                     onDrop={(e) => handleDragSortDrop(e, index)}
                     onClick={() => navToChar(char.id)}
@@ -384,11 +380,7 @@ const CharacterSidebar = () => {
              <div className="absolute inset-0 bg-ecos-bg z-50 p-4 flex flex-col overflow-hidden animate-in slide-in-from-bottom-5">
                 <div className="flex justify-between items-center mb-4"><h2 className="text-lg font-rajdhani font-bold text-neon-blue">Novo Personagem</h2><button onClick={() => setIsEditing(false)}><X size={20}/></button></div>
                 <div className="flex-1 overflow-y-auto scrollbar-thin pr-2">
-                    <CharacterForm 
-                        formData={formData} 
-                        setFormData={setFormData} 
-                        handlePhotoUpload={handlePhotoUpload} 
-                    />
+                    <CharacterForm formData={formData} setFormData={setFormData} handlePhotoUpload={handlePhotoUpload} />
                 </div>
                 <button onClick={handleSaveChar} className="mt-4 w-full py-3 bg-neon-blue/10 border border-neon-blue text-neon-blue font-bold rounded hover:bg-neon-blue hover:text-black transition">ADICIONAR À MESA</button>
              </div>
@@ -397,10 +389,10 @@ const CharacterSidebar = () => {
     );
   }
 
-  // 3. DETAILS (FICHA)
   return (
     <div className="h-full flex flex-col bg-black/80 text-text-main relative overflow-hidden">
         <ConfirmationOverlay />
+        <ExitModal />
         <div className="flex justify-between items-center p-4 border-b border-glass-border bg-black/40 shrink-0">
             <button onClick={navToHub} className="p-2 rounded-full bg-glass hover:bg-white/10 transition"><ArrowLeft size={20} /></button>
             <button onClick={() => openEdit(false)} className="p-2 rounded-full bg-glass hover:bg-white/10 transition text-neon-purple"><Edit2 size={20} /></button>
@@ -428,14 +420,13 @@ const CharacterSidebar = () => {
             </div>
         </div>
 
-        {/* BARRA INFERIOR DINÂMICA (SQUISH + REORDER) */}
         <div ref={footerRef} className="bg-black/80 border-t border-glass-border flex items-center justify-center gap-2 px-3 py-2 shrink-0 overflow-hidden" style={{ minHeight: footerIconSize + 20 }}>
              {gameState.characters.map((c, index) => (
                  <img 
                     key={c.id}
                     draggable
                     onDragStart={(e) => handleDragSortStart(e, index, c)}
-                    onDragEnd={handleDragEnd} // Fix também aqui
+                    onDragEnd={handleDragEnd}
                     onDragOver={handleDragOver}
                     onDrop={(e) => handleDragSortDrop(e, index)}
                     src={c.photo || 'https://via.placeholder.com/50'}
@@ -450,11 +441,7 @@ const CharacterSidebar = () => {
              <div className="absolute inset-0 bg-black/90 backdrop-blur-md z-50 p-4 flex flex-col overflow-y-auto animate-in slide-in-from-right-5">
                 <div className="flex justify-between items-center mb-4"><h2 className="text-xl font-rajdhani font-bold text-neon-blue">Editar Personagem</h2><button onClick={() => setIsEditing(false)}><X size={24}/></button></div>
                 <div className="flex-1 overflow-y-auto scrollbar-thin pr-2">
-                    <CharacterForm 
-                        formData={formData} 
-                        setFormData={setFormData} 
-                        handlePhotoUpload={handlePhotoUpload} 
-                    />
+                    <CharacterForm formData={formData} setFormData={setFormData} handlePhotoUpload={handlePhotoUpload} />
                 </div>
                 <button onClick={handleSaveChar} className="mt-4 w-full py-3 bg-neon-blue/10 border border-neon-blue text-neon-blue font-bold rounded hover:bg-neon-blue hover:text-black transition">SALVAR ALTERAÇÕES</button>
              </div>

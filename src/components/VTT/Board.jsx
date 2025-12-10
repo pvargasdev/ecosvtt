@@ -2,64 +2,76 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useGame } from '../../context/GameContext';
 import Token from './Token';
 import { VTTLayout } from './VTTLayout';
-import { imageDB } from '../../context/db'; // Caminho corrigido
+import { imageDB } from '../../context/db';
 import { Plus, Trash2, AlertTriangle } from 'lucide-react';
+
+const MIN_SCALE = 0.25; 
+const MAX_SCALE = 8;    
+const PAN_LIMIT = 4000; 
 
 const Board = () => {
   const { 
     activeAdventureId, activeAdventure, activeScene, 
-    addTokenInstance, updateTokenInstance, 
+    addTokenInstance, updateTokenInstance, deleteMultipleTokenInstances,
+    importCharacterAsToken, // IMPORTADO AGORA
     createAdventure, adventures, setActiveAdventureId, deleteAdventure, resetAllData
   } = useGame();
 
   const containerRef = useRef(null);
   const [view, setView] = useState({ x: 0, y: 0, scale: 1 });
-  const [interaction, setInteraction] = useState({ mode: 'IDLE', activeId: null, startX: 0, startY: 0, initialVal: 0 });
+  const [selectedIds, setSelectedIds] = useState(new Set()); 
+  const [interaction, setInteraction] = useState({ mode: 'IDLE', startX: 0, startY: 0, initialVal: 0, activeTokenId: null });
   const [isSpacePressed, setIsSpacePressed] = useState(false);
   const [newAdvName, setNewAdvName] = useState("");
-  
   const [mapParams, setMapParams] = useState({ url: null, id: null });
 
   useEffect(() => {
       if (!activeScene) return;
-      
       if (activeScene.mapImageId !== mapParams.id) {
           if (activeScene.mapImageId) {
               imageDB.getImage(activeScene.mapImageId).then(blob => {
-                  if (blob) {
-                      const url = URL.createObjectURL(blob);
-                      setMapParams({ url, id: activeScene.mapImageId });
-                  }
+                  if (blob) setMapParams({ url: URL.createObjectURL(blob), id: activeScene.mapImageId });
               });
           } else {
               setMapParams({ url: null, id: null });
           }
       } else if (activeScene.mapImage && !activeScene.mapImageId && !mapParams.url) {
-           // Fallback legado
            setMapParams({ url: activeScene.mapImage, id: 'legacy' });
       }
-
   }, [activeScene, mapParams.id, mapParams.url]);
 
   useEffect(() => {
-    const kd = (e) => { if (e.code === 'Space' && !e.repeat) setIsSpacePressed(true); };
-    const ku = (e) => { if (e.code === 'Space') setIsSpacePressed(false); };
-    window.addEventListener('keydown', kd); window.addEventListener('keyup', ku);
-    return () => { window.removeEventListener('keydown', kd); window.removeEventListener('keyup', ku); };
-  }, []);
+    const handleKeyDown = (e) => {
+        if (e.code === 'Space' && !e.repeat) setIsSpacePressed(true);
+        if ((e.key === 'Delete' || e.key === 'Backspace') && selectedIds.size > 0) {
+            if (['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) return;
+            deleteMultipleTokenInstances(activeScene?.id, Array.from(selectedIds));
+            setSelectedIds(new Set());
+        }
+    };
+    const handleKeyUp = (e) => { if (e.code === 'Space') setIsSpacePressed(false); };
+    window.addEventListener('keydown', handleKeyDown); window.addEventListener('keyup', handleKeyUp);
+    return () => { window.removeEventListener('keydown', handleKeyDown); window.removeEventListener('keyup', handleKeyUp); };
+  }, [selectedIds, activeScene, deleteMultipleTokenInstances]);
 
   useEffect(() => {
     const node = containerRef.current;
     if (!node) return;
     const onWheel = (e) => {
-        e.preventDefault(); 
+        e.preventDefault();
         const scaleAmount = -e.deltaY * 0.001;
         setView(prevView => {
-            const newScale = Math.min(Math.max(0.1, prevView.scale * (1 + scaleAmount)), 10);
+            const rawNewScale = prevView.scale * (1 + scaleAmount);
+            const newScale = Math.min(Math.max(MIN_SCALE, rawNewScale), MAX_SCALE);
             const rect = node.getBoundingClientRect();
-            const mX = e.clientX - rect.left; const mY = e.clientY - rect.top;
+            const mouseX = e.clientX - rect.left; const mouseY = e.clientY - rect.top;
             const ratio = newScale / prevView.scale;
-            return { scale: newScale, x: mX - (mX - prevView.x) * ratio, y: mY - (mY - prevView.y) * ratio };
+            let newX = mouseX - (mouseX - prevView.x) * ratio;
+            let newY = mouseY - (mouseY - prevView.y) * ratio;
+            const currentLimit = PAN_LIMIT * newScale;
+            newX = Math.min(Math.max(newX, -currentLimit), currentLimit);
+            newY = Math.min(Math.max(newY, -currentLimit), currentLimit);
+            return { scale: newScale, x: newX, y: newY };
         });
     };
     node.addEventListener('wheel', onWheel, { passive: false });
@@ -67,7 +79,8 @@ const Board = () => {
   }, []);
 
   const handleMouseDown = (e) => {
-    if (e.target.closest('.vtt-ui-layer')) return;
+    if (e.target.closest('.vtt-ui-layer') || e.target.closest('.token')) return;
+    if (!e.ctrlKey && !e.metaKey) setSelectedIds(new Set());
     if (e.button === 1 || (isSpacePressed && e.button === 0)) {
         setInteraction({ mode: 'PANNING', startX: e.clientX - view.x, startY: e.clientY - view.y });
     }
@@ -76,54 +89,69 @@ const Board = () => {
   const handleTokenDown = (e, id) => {
     e.stopPropagation();
     if (isSpacePressed || e.button !== 0) return; 
-    setInteraction({ mode: 'DRAGGING', activeId: id, startX: e.clientX, startY: e.clientY });
+    const isMultiSelect = e.ctrlKey || e.metaKey;
+    const newSelection = new Set(isMultiSelect ? selectedIds : []);
+    if (isMultiSelect) { if (newSelection.has(id)) newSelection.delete(id); else newSelection.add(id); } 
+    else {
+        if (!selectedIds.has(id)) { newSelection.clear(); newSelection.add(id); } 
+        else { newSelection.clear(); selectedIds.forEach(i => newSelection.add(i)); }
+    }
+    setSelectedIds(newSelection);
+    setInteraction({ mode: 'DRAGGING', activeTokenId: id, startX: e.clientX, startY: e.clientY });
   };
 
   const handleTokenResizeStart = (e, id) => {
       e.stopPropagation();
       if (!activeScene) return;
       const token = activeScene.tokens.find(t => t.id === id);
-      if (token) setInteraction({ mode: 'RESIZING', activeId: id, startX: e.clientX, initialVal: token.scale || 1 });
+      if (token) setInteraction({ mode: 'RESIZING', activeTokenId: id, startX: e.clientX, initialVal: token.scale || 1 });
   };
 
   const handleMouseMove = (e) => {
     if (interaction.mode === 'PANNING') {
-        setView({ ...view, x: e.clientX - interaction.startX, y: e.clientY - interaction.startY });
+        let newX = e.clientX - interaction.startX;
+        let newY = e.clientY - interaction.startY;
+        const currentLimit = PAN_LIMIT * view.scale;
+        newX = Math.min(Math.max(newX, -currentLimit), currentLimit);
+        newY = Math.min(Math.max(newY, -currentLimit), currentLimit);
+        setView({ ...view, x: newX, y: newY });
     } else if (interaction.mode === 'DRAGGING' && activeScene) {
         const dx = (e.clientX - interaction.startX) / view.scale;
         const dy = (e.clientY - interaction.startY) / view.scale;
-        const t = activeScene.tokens.find(x => x.id === interaction.activeId);
-        if(t) {
-            updateTokenInstance(activeScene.id, t.id, { x: t.x + dx, y: t.y + dy });
-            setInteraction(p => ({ ...p, startX: e.clientX, startY: e.clientY }));
-        }
+        selectedIds.forEach(id => {
+            const t = activeScene.tokens.find(x => x.id === id);
+            if (t) updateTokenInstance(activeScene.id, id, { x: t.x + dx, y: t.y + dy });
+        });
+        setInteraction(p => ({ ...p, startX: e.clientX, startY: e.clientY }));
     } else if (interaction.mode === 'RESIZING' && activeScene) {
         const deltaX = (e.clientX - interaction.startX);
         const newScale = Math.max(0.5, interaction.initialVal + (deltaX / 100));
-        updateTokenInstance(activeScene.id, interaction.activeId, { scale: newScale });
+        updateTokenInstance(activeScene.id, interaction.activeTokenId, { scale: newScale });
     }
   };
 
-  const handleMouseUp = () => setInteraction({ mode: 'IDLE', activeId: null });
+  const handleMouseUp = () => setInteraction({ mode: 'IDLE', activeTokenId: null });
 
-  const handleDrop = (e) => {
+  // DROP DE TOKENS E PERSONAGENS
+  const handleDrop = async (e) => {
       e.preventDefault();
       try {
           const dataString = e.dataTransfer.getData('application/json');
           if (!dataString) return;
           const json = JSON.parse(dataString);
+          
           const rect = containerRef.current.getBoundingClientRect();
           const wX = (e.clientX - rect.left - view.x) / view.scale;
           const wY = (e.clientY - rect.top - view.y) / view.scale;
 
           if (json.type === 'library_token') {
-             if(activeScene) {
-                 addTokenInstance(activeScene.id, {
-                     x: wX - 35, y: wY - 35,
-                     imageId: json.imageId,
-                     imageSrc: json.imageSrc 
-                 });
-             }
+             if(activeScene) addTokenInstance(activeScene.id, { x: wX - 35, y: wY - 35, imageId: json.imageId, imageSrc: json.imageSrc });
+          } else if (json.type === 'character_drag') {
+              if (activeScene && json.characterId) {
+                  const imageId = await importCharacterAsToken(json.characterId);
+                  if (imageId) addTokenInstance(activeScene.id, { x: wX - 35, y: wY - 35, imageId: imageId });
+                  else alert("Este personagem não tem imagem.");
+              }
           }
       } catch(e){ console.error("Drop Error:", e); }
   };
@@ -148,8 +176,7 @@ const Board = () => {
                     <button onClick={()=>{if(newAdvName) createAdventure(newAdvName)}} className="bg-neon-green text-black font-bold px-4 rounded"><Plus/></button>
                 </div>
                 <div className="mt-8 pt-4 border-t border-glass-border text-center">
-                    <p className="text-xs text-red-400 mb-2 flex items-center justify-center gap-1"><AlertTriangle size={12}/> Problemas de Memória/Crash?</p>
-                    <button onClick={() => { if(window.confirm("Isso apagará TODAS as aventuras e tokens para corrigir o erro de memória. Confirmar?")) resetAllData() }} className="text-xs bg-red-900/50 hover:bg-red-700 text-white px-3 py-1 rounded border border-red-800">RESETAR DADOS DO APP</button>
+                    <button onClick={() => { if(window.confirm("Isso apagará TODAS as aventuras e tokens. Confirmar?")) resetAllData() }} className="text-xs bg-red-900/50 hover:bg-red-700 text-white px-3 py-1 rounded border border-red-800 flex items-center justify-center gap-1 mx-auto"><AlertTriangle size={12}/> RESETAR DADOS</button>
                 </div>
             </div>
         </div>
@@ -162,17 +189,15 @@ const Board = () => {
         onDrop={handleDrop} onDragOver={e => e.preventDefault()}
     >
         <div style={{ transform: `translate(${view.x}px, ${view.y}px) scale(${view.scale})`, transformOrigin: '0 0', width: '100%', height: '100%' }}>
-            <div className="absolute -top-[5000px] -left-[5000px] w-[10000px] h-[10000px] opacity-20 pointer-events-none" 
+            <div className="absolute -top-[50000px] -left-[50000px] w-[100000px] h-[100000px] opacity-20 pointer-events-none" 
                  style={{ backgroundImage: 'radial-gradient(circle, #555 1px, transparent 1px)', backgroundSize: '70px 70px' }} />
-
             {mapParams.url && (
                 <div style={{ transform: `scale(${activeScene.mapScale || 1})`, transformOrigin: '0 0' }}>
-                    <img src={mapParams.url} className="max-w-none pointer-events-none select-none opacity-90" alt="Map Layer"/>
+                    <img src={mapParams.url} className="max-w-none pointer-events-none select-none opacity-90 shadow-2xl" alt="Map Layer"/>
                 </div>
             )}
-
             {activeScene?.tokens.map(t => (
-                <Token key={t.id} data={t} isSelected={interaction.activeId === t.id} onMouseDown={handleTokenDown} onResizeStart={handleTokenResizeStart}/>
+                <Token key={t.id} data={t} isSelected={selectedIds.has(t.id)} onMouseDown={handleTokenDown} onResizeStart={handleTokenResizeStart}/>
             ))}
         </div>
         <div className="vtt-ui-layer absolute inset-0 pointer-events-none"
