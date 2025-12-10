@@ -48,7 +48,14 @@ export const VTTLayout = () => {
   };
 
   const WindowWrapper = ({ children, className }) => (
-      <div className={`pointer-events-auto ${className}`} onMouseDown={e => e.stopPropagation()} onClick={e => e.stopPropagation()}>{children}</div>
+      <div 
+        className={`pointer-events-auto ${className}`} 
+        onMouseDown={e => e.stopPropagation()} 
+        onClick={e => e.stopPropagation()}
+        onWheel={e => e.stopPropagation()} 
+      >
+        {children}
+      </div>
   );
 
   const MapConfigModal = () => {

@@ -1,39 +1,62 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useLayoutEffect } from 'react';
 import { useGame } from '../../context/GameContext';
 import Token from './Token';
 import { VTTLayout } from './VTTLayout';
 import { imageDB } from '../../context/db';
-import { Plus, Trash2, AlertTriangle, Download, Upload } from 'lucide-react'; // NOVOS ÍCONES
+import { Plus, Trash2, AlertTriangle, Download, Upload, Copy, Edit2, X, Check, Search } from 'lucide-react';
 
-// --- CONFIGURAÇÕES DE SEGURANÇA ---
-const MIN_SCALE = 0.25; 
-const MAX_SCALE = 8;    
-const PAN_LIMIT = 4000; 
+const MIN_SCALE = 0.1;   // 10%
+const MAX_SCALE = 4;    // 400%
+const PAN_LIMIT = 2000; 
+const ZOOM_SMOOTHING = 0.1; // 0.1 = muito lento, 0.5 = rápido, 1.0 = instantâneo
 
 const Board = () => {
   const { 
     activeAdventureId, activeAdventure, activeScene, 
     addTokenInstance, updateTokenInstance, deleteMultipleTokenInstances,
     importCharacterAsToken, 
-    createAdventure, adventures, setActiveAdventureId, deleteAdventure, resetAllData,
-    exportAdventure, importAdventure // IMPORTAR AS NOVAS FUNÇÕES
+    createAdventure, adventures, setActiveAdventureId, deleteAdventure, 
+    updateAdventure, duplicateAdventure, 
+    resetAllData,
+    exportAdventure, importAdventure 
   } = useGame();
 
   const containerRef = useRef(null);
-  const importInputRef = useRef(null); // Ref para o input de arquivo
+  const importInputRef = useRef(null);
+  const animationRef = useRef(null); // Referência para o loop de animação
+  const targetScaleRef = useRef(1);  // Referência para o objetivo do zoom
 
-  // Viewport State
+  // Viewport State (A "fisica" do mapa)
   const [view, setView] = useState({ x: 0, y: 0, scale: 1 });
+
+  // Slider State (A UI visual)
+  const [sliderValue, setSliderValue] = useState(100);
   
   // Selection & Interaction
   const [selectedIds, setSelectedIds] = useState(new Set()); 
   const [interaction, setInteraction] = useState({ mode: 'IDLE', startX: 0, startY: 0, initialVal: 0, activeTokenId: null });
-  
   const [isSpacePressed, setIsSpacePressed] = useState(false);
-  const [newAdvName, setNewAdvName] = useState("");
   const [mapParams, setMapParams] = useState({ url: null, id: null });
 
-  // 1. Carregar Imagem
+  // UI State
+  const [newAdvName, setNewAdvName] = useState("");
+  const [deleteModal, setDeleteModal] = useState(null); 
+  const [renamingId, setRenamingId] = useState(null);
+  const [renameValue, setRenameValue] = useState("");
+
+  // Sincroniza o Slider com o Zoom Real quando o zoom muda por outros meios (Wheel ou ao carregar)
+  // Mas apenas se NÃO estivermos animando ativamente pelo slider (para evitar conflito visual)
+  useEffect(() => {
+    const currentPercent = Math.round(view.scale * 100);
+    // Pequena margem de erro para evitar loops infinitos de update
+    if (Math.abs(sliderValue - currentPercent) > 1 && !animationRef.current) {
+        setSliderValue(currentPercent);
+    }
+  }, [view.scale]);
+
+  // ==========================================
+  // LÓGICA DE IMAGEM DO MAPA
+  // ==========================================
   useEffect(() => {
       if (!activeScene) return;
       if (activeScene.mapImageId !== mapParams.id) {
@@ -52,7 +75,9 @@ const Board = () => {
       }
   }, [activeScene, mapParams.id, mapParams.url]);
 
-  // 2. Atalhos (Espaço + Delete)
+  // ==========================================
+  // ATALHOS DE TECLADO
+  // ==========================================
   useEffect(() => {
     const handleKeyDown = (e) => {
         if (e.code === 'Space' && !e.repeat) setIsSpacePressed(true);
@@ -63,11 +88,9 @@ const Board = () => {
             setSelectedIds(new Set());
         }
     };
-
     const handleKeyUp = (e) => {
         if (e.code === 'Space') setIsSpacePressed(false);
     };
-
     window.addEventListener('keydown', handleKeyDown); 
     window.addEventListener('keyup', handleKeyUp);
     return () => { 
@@ -76,34 +99,100 @@ const Board = () => {
     };
   }, [selectedIds, activeScene, deleteMultipleTokenInstances]);
 
-  // 3. Sistema de Zoom com Limites (Wheel)
-  useEffect(() => {
+  // ==========================================
+  // ZOOM CONTROLADO (SMOOTH SLIDER)
+  // ==========================================
+
+  // Função de Loop de Animação
+  const animateZoom = () => {
+      setView(prev => {
+          const currentScale = prev.scale;
+          const targetScale = targetScaleRef.current;
+          
+          // Distância até o objetivo
+          const diff = targetScale - currentScale;
+
+          // Se estiver muito perto, para a animação e fixa no valor final
+          if (Math.abs(diff) < 0.001) {
+              animationRef.current = null;
+              return { ...prev, scale: targetScale };
+          }
+
+          // LERP: Move uma porcentagem da distância (suavização)
+          const nextScale = currentScale + (diff * ZOOM_SMOOTHING);
+
+          // Lógica de centralização (recalcula o X/Y baseado no novo scale intermediário)
+          // Precisamos do centro da tela
+          const node = containerRef.current;
+          if (!node) return prev;
+          const rect = node.getBoundingClientRect();
+          const centerX = rect.width / 2;
+          const centerY = rect.height / 2;
+
+          const ratio = nextScale / prev.scale;
+          let newX = centerX - (centerX - prev.x) * ratio;
+          let newY = centerY - (centerY - prev.y) * ratio;
+
+          // Limites do Pan
+          const currentLimit = PAN_LIMIT * nextScale;
+          newX = Math.min(Math.max(newX, -currentLimit), currentLimit);
+          newY = Math.min(Math.max(newY, -currentLimit), currentLimit);
+
+          return { scale: nextScale, x: newX, y: newY };
+      });
+
+      // Continua o loop se ainda não chegou
+      if (animationRef.current) {
+          animationRef.current = requestAnimationFrame(animateZoom);
+      }
+  };
+
+  // Handler do Slider (Inicia a animação)
+  const handleSliderZoom = (e) => {
+      const val = parseFloat(e.target.value);
+      setSliderValue(val); // UI Atualiza Imediatamente
+      
+      targetScaleRef.current = val / 100; // Define o objetivo
+
+      // Se não houver animação rodando, inicia uma
+      if (!animationRef.current) {
+          animationRef.current = requestAnimationFrame(animateZoom);
+      }
+  };
+
+  // Mouse Wheel (Zoom Imediato/Direto para manter responsividade tátil)
+  useLayoutEffect(() => {
     const node = containerRef.current;
     if (!node) return;
-    
+
     const onWheel = (e) => {
-        e.preventDefault();
+        if (e.target.closest('.overflow-y-auto')) return;
+        e.preventDefault(); 
         
-        const scaleAmount = -e.deltaY * 0.001;
+        // Cancela qualquer animação de slider ativa se o usuário usar o mouse
+        if (animationRef.current) {
+            cancelAnimationFrame(animationRef.current);
+            animationRef.current = null;
+        }
+
+        const scaleAmount = -e.deltaY * 0.001; 
         
-        setView(prevView => {
-            const rawNewScale = prevView.scale * (1 + scaleAmount);
-            const newScale = Math.min(Math.max(MIN_SCALE, rawNewScale), MAX_SCALE);
-            
-            const rect = node.getBoundingClientRect();
-            const mouseX = e.clientX - rect.left; 
-            const mouseY = e.clientY - rect.top;
-            
-            const ratio = newScale / prevView.scale;
-            
-            let newX = mouseX - (mouseX - prevView.x) * ratio;
-            let newY = mouseY - (mouseY - prevView.y) * ratio;
+        setView(prev => {
+           const rawNewScale = prev.scale * (1 + scaleAmount);
+           const rect = node.getBoundingClientRect();
+           const mouseX = e.clientX - rect.left;
+           const mouseY = e.clientY - rect.top;
+           
+           const clampedScale = Math.min(Math.max(MIN_SCALE, rawNewScale), MAX_SCALE);
+           const ratio = clampedScale / prev.scale;
+           let newX = mouseX - (mouseX - prev.x) * ratio;
+           let newY = mouseY - (mouseY - prev.y) * ratio;
 
-            const currentLimit = PAN_LIMIT * newScale;
-            newX = Math.min(Math.max(newX, -currentLimit), currentLimit);
-            newY = Math.min(Math.max(newY, -currentLimit), currentLimit);
+           // Atualiza o valor do slider visualmente também
+           setSliderValue(Math.round(clampedScale * 100));
+           targetScaleRef.current = clampedScale; // Atualiza o target para não conflitar
 
-            return { scale: newScale, x: newX, y: newY };
+           return { scale: clampedScale, x: newX, y: newY };
         });
     };
     
@@ -111,9 +200,11 @@ const Board = () => {
     return () => node.removeEventListener('wheel', onWheel);
   }, []);
 
-  // 4. Manipulação Mouse
+  // ==========================================
+  // MANIPULAÇÃO DO MOUSE
+  // ==========================================
   const handleMouseDown = (e) => {
-    if (e.target.closest('.vtt-ui-layer') || e.target.closest('.token')) return;
+    if (e.target.closest('.vtt-ui-layer') || e.target.closest('.token') || e.target.closest('.zoom-control')) return;
     
     if (!e.ctrlKey && !e.metaKey) setSelectedIds(new Set());
 
@@ -137,8 +228,10 @@ const Board = () => {
             newSelection.clear();
             newSelection.add(id);
         } else {
-             newSelection.clear();
-             selectedIds.forEach(i => newSelection.add(i));
+             if(!selectedIds.has(id)) {
+                 newSelection.clear();
+                 selectedIds.forEach(i => newSelection.add(i));
+             }
         }
     }
     
@@ -178,7 +271,9 @@ const Board = () => {
 
   const handleMouseUp = () => setInteraction({ mode: 'IDLE', activeTokenId: null });
 
-  // 5. Drop
+  // ==========================================
+  // DROP DE TOKENS
+  // ==========================================
   const handleDrop = async (e) => {
       e.preventDefault();
       try {
@@ -214,75 +309,89 @@ const Board = () => {
       } catch(e){ console.error("Drop Error:", e); }
   };
 
-  // 6. Tela "Sem Aventura"
+  // ==========================================
+  // TELA DE SELEÇÃO DE AVENTURA
+  // ==========================================
   if (!activeAdventureId || !activeAdventure) {
       return (
         <div className="w-full h-full bg-ecos-bg flex flex-col items-center justify-center p-6 text-white relative z-50">
             <h1 className="text-5xl font-rajdhani font-bold text-neon-green mb-8 tracking-widest">ECOS VTT</h1>
-            <div className="bg-glass border border-glass-border rounded-xl p-6 shadow-2xl w-full max-w-md">
+            <div className="bg-glass border border-glass-border rounded-xl p-6 shadow-2xl w-full max-w-lg relative">
                 <h2 className="text-xl font-bold mb-4">Suas Aventuras</h2>
-                <div className="max-h-[200px] overflow-y-auto space-y-2 mb-4 scrollbar-thin">
+                
+                <div className="max-h-[300px] overflow-y-auto space-y-2 mb-4 scrollbar-thin pr-2">
                     {adventures.map(adv => (
-                        <div key={adv.id} onClick={() => setActiveAdventureId(adv.id)} 
-                             className="group flex justify-between items-center p-3 rounded bg-white/5 hover:bg-neon-green/10 cursor-pointer border border-transparent hover:border-neon-green/30 transition-all">
-                            <span>{adv.name}</span>
-                            <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                {/* Botão de Exportar */}
-                                <button 
-                                    onClick={(e)=>{e.stopPropagation(); exportAdventure(adv.id)}} 
-                                    className="text-text-muted hover:text-neon-blue p-1"
-                                    title="Exportar Aventura"
-                                >
-                                    <Download size={16}/>
-                                </button>
-                                {/* Botão de Deletar */}
-                                <button 
-                                    onClick={(e)=>{e.stopPropagation(); deleteAdventure(adv.id)}} 
-                                    className="text-text-muted hover:text-red-500 p-1"
-                                    title="Excluir Aventura"
-                                >
-                                    <Trash2 size={16}/>
-                                </button>
-                            </div>
+                        <div key={adv.id} 
+                             onClick={() => { if(renamingId !== adv.id) setActiveAdventureId(adv.id); }} 
+                             className={`
+                                group flex justify-between items-center p-3 rounded bg-white/5 
+                                border border-transparent transition-all
+                                ${renamingId === adv.id ? 'bg-white/10' : 'hover:bg-neon-green/10 hover:border-neon-green/30 cursor-pointer'}
+                             `}>
+                            {renamingId === adv.id ? (
+                                <div className="flex flex-1 items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                                    <input 
+                                        autoFocus
+                                        className="flex-1 bg-black/50 border border-neon-blue rounded px-2 py-1 text-white text-sm outline-none"
+                                        value={renameValue}
+                                        onChange={(e) => setRenameValue(e.target.value)}
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter') { updateAdventure(adv.id, { name: renameValue }); setRenamingId(null); }
+                                            if (e.key === 'Escape') setRenamingId(null);
+                                        }}
+                                    />
+                                    <button onClick={() => { updateAdventure(adv.id, { name: renameValue }); setRenamingId(null); }} className="text-neon-green hover:text-white"><Check size={16}/></button>
+                                    <button onClick={() => setRenamingId(null)} className="text-red-400 hover:text-white"><X size={16}/></button>
+                                </div>
+                            ) : (
+                                <>
+                                    <span className="truncate font-medium">{adv.name}</span>
+                                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <button onClick={(e)=>{e.stopPropagation(); exportAdventure(adv.id)}} className="p-1.5 rounded hover:bg-white/20 text-text-muted hover:text-neon-blue transition" title="Exportar"><Download size={14}/></button>
+                                        <button onClick={(e)=>{e.stopPropagation(); duplicateAdventure(adv.id)}} className="p-1.5 rounded hover:bg-white/20 text-text-muted hover:text-white transition" title="Duplicar"><Copy size={14}/></button>
+                                        <button onClick={(e)=>{e.stopPropagation(); setRenamingId(adv.id); setRenameValue(adv.name);}} className="p-1.5 rounded hover:bg-white/20 text-text-muted hover:text-yellow-400 transition" title="Renomear"><Edit2 size={14}/></button>
+                                        <button onClick={(e)=>{e.stopPropagation(); setDeleteModal(adv.id);}} className="p-1.5 rounded hover:bg-red-500/20 text-text-muted hover:text-red-500 transition" title="Excluir"><Trash2 size={14}/></button>
+                                    </div>
+                                </>
+                            )}
                         </div>
                     ))}
+                    {adventures.length === 0 && <p className="text-text-muted text-center text-sm py-4">Nenhuma aventura criada.</p>}
                 </div>
+
                 <div className="flex gap-2 pt-4 border-t border-glass-border">
                     <input className="flex-1 bg-black/50 border border-glass-border rounded p-2 text-white" placeholder="Nova Aventura..." value={newAdvName} onChange={e=>setNewAdvName(e.target.value)}/>
-                    <button onClick={()=>{if(newAdvName) createAdventure(newAdvName)}} className="bg-neon-green text-black font-bold px-4 rounded"><Plus/></button>
-                    
-                    {/* Botão de Importar */}
+                    <button onClick={()=>{if(newAdvName) { createAdventure(newAdvName); setNewAdvName(""); }}} className="bg-neon-green text-black font-bold px-4 rounded hover:bg-white transition"><Plus/></button>
                     <div className="relative">
-                        <button 
-                            onClick={() => importInputRef.current?.click()} 
-                            className="bg-glass border border-glass-border text-white px-3 py-2 rounded h-full hover:bg-white/10"
-                            title="Importar Aventura (.zip)"
-                        >
-                            <Upload size={20}/>
-                        </button>
-                        <input 
-                            ref={importInputRef}
-                            type="file" 
-                            accept=".zip" 
-                            className="hidden" 
-                            onChange={(e) => {
-                                const file = e.target.files[0];
-                                if(file) importAdventure(file);
-                                e.target.value = null;
-                            }}
-                        />
+                        <button onClick={() => importInputRef.current?.click()} className="bg-glass border border-glass-border text-white px-3 py-2 rounded h-full hover:bg-white/10 transition" title="Importar"><Upload size={20}/></button>
+                        <input ref={importInputRef} type="file" accept=".zip" className="hidden" onChange={(e) => { const file = e.target.files[0]; if(file) importAdventure(file); e.target.value = null; }}/>
                     </div>
+                </div>
 
-                </div>
                 <div className="mt-8 pt-4 border-t border-glass-border text-center">
-                    <p className="text-xs text-red-400 mb-2 flex items-center justify-center gap-1"><AlertTriangle size={12}/> Problemas de Memória?</p>
-                    <button onClick={() => { if(window.confirm("Isso apagará TODAS as aventuras e tokens. Confirmar?")) resetAllData() }} className="text-xs bg-red-900/50 hover:bg-red-700 text-white px-3 py-1 rounded border border-red-800">RESETAR TUDO</button>
+                    <button onClick={() => { if(window.confirm("Isso apagará TODAS as aventuras e tokens. Confirmar?")) resetAllData() }} className="text-[10px] text-red-500 hover:text-red-400 flex items-center justify-center gap-1 mx-auto opacity-50 hover:opacity-100 transition"><AlertTriangle size={10}/> Resetar Banco de Dados</button>
                 </div>
+
+                {deleteModal && (
+                    <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm rounded-xl animate-in fade-in">
+                        <div className="bg-ecos-bg border border-glass-border p-5 rounded-lg shadow-2xl w-3/4 max-w-sm text-center">
+                            <h3 className="text-lg font-bold text-white mb-2">Excluir Aventura?</h3>
+                            <p className="text-text-muted text-sm mb-6">Esta ação não pode ser desfeita.</p>
+                            <div className="flex gap-2 justify-center">
+                                <button onClick={() => setDeleteModal(null)} className="px-4 py-2 rounded bg-glass border border-glass-border text-white hover:bg-white/10 text-sm">Cancelar</button>
+                                <button onClick={() => { deleteAdventure(deleteModal); setDeleteModal(null); }} className="px-4 py-2 rounded bg-red-600 text-white font-bold hover:bg-red-500 text-sm">Excluir</button>
+                            </div>
+                        </div>
+                    </div>
+                )}
             </div>
         </div>
       );
   }
 
+  // ==========================================
+  // RENDER DO BOARD (COM AVENTURA ATIVA)
+  // ==========================================
   return (
     <div className="w-full h-full relative overflow-hidden bg-[#15151a]" ref={containerRef}
         onMouseDown={handleMouseDown} onMouseMove={handleMouseMove} onMouseUp={handleMouseUp} onMouseLeave={handleMouseUp}
@@ -290,8 +399,8 @@ const Board = () => {
     >
         <div className="absolute top-0 left-0 w-full h-full origin-top-left"
              style={{ transform: `translate(${view.x}px, ${view.y}px) scale(${view.scale})` }}>
-            
-            <div className="absolute -top-[50000px] -left-[50000px] w-[100000px] h-[100000px] opacity-20 pointer-events-none" 
+             
+             <div className="absolute -top-[50000px] -left-[50000px] w-[100000px] h-[100000px] opacity-20 pointer-events-none" 
                  style={{ backgroundImage: 'radial-gradient(circle, #555 1px, transparent 1px)', backgroundSize: '70px 70px' }} />
 
             {mapParams.url && (
@@ -306,8 +415,27 @@ const Board = () => {
         </div>
         
         <div className="vtt-ui-layer absolute inset-0 pointer-events-none"
-            onMouseDown={(e) => e.stopPropagation()} onMouseUp={(e) => e.stopPropagation()} onWheel={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()} onDoubleClick={(e) => e.stopPropagation()}>
+            onMouseDown={(e) => e.stopPropagation()} 
+            onMouseUp={(e) => e.stopPropagation()} 
+            onClick={(e) => e.stopPropagation()} 
+            onDoubleClick={(e) => e.stopPropagation()}>
             <VTTLayout />
+
+            {/* CONTROLE DE ZOOM (Slider Desacoplado) */}
+            <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 pointer-events-auto zoom-control animate-in fade-in slide-in-from-bottom-4">
+                <div className="bg-black/80 backdrop-blur-sm border border-glass-border px-4 py-2 rounded-full shadow-2xl flex items-center gap-3">
+                    <Search size={14} className="text-text-muted" />
+                    <input 
+                        type="range" 
+                        min="10" 
+                        max="400" 
+                        value={sliderValue}  // Controlado pelo estado visual separado
+                        onChange={handleSliderZoom}
+                        className="w-48 h-1.5 bg-white/20 rounded-lg appearance-none cursor-pointer accent-neon-green hover:accent-white transition-all"
+                    />
+                    <span className="text-xs font-mono text-neon-green w-10 text-right">{sliderValue}%</span>
+                </div>
+            </div>
         </div>
     </div>
   );
