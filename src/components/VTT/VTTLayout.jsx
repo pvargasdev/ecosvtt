@@ -34,8 +34,46 @@ export const VTTLayout = ({ zoomValue, onZoomChange }) => {
   const [confirmModal, setConfirmModal] = useState({ open: false, message: '', onConfirm: null });
   const [inputModal, setInputModal] = useState({ open: false, title: '', value: '', onConfirm: null });
 
+  // Refs para inputs
   const mapInputRef = useRef(null);
   const tokenInputRef = useRef(null);
+  
+  // Refs para Click Outside
+  const headerRef = useRef(null);      // Referência do menu de botões
+  const mapConfigRef = useRef(null);   // Referência da janela de config
+  const libraryRef = useRef(null);     // Referência da biblioteca
+  const sceneRef = useRef(null);       // Referência do seletor de cenas
+
+  // ==========================================
+  // CLICK OUTSIDE LOGIC
+  // ==========================================
+  useEffect(() => {
+      const handleOutsideClick = (event) => {
+          // 1. Se clicou no cabeçalho (botões), não fazemos nada aqui (deixa o onClick do botão resolver)
+          if (headerRef.current && headerRef.current.contains(event.target)) {
+              return;
+          }
+
+          // 2. Verifica Scene Selector
+          if (uiState.menuOpen && sceneRef.current && !sceneRef.current.contains(event.target)) {
+              setUiState(prev => ({ ...prev, menuOpen: false }));
+          }
+
+          // 3. Verifica Library
+          if (uiState.libraryOpen && libraryRef.current && !libraryRef.current.contains(event.target)) {
+              setUiState(prev => ({ ...prev, libraryOpen: false }));
+          }
+
+          // 4. Verifica Map Config
+          if (uiState.mapConfigOpen && mapConfigRef.current && !mapConfigRef.current.contains(event.target)) {
+              setUiState(prev => ({ ...prev, mapConfigOpen: false }));
+          }
+      };
+
+      document.addEventListener("mousedown", handleOutsideClick);
+      return () => document.removeEventListener("mousedown", handleOutsideClick);
+  }, [uiState]);
+
 
   const toggle = (key, e) => {
     if (e) e.stopPropagation();
@@ -46,8 +84,10 @@ export const VTTLayout = ({ zoomValue, onZoomChange }) => {
     }));
   };
 
-  const WindowWrapper = ({ children, className }) => (
+  // Wrapper agora aceita containerRef para ligar ao sistema de click outside
+  const WindowWrapper = ({ children, className, containerRef }) => (
       <div 
+        ref={containerRef}
         className={`pointer-events-auto ${className}`} 
         onMouseDown={e => e.stopPropagation()} 
         onClick={e => e.stopPropagation()}
@@ -76,9 +116,8 @@ export const VTTLayout = ({ zoomValue, onZoomChange }) => {
 
       if (!uiState.mapConfigOpen) return null;
 
-      // POSIÇÃO: Right-4 (Ajustado para ficar abaixo da caixa expandida)
       return (
-          <WindowWrapper className="absolute top-24 right-4 bg-black/85 border border-glass-border backdrop-blur-sm p-4 rounded-xl shadow-2xl z-50 w-72 animate-in fade-in slide-in-from-top-2 scale-90 origin-top-right">
+          <WindowWrapper containerRef={mapConfigRef} className="absolute top-24 right-4 bg-black/85 border border-glass-border backdrop-blur-sm p-4 rounded-xl shadow-2xl z-50 w-72 animate-in fade-in slide-in-from-top-2 scale-90 origin-top-right">
               <div className="flex justify-between items-center mb-4">
                   <h3 className="font-rajdhani font-bold text-white">Configurar Mapa</h3>
                   <button onClick={(e) => toggle('mapConfigOpen', e)}><X size={16} className="text-text-muted hover:text-white"/></button>
@@ -119,9 +158,8 @@ export const VTTLayout = ({ zoomValue, onZoomChange }) => {
 
   const AssetDock = () => {
       if (!uiState.libraryOpen) return null;
-      // POSIÇÃO: Right-4 (Ajustado)
       return (
-          <WindowWrapper className="absolute top-24 right-4 w-[288px] bg-black/90 border border-glass-border backdrop-blur-sm rounded-xl flex flex-col max-h-[60vh] z-40 animate-in fade-in slide-in-from-top-2 shadow-2xl scale-90 origin-top-right">
+          <WindowWrapper containerRef={libraryRef} className="absolute top-24 right-4 w-[288px] bg-black/90 border border-glass-border backdrop-blur-sm rounded-xl flex flex-col max-h-[60vh] z-40 animate-in fade-in slide-in-from-top-2 shadow-2xl scale-90 origin-top-right">
               <div className="p-3 border-b border-glass-border flex justify-between items-center bg-white/5 rounded-t-xl">
                   <h3 className="font-bold text-white flex gap-2 items-center text-sm"><Box size={16} className="text-neon-blue"/> Biblioteca</h3>
                   <button onClick={(e) => toggle('libraryOpen', e)}><X size={16} className="text-text-muted hover:text-white"/></button>
@@ -144,9 +182,8 @@ export const VTTLayout = ({ zoomValue, onZoomChange }) => {
 
   const SceneSelector = () => {
       if (!uiState.menuOpen) return null;
-      // POSIÇÃO: Right-4 (Ajustado)
       return (
-          <WindowWrapper className="absolute top-24 right-4 w-72 bg-black/90 border border-glass-border backdrop-blur-sm rounded-xl shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 scale-90 origin-top-right">
+          <WindowWrapper containerRef={sceneRef} className="absolute top-24 right-4 w-72 bg-black/90 border border-glass-border backdrop-blur-sm rounded-xl shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 scale-90 origin-top-right">
               <div className="max-h-[300px] overflow-y-auto scrollbar-thin">
                   {activeAdventure?.scenes.map(s => (
                       <div key={s.id} onClick={(e) => { e.stopPropagation(); setActiveScene(s.id); toggle('menuOpen', e); }}
@@ -200,12 +237,14 @@ export const VTTLayout = ({ zoomValue, onZoomChange }) => {
   return (
       <div className="absolute inset-0 pointer-events-none z-50">
           
-          {/* HEADER ALINHADO À DIREITA COM SLIDER INTEGRADO */}
-          {/* Mudança: Flex-col para empilhar slider e botões na mesma caixa */}
-          <div className="absolute top-4 right-4 flex flex-col bg-black/80 rounded-lg border border-glass-border shadow-lg backdrop-blur-sm pointer-events-auto z-40 w-max overflow-hidden scale-90 origin-top-right"
-               onClick={e => e.stopPropagation()} onMouseDown={e => e.stopPropagation()}>
+          {/* HEADER ALINHADO À DIREITA COM SLIDER INTEGRADO E REF ATRIBUÍDA */}
+          <div 
+             ref={headerRef}
+             className="absolute top-4 right-4 flex flex-col bg-black/80 rounded-lg border border-glass-border shadow-lg backdrop-blur-sm pointer-events-auto z-40 w-max overflow-hidden scale-90 origin-top-right"
+             onClick={e => e.stopPropagation()} onMouseDown={e => e.stopPropagation()}
+          >
               
-              {/* SLIDER DE ZOOM (Linha superior) */}
+              {/* SLIDER DE ZOOM */}
               {onZoomChange && (
                 <div className="px-3 py-2 border-b border-white/5 flex items-center gap-2 justify-left bg-black/20">
                     <Search size={15} className="text-text-muted"/>
@@ -233,7 +272,7 @@ export const VTTLayout = ({ zoomValue, onZoomChange }) => {
                 </div>
               )}
 
-              {/* BOTÕES DE MENU (Linha inferior) */}
+              {/* BOTÕES DE MENU */}
               <div className="flex items-center gap-2 p-1.5">
                 <button onClick={(e) => toggle('menuOpen', e)} className="flex items-center gap-2 px-3 py-1.5 hover:bg-white/10 rounded text-white transition border border-transparent hover:border-glass-border">
                     <Map size={16} className="text-neon-green"/>
