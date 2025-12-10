@@ -8,7 +8,7 @@ import { Plus, Trash2, AlertTriangle, Download, Upload, Copy, Edit2, X, Check, S
 const MIN_SCALE = 0.1;   // 10%
 const MAX_SCALE = 4;    // 400%
 const PAN_LIMIT = 2000; 
-const ZOOM_SMOOTHING = 0.1; // 0.1 = muito lento, 0.5 = rápido, 1.0 = instantâneo
+const CAMERA_SMOOTHING = 0.15; // Suavização unificada (Zoom e Pan)
 
 const Board = () => {
   const { 
@@ -23,16 +23,17 @@ const Board = () => {
 
   const containerRef = useRef(null);
   const importInputRef = useRef(null);
-  const animationRef = useRef(null); // Referência para o loop de animação
-  const targetScaleRef = useRef(1);  // Referência para o objetivo do zoom
-
-  // Viewport State (A "fisica" do mapa)
+  
+  // Controle de Animação e Alvo
+  const animationRef = useRef(null); 
+  const targetViewRef = useRef({ x: 0, y: 0, scale: 1 }); // Onde a câmera quer chegar
+  
+  // Viewport State (Onde a câmera está renderizada)
   const [view, setView] = useState({ x: 0, y: 0, scale: 1 });
 
-  // Slider State (A UI visual)
+  // Slider State
   const [sliderValue, setSliderValue] = useState(100);
   
-  // Selection & Interaction
   const [selectedIds, setSelectedIds] = useState(new Set()); 
   const [interaction, setInteraction] = useState({ mode: 'IDLE', startX: 0, startY: 0, initialVal: 0, activeTokenId: null });
   const [isSpacePressed, setIsSpacePressed] = useState(false);
@@ -44,19 +45,18 @@ const Board = () => {
   const [renamingId, setRenamingId] = useState(null);
   const [renameValue, setRenameValue] = useState("");
 
-  // Sincroniza o Slider com o Zoom Real quando o zoom muda por outros meios (Wheel ou ao carregar)
-  // Mas apenas se NÃO estivermos animando ativamente pelo slider (para evitar conflito visual)
+  // Sincroniza o Slider com o Zoom Real
   useEffect(() => {
     const currentPercent = Math.round(view.scale * 100);
-    // Pequena margem de erro para evitar loops infinitos de update
     if (Math.abs(sliderValue - currentPercent) > 1 && !animationRef.current) {
         setSliderValue(currentPercent);
     }
-  }, [view.scale]);
+    // Sincroniza o targetRef se a view mudar externamente
+    if (!animationRef.current) {
+        targetViewRef.current = { ...view };
+    }
+  }, [view.scale, view.x, view.y]);
 
-  // ==========================================
-  // LÓGICA DE IMAGEM DO MAPA
-  // ==========================================
   useEffect(() => {
       if (!activeScene) return;
       if (activeScene.mapImageId !== mapParams.id) {
@@ -75,9 +75,6 @@ const Board = () => {
       }
   }, [activeScene, mapParams.id, mapParams.url]);
 
-  // ==========================================
-  // ATALHOS DE TECLADO
-  // ==========================================
   useEffect(() => {
     const handleKeyDown = (e) => {
         if (e.code === 'Space' && !e.repeat) setIsSpacePressed(true);
@@ -100,67 +97,69 @@ const Board = () => {
   }, [selectedIds, activeScene, deleteMultipleTokenInstances]);
 
   // ==========================================
-  // ZOOM CONTROLADO (SMOOTH SLIDER)
+  // UNIFIED SMOOTH CAMERA (PAN & ZOOM)
   // ==========================================
 
-  // Função de Loop de Animação
-  const animateZoom = () => {
+  const animateCamera = () => {
       setView(prev => {
-          const currentScale = prev.scale;
-          const targetScale = targetScaleRef.current;
+          const target = targetViewRef.current;
           
-          // Distância até o objetivo
-          const diff = targetScale - currentScale;
+          const diffScale = target.scale - prev.scale;
+          const diffX = target.x - prev.x;
+          const diffY = target.y - prev.y;
 
-          // Se estiver muito perto, para a animação e fixa no valor final
-          if (Math.abs(diff) < 0.001) {
+          // Condição de parada (precisão pequena)
+          if (Math.abs(diffScale) < 0.001 && Math.abs(diffX) < 0.5 && Math.abs(diffY) < 0.5) {
               animationRef.current = null;
-              return { ...prev, scale: targetScale };
+              return target; // Snap to target
           }
 
-          // LERP: Move uma porcentagem da distância (suavização)
-          const nextScale = currentScale + (diff * ZOOM_SMOOTHING);
+          // Interpolação Linear (Lerp) para suavidade
+          const nextScale = prev.scale + (diffScale * CAMERA_SMOOTHING);
+          const nextX = prev.x + (diffX * CAMERA_SMOOTHING);
+          const nextY = prev.y + (diffY * CAMERA_SMOOTHING);
 
-          // Lógica de centralização (recalcula o X/Y baseado no novo scale intermediário)
-          // Precisamos do centro da tela
-          const node = containerRef.current;
-          if (!node) return prev;
+          return { scale: nextScale, x: nextX, y: nextY };
+      });
+
+      if (animationRef.current) {
+          animationRef.current = requestAnimationFrame(animateCamera);
+      }
+  };
+
+  const startAnimation = () => {
+      if (!animationRef.current) {
+          animationRef.current = requestAnimationFrame(animateCamera);
+      }
+  };
+
+  const handleSliderZoom = (e) => {
+      const val = parseFloat(e.target.value);
+      setSliderValue(val);
+      
+      // Calcula o novo target baseado no centro da tela
+      const newScale = val / 100;
+      const node = containerRef.current;
+      if (node) {
           const rect = node.getBoundingClientRect();
           const centerX = rect.width / 2;
           const centerY = rect.height / 2;
-
-          const ratio = nextScale / prev.scale;
-          let newX = centerX - (centerX - prev.x) * ratio;
-          let newY = centerY - (centerY - prev.y) * ratio;
-
-          // Limites do Pan
-          const currentLimit = PAN_LIMIT * nextScale;
+          
+          const prevScale = targetViewRef.current.scale; // Baseado no ultimo target
+          const ratio = newScale / prevScale;
+          
+          let newX = centerX - (centerX - targetViewRef.current.x) * ratio;
+          let newY = centerY - (centerY - targetViewRef.current.y) * ratio;
+          
+          const currentLimit = PAN_LIMIT * newScale;
           newX = Math.min(Math.max(newX, -currentLimit), currentLimit);
           newY = Math.min(Math.max(newY, -currentLimit), currentLimit);
 
-          return { scale: nextScale, x: newX, y: newY };
-      });
-
-      // Continua o loop se ainda não chegou
-      if (animationRef.current) {
-          animationRef.current = requestAnimationFrame(animateZoom);
+          targetViewRef.current = { scale: newScale, x: newX, y: newY };
+          startAnimation();
       }
   };
 
-  // Handler do Slider (Inicia a animação)
-  const handleSliderZoom = (e) => {
-      const val = parseFloat(e.target.value);
-      setSliderValue(val); // UI Atualiza Imediatamente
-      
-      targetScaleRef.current = val / 100; // Define o objetivo
-
-      // Se não houver animação rodando, inicia uma
-      if (!animationRef.current) {
-          animationRef.current = requestAnimationFrame(animateZoom);
-      }
-  };
-
-  // Mouse Wheel (Zoom Imediato/Direto para manter responsividade tátil)
   useLayoutEffect(() => {
     const node = containerRef.current;
     if (!node) return;
@@ -169,31 +168,25 @@ const Board = () => {
         if (e.target.closest('.overflow-y-auto')) return;
         e.preventDefault(); 
         
-        // Cancela qualquer animação de slider ativa se o usuário usar o mouse
-        if (animationRef.current) {
-            cancelAnimationFrame(animationRef.current);
-            animationRef.current = null;
-        }
-
-        const scaleAmount = -e.deltaY * 0.001; 
+        const scaleAmount = -e.deltaY * 0.001;
+        const currentTarget = targetViewRef.current;
         
-        setView(prev => {
-           const rawNewScale = prev.scale * (1 + scaleAmount);
-           const rect = node.getBoundingClientRect();
-           const mouseX = e.clientX - rect.left;
-           const mouseY = e.clientY - rect.top;
-           
-           const clampedScale = Math.min(Math.max(MIN_SCALE, rawNewScale), MAX_SCALE);
-           const ratio = clampedScale / prev.scale;
-           let newX = mouseX - (mouseX - prev.x) * ratio;
-           let newY = mouseY - (mouseY - prev.y) * ratio;
+        const rawNewScale = currentTarget.scale * (1 + scaleAmount);
+        const rect = node.getBoundingClientRect();
+        const mouseX = e.clientX - rect.left;
+        const mouseY = e.clientY - rect.top;
+        
+        const clampedScale = Math.min(Math.max(MIN_SCALE, rawNewScale), MAX_SCALE);
+        const ratio = clampedScale / currentTarget.scale;
+        
+        let newX = mouseX - (mouseX - currentTarget.x) * ratio;
+        let newY = mouseY - (mouseY - currentTarget.y) * ratio;
 
-           // Atualiza o valor do slider visualmente também
-           setSliderValue(Math.round(clampedScale * 100));
-           targetScaleRef.current = clampedScale; // Atualiza o target para não conflitar
-
-           return { scale: clampedScale, x: newX, y: newY };
-        });
+        setSliderValue(Math.round(clampedScale * 100));
+        
+        // Atualiza o Target, não a View diretamente
+        targetViewRef.current = { scale: clampedScale, x: newX, y: newY };
+        startAnimation();
     };
     
     node.addEventListener('wheel', onWheel, { passive: false });
@@ -209,7 +202,14 @@ const Board = () => {
     if (!e.ctrlKey && !e.metaKey) setSelectedIds(new Set());
 
     if (e.button === 1 || (isSpacePressed && e.button === 0)) {
-        setInteraction({ mode: 'PANNING', startX: e.clientX - view.x, startY: e.clientY - view.y });
+        // Salva a posição inicial do Mouse e a posição inicial do Target View
+        setInteraction({ 
+            mode: 'PANNING', 
+            startX: e.clientX, 
+            startY: e.clientY,
+            initialViewX: targetViewRef.current.x,
+            initialViewY: targetViewRef.current.y
+        });
     }
   };
 
@@ -248,12 +248,20 @@ const Board = () => {
 
   const handleMouseMove = (e) => {
     if (interaction.mode === 'PANNING') {
-        let newX = e.clientX - interaction.startX;
-        let newY = e.clientY - interaction.startY;
-        const currentLimit = PAN_LIMIT * view.scale;
+        const deltaX = e.clientX - interaction.startX;
+        const deltaY = e.clientY - interaction.startY;
+        
+        let newX = interaction.initialViewX + deltaX;
+        let newY = interaction.initialViewY + deltaY;
+        
+        const currentLimit = PAN_LIMIT * targetViewRef.current.scale;
         newX = Math.min(Math.max(newX, -currentLimit), currentLimit);
         newY = Math.min(Math.max(newY, -currentLimit), currentLimit);
-        setView({ ...view, x: newX, y: newY });
+        
+        // Atualiza o alvo para onde o mouse está arrastando
+        targetViewRef.current = { ...targetViewRef.current, x: newX, y: newY };
+        startAnimation();
+
     } else if (interaction.mode === 'DRAGGING' && activeScene) {
         const dx = (e.clientX - interaction.startX) / view.scale;
         const dy = (e.clientY - interaction.startY) / view.scale;
@@ -271,9 +279,6 @@ const Board = () => {
 
   const handleMouseUp = () => setInteraction({ mode: 'IDLE', activeTokenId: null });
 
-  // ==========================================
-  // DROP DE TOKENS
-  // ==========================================
   const handleDrop = async (e) => {
       e.preventDefault();
       try {
@@ -297,10 +302,7 @@ const Board = () => {
               if (activeScene && json.characterId) {
                   const imageId = await importCharacterAsToken(json.characterId);
                   if (imageId) {
-                      addTokenInstance(activeScene.id, {
-                          x: wX - 35, y: wY - 35,
-                          imageId: imageId
-                      });
+                      addTokenInstance(activeScene.id, { x: wX - 35, y: wY - 35, imageId: imageId });
                   } else {
                       alert("Este personagem não tem imagem para criar um token.");
                   }
@@ -318,28 +320,14 @@ const Board = () => {
             <h1 className="text-5xl font-rajdhani font-bold text-neon-green mb-8 tracking-widest">ECOS VTT</h1>
             <div className="bg-glass border border-glass-border rounded-xl p-6 shadow-2xl w-full max-w-lg relative">
                 <h2 className="text-xl font-bold mb-4">Suas Aventuras</h2>
-                
                 <div className="max-h-[300px] overflow-y-auto space-y-2 mb-4 scrollbar-thin pr-2">
                     {adventures.map(adv => (
                         <div key={adv.id} 
                              onClick={() => { if(renamingId !== adv.id) setActiveAdventureId(adv.id); }} 
-                             className={`
-                                group flex justify-between items-center p-3 rounded bg-white/5 
-                                border border-transparent transition-all
-                                ${renamingId === adv.id ? 'bg-white/10' : 'hover:bg-neon-green/10 hover:border-neon-green/30 cursor-pointer'}
-                             `}>
+                             className={`group flex justify-between items-center p-3 rounded bg-white/5 border border-transparent transition-all ${renamingId === adv.id ? 'bg-white/10' : 'hover:bg-neon-green/10 hover:border-neon-green/30 cursor-pointer'}`}>
                             {renamingId === adv.id ? (
                                 <div className="flex flex-1 items-center gap-2" onClick={(e) => e.stopPropagation()}>
-                                    <input 
-                                        autoFocus
-                                        className="flex-1 bg-black/50 border border-neon-blue rounded px-2 py-1 text-white text-sm outline-none"
-                                        value={renameValue}
-                                        onChange={(e) => setRenameValue(e.target.value)}
-                                        onKeyDown={(e) => {
-                                            if (e.key === 'Enter') { updateAdventure(adv.id, { name: renameValue }); setRenamingId(null); }
-                                            if (e.key === 'Escape') setRenamingId(null);
-                                        }}
-                                    />
+                                    <input autoFocus className="flex-1 bg-black/50 border border-neon-blue rounded px-2 py-1 text-white text-sm outline-none" value={renameValue} onChange={(e) => setRenameValue(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { updateAdventure(adv.id, { name: renameValue }); setRenamingId(null); } if (e.key === 'Escape') setRenamingId(null); }} />
                                     <button onClick={() => { updateAdventure(adv.id, { name: renameValue }); setRenamingId(null); }} className="text-neon-green hover:text-white"><Check size={16}/></button>
                                     <button onClick={() => setRenamingId(null)} className="text-red-400 hover:text-white"><X size={16}/></button>
                                 </div>
@@ -358,7 +346,6 @@ const Board = () => {
                     ))}
                     {adventures.length === 0 && <p className="text-text-muted text-center text-sm py-4">Nenhuma aventura criada.</p>}
                 </div>
-
                 <div className="flex gap-2 pt-4 border-t border-glass-border">
                     <input className="flex-1 bg-black/50 border border-glass-border rounded p-2 text-white" placeholder="Nova Aventura..." value={newAdvName} onChange={e=>setNewAdvName(e.target.value)}/>
                     <button onClick={()=>{if(newAdvName) { createAdventure(newAdvName); setNewAdvName(""); }}} className="bg-neon-green text-black font-bold px-4 rounded hover:bg-white transition"><Plus/></button>
@@ -367,11 +354,9 @@ const Board = () => {
                         <input ref={importInputRef} type="file" accept=".zip" className="hidden" onChange={(e) => { const file = e.target.files[0]; if(file) importAdventure(file); e.target.value = null; }}/>
                     </div>
                 </div>
-
                 <div className="mt-8 pt-4 border-t border-glass-border text-center">
                     <button onClick={() => { if(window.confirm("Isso apagará TODAS as aventuras e tokens. Confirmar?")) resetAllData() }} className="text-[10px] text-red-500 hover:text-red-400 flex items-center justify-center gap-1 mx-auto opacity-50 hover:opacity-100 transition"><AlertTriangle size={10}/> Resetar Banco de Dados</button>
                 </div>
-
                 {deleteModal && (
                     <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm rounded-xl animate-in fade-in">
                         <div className="bg-ecos-bg border border-glass-border p-5 rounded-lg shadow-2xl w-3/4 max-w-sm text-center">
@@ -390,7 +375,7 @@ const Board = () => {
   }
 
   // ==========================================
-  // RENDER DO BOARD (COM AVENTURA ATIVA)
+  // RENDER DO BOARD
   // ==========================================
   return (
     <div className="w-full h-full relative overflow-hidden bg-[#15151a]" ref={containerRef}
@@ -399,37 +384,29 @@ const Board = () => {
     >
         <div className="absolute top-0 left-0 w-full h-full origin-top-left"
              style={{ transform: `translate(${view.x}px, ${view.y}px) scale(${view.scale})` }}>
-             
-             <div className="absolute -top-[50000px] -left-[50000px] w-[100000px] h-[100000px] opacity-20 pointer-events-none" 
-                 style={{ backgroundImage: 'radial-gradient(circle, #555 1px, transparent 1px)', backgroundSize: '70px 70px' }} />
-
+             <div className="absolute -top-[50000px] -left-[50000px] w-[100000px] h-[100000px] opacity-20 pointer-events-none" style={{ backgroundImage: 'radial-gradient(circle, #555 1px, transparent 1px)', backgroundSize: '70px 70px' }} />
             {mapParams.url && (
                 <div style={{ transform: `scale(${activeScene.mapScale || 1})`, transformOrigin: '0 0' }}>
                     <img src={mapParams.url} className="max-w-none pointer-events-none select-none opacity-90 shadow-2xl" alt="Map Layer"/>
                 </div>
             )}
-
             {activeScene?.tokens.map(t => (
                 <Token key={t.id} data={t} isSelected={selectedIds.has(t.id)} onMouseDown={handleTokenDown} onResizeStart={handleTokenResizeStart}/>
             ))}
         </div>
         
-        <div className="vtt-ui-layer absolute inset-0 pointer-events-none"
-            onMouseDown={(e) => e.stopPropagation()} 
-            onMouseUp={(e) => e.stopPropagation()} 
-            onClick={(e) => e.stopPropagation()} 
-            onDoubleClick={(e) => e.stopPropagation()}>
+        <div className="vtt-ui-layer absolute inset-0 pointer-events-none" onMouseDown={(e) => e.stopPropagation()} onMouseUp={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()} onDoubleClick={(e) => e.stopPropagation()}>
             <VTTLayout />
 
-            {/* CONTROLE DE ZOOM (Slider Desacoplado) */}
-            <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 pointer-events-auto zoom-control animate-in fade-in slide-in-from-bottom-4">
+            {/* CONTROLE DE ZOOM ALINHADO À DIREITA */}
+            <div className="absolute bottom-6 right-4 flex flex-col items-center gap-2 pointer-events-auto zoom-control animate-in fade-in slide-in-from-bottom-4">
                 <div className="bg-black/80 backdrop-blur-sm border border-glass-border px-4 py-2 rounded-full shadow-2xl flex items-center gap-3">
                     <Search size={14} className="text-text-muted" />
                     <input 
                         type="range" 
                         min="10" 
                         max="400" 
-                        value={sliderValue}  // Controlado pelo estado visual separado
+                        value={sliderValue} 
                         onChange={handleSliderZoom}
                         className="w-48 h-1.5 bg-white/20 rounded-lg appearance-none cursor-pointer accent-neon-green hover:accent-white transition-all"
                     />

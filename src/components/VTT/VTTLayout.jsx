@@ -3,7 +3,6 @@ import { useGame } from '../../context/GameContext';
 import { Settings, Image as ImageIcon, Box, Map, Plus, Trash2, X, ChevronDown, LogOut, Edit2, RotateCcw, Check } from 'lucide-react';
 import { imageDB } from '../../context/db';
 
-// ... (Mantenha o componente LibraryThumb igual) ...
 const LibraryThumb = ({ token }) => {
     const [src, setSrc] = useState(null);
     useEffect(() => {
@@ -71,15 +70,15 @@ export const VTTLayout = () => {
           let val = parseInt(localScale);
           if (isNaN(val) || val < 10) val = 10; 
           if (val > 1000) val = 1000; 
-          
           updateScene(activeScene.id, { mapScale: val / 100 });
           setLocalScale(val); 
       };
 
       if (!uiState.mapConfigOpen) return null;
 
+      // POSIÇÃO: Right-4
       return (
-          <WindowWrapper className="absolute top-16 left-1/2 -translate-x-1/2 bg-ecos-bg border border-glass-border p-4 rounded-xl shadow-2xl z-50 w-72 animate-in fade-in slide-in-from-top-2">
+          <WindowWrapper className="absolute top-16 right-4 bg-ecos-bg border border-glass-border p-4 rounded-xl shadow-2xl z-50 w-72 animate-in fade-in slide-in-from-top-2 origin-top-right">
               <div className="flex justify-between items-center mb-4">
                   <h3 className="font-rajdhani font-bold text-white">Configurar Mapa</h3>
                   <button onClick={(e) => toggle('mapConfigOpen', e)}><X size={16} className="text-text-muted hover:text-white"/></button>
@@ -95,47 +94,22 @@ export const VTTLayout = () => {
                           e.target.value = '';
                       }}
                   />
-                  
                   {(activeScene?.mapImageId || activeScene?.mapImage) && (
                       <div className="bg-black/20 p-3 rounded border border-white/5">
                           <div className="flex justify-between items-center mb-2">
                               <label className="text-xs text-text-muted uppercase font-bold">Escala (%)</label>
-                              <button 
-                                onClick={() => {
-                                    setLocalScale(100);
-                                    updateScene(activeScene.id, { mapScale: 1 });
-                                }}
-                                title="Resetar para 100%"
-                                className="text-[10px] flex items-center gap-1 text-neon-blue hover:text-white transition"
-                              >
+                              <button onClick={() => { setLocalScale(100); updateScene(activeScene.id, { mapScale: 1 }); }} title="Resetar para 100%" className="text-[10px] flex items-center gap-1 text-neon-blue hover:text-white transition">
                                 <RotateCcw size={10} /> Resetar
                               </button>
                           </div>
-                          
                           <div className="flex items-center gap-2">
                               <div className="relative flex-1">
-                                  {/* Classes adicionadas para remover spin buttons e estilizar */}
-                                  <input 
-                                    type="number" 
-                                    className="w-full bg-black/50 border border-glass-border rounded-l p-2 text-white text-sm focus:border-neon-green outline-none pr-8 font-mono text-right [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                                    value={localScale} 
-                                    onChange={(e) => setLocalScale(e.target.value)}
-                                    onKeyDown={(e) => { if(e.key === 'Enter') handleApplyScale(); }}
-                                    placeholder="100"
-                                  />
+                                  <input type="number" className="w-full bg-black/50 border border-glass-border rounded-l p-2 text-white text-sm focus:border-neon-green outline-none pr-8 font-mono text-right [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                    value={localScale} onChange={(e) => setLocalScale(e.target.value)} onKeyDown={(e) => { if(e.key === 'Enter') handleApplyScale(); }} placeholder="100"/>
                                   <span className="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted text-xs font-bold pointer-events-none">%</span>
                               </div>
-                              <button 
-                                onClick={handleApplyScale}
-                                className="bg-neon-green text-black p-2 rounded-r font-bold hover:bg-white transition flex items-center justify-center"
-                                title="Aplicar Alteração"
-                              >
-                                  <Check size={16} />
-                              </button>
+                              <button onClick={handleApplyScale} className="bg-neon-green text-black p-2 rounded-r font-bold hover:bg-white transition flex items-center justify-center"><Check size={16} /></button>
                           </div>
-                          <p className="text-[10px] text-text-muted mt-2 text-center">
-                              Min: 10% | Max: 1000%
-                          </p>
                       </div>
                   )}
               </div>
@@ -145,8 +119,9 @@ export const VTTLayout = () => {
 
   const AssetDock = () => {
       if (!uiState.libraryOpen) return null;
+      // POSIÇÃO: Right-4
       return (
-          <WindowWrapper className="absolute top-16 left-1/2 -translate-x-1/2 w-[400px] bg-black/90 border border-glass-border rounded-xl flex flex-col max-h-[60vh] z-40 animate-in fade-in slide-in-from-top-2 shadow-2xl">
+          <WindowWrapper className="absolute top-16 right-4 w-[400px] bg-black/90 border border-glass-border rounded-xl flex flex-col max-h-[60vh] z-40 animate-in fade-in slide-in-from-top-2 shadow-2xl origin-top-right">
               <div className="p-3 border-b border-glass-border flex justify-between items-center bg-white/5 rounded-t-xl">
                   <h3 className="font-bold text-white flex gap-2 items-center text-sm"><Box size={16} className="text-neon-blue"/> Biblioteca</h3>
                   <button onClick={(e) => toggle('libraryOpen', e)}><X size={16} className="text-text-muted hover:text-white"/></button>
@@ -155,13 +130,7 @@ export const VTTLayout = () => {
                   <div onClick={() => tokenInputRef.current?.click()} className="aspect-square border border-dashed border-glass-border rounded hover:bg-white/10 flex flex-col items-center justify-center cursor-pointer text-text-muted hover:text-neon-blue transition">
                       <Plus size={24}/><span className="text-[10px] mt-1">Add</span>
                   </div>
-                  <input ref={tokenInputRef} type="file" className="hidden" accept="image/*" 
-                      onChange={(e) => {
-                          const f = e.target.files[0];
-                          if(f) addTokenToLibrary(f);
-                          e.target.value = '';
-                      }}
-                  />
+                  <input ref={tokenInputRef} type="file" className="hidden" accept="image/*" onChange={(e) => { const f = e.target.files[0]; if(f) addTokenToLibrary(f); e.target.value = ''; }} />
                   {activeAdventure?.tokenLibrary?.map(t => (
                       <div key={t.id} className="relative group">
                           <LibraryThumb token={t} />
@@ -175,23 +144,17 @@ export const VTTLayout = () => {
 
   const SceneSelector = () => {
       if (!uiState.menuOpen) return null;
+      // POSIÇÃO: Right-4
       return (
-          <WindowWrapper className="absolute top-14 left-1/2 -translate-x-1/2 w-72 bg-ecos-bg border border-glass-border rounded-xl shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2">
+          <WindowWrapper className="absolute top-14 right-4 w-72 bg-ecos-bg border border-glass-border rounded-xl shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 origin-top-right">
               <div className="max-h-[300px] overflow-y-auto scrollbar-thin">
                   {activeAdventure?.scenes.map(s => (
                       <div key={s.id} onClick={(e) => { e.stopPropagation(); setActiveScene(s.id); toggle('menuOpen', e); }}
                            className={`p-3 flex justify-between items-center cursor-pointer hover:bg-white/5 border-l-2 group ${activeScene?.id === s.id ? 'border-neon-green bg-white/5' : 'border-transparent'}`}>
                           <span className="text-sm font-bold text-white truncate max-w-[150px]">{s.name}</span>
                           <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                              <button onClick={(e) => { 
-                                  e.stopPropagation(); 
-                                  setInputModal({ open: true, title: "Renomear Cena", value: s.name, onConfirm: (val) => updateScene(s.id, { name: val }) }); 
-                              }} className="text-text-muted hover:text-white p-1"><Edit2 size={14}/></button>
-                              
-                              <button onClick={(e) => { 
-                                  e.stopPropagation(); 
-                                  setConfirmModal({ open: true, message: `Excluir "${s.name}"?`, onConfirm: () => deleteScene(s.id) }); 
-                              }} className="text-text-muted hover:text-red-500 p-1"><Trash2 size={14}/></button>
+                              <button onClick={(e) => { e.stopPropagation(); setInputModal({ open: true, title: "Renomear Cena", value: s.name, onConfirm: (val) => updateScene(s.id, { name: val }) }); }} className="text-text-muted hover:text-white p-1"><Edit2 size={14}/></button>
+                              <button onClick={(e) => { e.stopPropagation(); setConfirmModal({ open: true, message: `Excluir "${s.name}"?`, onConfirm: () => deleteScene(s.id) }); }} className="text-text-muted hover:text-red-500 p-1"><Trash2 size={14}/></button>
                           </div>
                       </div>
                   ))}
@@ -224,11 +187,7 @@ export const VTTLayout = () => {
           <div className="absolute inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm pointer-events-auto" onMouseDown={e=>e.stopPropagation()}>
               <div className="bg-ecos-bg border border-glass-border p-6 rounded-xl shadow-2xl max-w-sm w-full mx-4">
                   <h3 className="text-xl font-bold text-white mb-4">{inputModal.title}</h3>
-                  <input autoFocus className="w-full bg-black/50 border border-glass-border rounded p-3 text-white mb-6 outline-none focus:border-neon-green" 
-                      value={inputModal.value} 
-                      onChange={(e)=>setInputModal(prev=>({...prev,value:e.target.value}))} 
-                      onKeyDown={(e)=>{if(e.key==='Enter'&&inputModal.value){inputModal.onConfirm(inputModal.value);setInputModal({open:false,title:'',value:'',onConfirm:null});}}} 
-                  />
+                  <input autoFocus className="w-full bg-black/50 border border-glass-border rounded p-3 text-white mb-6 outline-none focus:border-neon-green" value={inputModal.value} onChange={(e)=>setInputModal(prev=>({...prev,value:e.target.value}))} onKeyDown={(e)=>{if(e.key==='Enter'&&inputModal.value){inputModal.onConfirm(inputModal.value);setInputModal({open:false,title:'',value:'',onConfirm:null});}}} />
                   <div className="flex gap-3">
                       <button onClick={()=>setInputModal({open:false,title:'',value:'',onConfirm:null})} className="flex-1 py-2 bg-glass rounded text-white hover:bg-white/10">Cancelar</button>
                       <button onClick={()=>{if(inputModal.value){inputModal.onConfirm(inputModal.value);setInputModal({open:false,title:'',value:'',onConfirm:null});}}} className="flex-1 py-2 bg-neon-green rounded text-black font-bold hover:bg-white">Salvar</button>
@@ -241,7 +200,8 @@ export const VTTLayout = () => {
   return (
       <div className="absolute inset-0 pointer-events-none z-50">
           
-          <div className="absolute top-4 left-1/2 -translate-x-1/2 flex items-center gap-2 bg-black/80 p-1.5 rounded-lg border border-glass-border shadow-lg backdrop-blur-sm pointer-events-auto z-40 w-max"
+          {/* HEADER ALINHADO À DIREITA */}
+          <div className="absolute top-4 right-4 flex items-center gap-2 bg-black/80 p-1.5 rounded-lg border border-glass-border shadow-lg backdrop-blur-sm pointer-events-auto z-40 w-max"
                onClick={e => e.stopPropagation()} onMouseDown={e => e.stopPropagation()}>
               
               <button onClick={(e) => toggle('menuOpen', e)} className="flex items-center gap-2 px-3 py-1.5 hover:bg-white/10 rounded text-white transition border border-transparent hover:border-glass-border">
@@ -263,7 +223,6 @@ export const VTTLayout = () => {
           <MapConfigModal />
           <AssetDock />
           <SceneSelector />
-          
           <ConfirmationModal />
           <InputModal />
       </div>
