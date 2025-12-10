@@ -1,8 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useGame } from '../../context/GameContext';
-import { Settings, Image as ImageIcon, Box, Map, Plus, Trash2, X, ChevronDown, LogOut, Edit2 } from 'lucide-react';
+import { Settings, Image as ImageIcon, Box, Map, Plus, Trash2, X, ChevronDown, LogOut, Edit2, RotateCcw, Check } from 'lucide-react';
 import { imageDB } from '../../context/db';
 
+// ... (Mantenha o componente LibraryThumb igual) ...
 const LibraryThumb = ({ token }) => {
     const [src, setSrc] = useState(null);
     useEffect(() => {
@@ -12,11 +13,7 @@ const LibraryThumb = ({ token }) => {
                 if(blob && isMounted) setSrc(URL.createObjectURL(blob)); 
             });
         } else if (token.imageSrc) { setSrc(token.imageSrc); }
-        
-        return () => { 
-            isMounted = false;
-            if(src && !src.startsWith('data:')) URL.revokeObjectURL(src); 
-        }
+        return () => { isMounted = false; if(src && !src.startsWith('data:')) URL.revokeObjectURL(src); }
     }, [token]);
 
     return (
@@ -55,9 +52,27 @@ export const VTTLayout = () => {
   );
 
   const MapConfigModal = () => {
+      const [localScale, setLocalScale] = useState(100);
+
+      useEffect(() => {
+          if (activeScene?.mapScale) {
+              setLocalScale(Math.round(activeScene.mapScale * 100));
+          }
+      }, [activeScene?.id, uiState.mapConfigOpen]);
+
+      const handleApplyScale = () => {
+          let val = parseInt(localScale);
+          if (isNaN(val) || val < 10) val = 10; 
+          if (val > 1000) val = 1000; 
+          
+          updateScene(activeScene.id, { mapScale: val / 100 });
+          setLocalScale(val); 
+      };
+
       if (!uiState.mapConfigOpen) return null;
+
       return (
-          <WindowWrapper className="fixed top-16 left-1/2 -translate-x-1/2 bg-ecos-bg border border-glass-border p-4 rounded-xl shadow-2xl z-50 w-72 animate-in fade-in slide-in-from-top-2">
+          <WindowWrapper className="absolute top-16 left-1/2 -translate-x-1/2 bg-ecos-bg border border-glass-border p-4 rounded-xl shadow-2xl z-50 w-72 animate-in fade-in slide-in-from-top-2">
               <div className="flex justify-between items-center mb-4">
                   <h3 className="font-rajdhani font-bold text-white">Configurar Mapa</h3>
                   <button onClick={(e) => toggle('mapConfigOpen', e)}><X size={16} className="text-text-muted hover:text-white"/></button>
@@ -73,9 +88,48 @@ export const VTTLayout = () => {
                           e.target.value = '';
                       }}
                   />
+                  
                   {(activeScene?.mapImageId || activeScene?.mapImage) && (
-                      <input type="range" min="0.1" max="5" step="0.1" className="w-full accent-neon-green h-2 bg-glass rounded-lg cursor-pointer"
-                        value={activeScene.mapScale || 1} onChange={(e) => updateScene(activeScene.id, { mapScale: parseFloat(e.target.value) })} />
+                      <div className="bg-black/20 p-3 rounded border border-white/5">
+                          <div className="flex justify-between items-center mb-2">
+                              <label className="text-xs text-text-muted uppercase font-bold">Escala (%)</label>
+                              <button 
+                                onClick={() => {
+                                    setLocalScale(100);
+                                    updateScene(activeScene.id, { mapScale: 1 });
+                                }}
+                                title="Resetar para 100%"
+                                className="text-[10px] flex items-center gap-1 text-neon-blue hover:text-white transition"
+                              >
+                                <RotateCcw size={10} /> Resetar
+                              </button>
+                          </div>
+                          
+                          <div className="flex items-center gap-2">
+                              <div className="relative flex-1">
+                                  {/* Classes adicionadas para remover spin buttons e estilizar */}
+                                  <input 
+                                    type="number" 
+                                    className="w-full bg-black/50 border border-glass-border rounded-l p-2 text-white text-sm focus:border-neon-green outline-none pr-8 font-mono text-right [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                    value={localScale} 
+                                    onChange={(e) => setLocalScale(e.target.value)}
+                                    onKeyDown={(e) => { if(e.key === 'Enter') handleApplyScale(); }}
+                                    placeholder="100"
+                                  />
+                                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted text-xs font-bold pointer-events-none">%</span>
+                              </div>
+                              <button 
+                                onClick={handleApplyScale}
+                                className="bg-neon-green text-black p-2 rounded-r font-bold hover:bg-white transition flex items-center justify-center"
+                                title="Aplicar Alteração"
+                              >
+                                  <Check size={16} />
+                              </button>
+                          </div>
+                          <p className="text-[10px] text-text-muted mt-2 text-center">
+                              Min: 10% | Max: 1000%
+                          </p>
+                      </div>
                   )}
               </div>
           </WindowWrapper>
@@ -85,7 +139,7 @@ export const VTTLayout = () => {
   const AssetDock = () => {
       if (!uiState.libraryOpen) return null;
       return (
-          <WindowWrapper className="fixed top-16 left-1/2 -translate-x-1/2 w-[400px] bg-black/90 border border-glass-border rounded-xl flex flex-col max-h-[60vh] z-40 animate-in fade-in slide-in-from-top-2 shadow-2xl">
+          <WindowWrapper className="absolute top-16 left-1/2 -translate-x-1/2 w-[400px] bg-black/90 border border-glass-border rounded-xl flex flex-col max-h-[60vh] z-40 animate-in fade-in slide-in-from-top-2 shadow-2xl">
               <div className="p-3 border-b border-glass-border flex justify-between items-center bg-white/5 rounded-t-xl">
                   <h3 className="font-bold text-white flex gap-2 items-center text-sm"><Box size={16} className="text-neon-blue"/> Biblioteca</h3>
                   <button onClick={(e) => toggle('libraryOpen', e)}><X size={16} className="text-text-muted hover:text-white"/></button>
@@ -115,7 +169,7 @@ export const VTTLayout = () => {
   const SceneSelector = () => {
       if (!uiState.menuOpen) return null;
       return (
-          <WindowWrapper className="fixed top-14 left-1/2 -translate-x-1/2 w-72 bg-ecos-bg border border-glass-border rounded-xl shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2">
+          <WindowWrapper className="absolute top-14 left-1/2 -translate-x-1/2 w-72 bg-ecos-bg border border-glass-border rounded-xl shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2">
               <div className="max-h-[300px] overflow-y-auto scrollbar-thin">
                   {activeAdventure?.scenes.map(s => (
                       <div key={s.id} onClick={(e) => { e.stopPropagation(); setActiveScene(s.id); toggle('menuOpen', e); }}
@@ -144,7 +198,7 @@ export const VTTLayout = () => {
   const ConfirmationModal = () => { 
       if (!confirmModal.open) return null; 
       return ( 
-          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm pointer-events-auto" onMouseDown={e=>e.stopPropagation()}>
+          <div className="absolute inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm pointer-events-auto" onMouseDown={e=>e.stopPropagation()}>
               <div className="bg-ecos-bg border border-glass-border p-6 rounded-xl shadow-2xl max-w-sm w-full mx-4">
                   <h3 className="text-xl font-bold text-white mb-2">Confirmação</h3>
                   <p className="text-text-muted mb-6">{confirmModal.message}</p>
@@ -160,7 +214,7 @@ export const VTTLayout = () => {
   const InputModal = () => { 
       if (!inputModal.open) return null; 
       return ( 
-          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm pointer-events-auto" onMouseDown={e=>e.stopPropagation()}>
+          <div className="absolute inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm pointer-events-auto" onMouseDown={e=>e.stopPropagation()}>
               <div className="bg-ecos-bg border border-glass-border p-6 rounded-xl shadow-2xl max-w-sm w-full mx-4">
                   <h3 className="text-xl font-bold text-white mb-4">{inputModal.title}</h3>
                   <input autoFocus className="w-full bg-black/50 border border-glass-border rounded p-3 text-white mb-6 outline-none focus:border-neon-green" 
@@ -178,8 +232,7 @@ export const VTTLayout = () => {
   };
 
   return (
-      // UI FIXA - Resolve o problema de botões movendo
-      <div className="fixed inset-0 pointer-events-none z-50">
+      <div className="absolute inset-0 pointer-events-none z-50">
           
           <div className="absolute top-4 left-1/2 -translate-x-1/2 flex items-center gap-2 bg-black/80 p-1.5 rounded-lg border border-glass-border shadow-lg backdrop-blur-sm pointer-events-auto z-40 w-max"
                onClick={e => e.stopPropagation()} onMouseDown={e => e.stopPropagation()}>

@@ -5,6 +5,7 @@ import { VTTLayout } from './VTTLayout';
 import { imageDB } from '../../context/db';
 import { Plus, Trash2, AlertTriangle } from 'lucide-react';
 
+// --- CONFIGURAÇÕES DE SEGURANÇA ---
 const MIN_SCALE = 0.25; 
 const MAX_SCALE = 8;    
 const PAN_LIMIT = 4000; 
@@ -13,24 +14,33 @@ const Board = () => {
   const { 
     activeAdventureId, activeAdventure, activeScene, 
     addTokenInstance, updateTokenInstance, deleteMultipleTokenInstances,
-    importCharacterAsToken, // IMPORTADO AGORA
+    importCharacterAsToken, 
     createAdventure, adventures, setActiveAdventureId, deleteAdventure, resetAllData
   } = useGame();
 
   const containerRef = useRef(null);
+
+  // Viewport State
   const [view, setView] = useState({ x: 0, y: 0, scale: 1 });
+  
+  // Selection & Interaction
   const [selectedIds, setSelectedIds] = useState(new Set()); 
   const [interaction, setInteraction] = useState({ mode: 'IDLE', startX: 0, startY: 0, initialVal: 0, activeTokenId: null });
+  
   const [isSpacePressed, setIsSpacePressed] = useState(false);
   const [newAdvName, setNewAdvName] = useState("");
   const [mapParams, setMapParams] = useState({ url: null, id: null });
 
+  // 1. Carregar Imagem
   useEffect(() => {
       if (!activeScene) return;
       if (activeScene.mapImageId !== mapParams.id) {
           if (activeScene.mapImageId) {
               imageDB.getImage(activeScene.mapImageId).then(blob => {
-                  if (blob) setMapParams({ url: URL.createObjectURL(blob), id: activeScene.mapImageId });
+                  if (blob) {
+                      const url = URL.createObjectURL(blob);
+                      setMapParams({ url, id: activeScene.mapImageId });
+                  }
               });
           } else {
               setMapParams({ url: null, id: null });
@@ -40,47 +50,71 @@ const Board = () => {
       }
   }, [activeScene, mapParams.id, mapParams.url]);
 
+  // 2. Atalhos (Espaço + Delete)
   useEffect(() => {
     const handleKeyDown = (e) => {
         if (e.code === 'Space' && !e.repeat) setIsSpacePressed(true);
+
         if ((e.key === 'Delete' || e.key === 'Backspace') && selectedIds.size > 0) {
             if (['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) return;
             deleteMultipleTokenInstances(activeScene?.id, Array.from(selectedIds));
             setSelectedIds(new Set());
         }
     };
-    const handleKeyUp = (e) => { if (e.code === 'Space') setIsSpacePressed(false); };
-    window.addEventListener('keydown', handleKeyDown); window.addEventListener('keyup', handleKeyUp);
-    return () => { window.removeEventListener('keydown', handleKeyDown); window.removeEventListener('keyup', handleKeyUp); };
+
+    const handleKeyUp = (e) => {
+        if (e.code === 'Space') setIsSpacePressed(false);
+    };
+
+    window.addEventListener('keydown', handleKeyDown); 
+    window.addEventListener('keyup', handleKeyUp);
+    return () => { 
+        window.removeEventListener('keydown', handleKeyDown); 
+        window.removeEventListener('keyup', handleKeyUp); 
+    };
   }, [selectedIds, activeScene, deleteMultipleTokenInstances]);
 
+  // 3. Sistema de Zoom com Limites (Wheel)
   useEffect(() => {
     const node = containerRef.current;
     if (!node) return;
+    
     const onWheel = (e) => {
         e.preventDefault();
+        
         const scaleAmount = -e.deltaY * 0.001;
+        
         setView(prevView => {
             const rawNewScale = prevView.scale * (1 + scaleAmount);
             const newScale = Math.min(Math.max(MIN_SCALE, rawNewScale), MAX_SCALE);
+            
             const rect = node.getBoundingClientRect();
-            const mouseX = e.clientX - rect.left; const mouseY = e.clientY - rect.top;
+            const mouseX = e.clientX - rect.left; 
+            const mouseY = e.clientY - rect.top;
+            
             const ratio = newScale / prevView.scale;
+            
             let newX = mouseX - (mouseX - prevView.x) * ratio;
             let newY = mouseY - (mouseY - prevView.y) * ratio;
+
             const currentLimit = PAN_LIMIT * newScale;
             newX = Math.min(Math.max(newX, -currentLimit), currentLimit);
             newY = Math.min(Math.max(newY, -currentLimit), currentLimit);
+
             return { scale: newScale, x: newX, y: newY };
         });
     };
+    
     node.addEventListener('wheel', onWheel, { passive: false });
     return () => node.removeEventListener('wheel', onWheel);
   }, []);
 
+  // 4. Manipulação Mouse
   const handleMouseDown = (e) => {
     if (e.target.closest('.vtt-ui-layer') || e.target.closest('.token')) return;
+    
     if (!e.ctrlKey && !e.metaKey) setSelectedIds(new Set());
+
     if (e.button === 1 || (isSpacePressed && e.button === 0)) {
         setInteraction({ mode: 'PANNING', startX: e.clientX - view.x, startY: e.clientY - view.y });
     }
@@ -89,13 +123,23 @@ const Board = () => {
   const handleTokenDown = (e, id) => {
     e.stopPropagation();
     if (isSpacePressed || e.button !== 0) return; 
+
     const isMultiSelect = e.ctrlKey || e.metaKey;
     const newSelection = new Set(isMultiSelect ? selectedIds : []);
-    if (isMultiSelect) { if (newSelection.has(id)) newSelection.delete(id); else newSelection.add(id); } 
-    else {
-        if (!selectedIds.has(id)) { newSelection.clear(); newSelection.add(id); } 
-        else { newSelection.clear(); selectedIds.forEach(i => newSelection.add(i)); }
+
+    if (isMultiSelect) {
+        if (newSelection.has(id)) newSelection.delete(id);
+        else newSelection.add(id);
+    } else {
+        if (!selectedIds.has(id)) {
+            newSelection.clear();
+            newSelection.add(id);
+        } else {
+             newSelection.clear();
+             selectedIds.forEach(i => newSelection.add(i));
+        }
     }
+    
     setSelectedIds(newSelection);
     setInteraction({ mode: 'DRAGGING', activeTokenId: id, startX: e.clientX, startY: e.clientY });
   };
@@ -132,7 +176,7 @@ const Board = () => {
 
   const handleMouseUp = () => setInteraction({ mode: 'IDLE', activeTokenId: null });
 
-  // DROP DE TOKENS E PERSONAGENS
+  // 5. Drop
   const handleDrop = async (e) => {
       e.preventDefault();
       try {
@@ -145,17 +189,30 @@ const Board = () => {
           const wY = (e.clientY - rect.top - view.y) / view.scale;
 
           if (json.type === 'library_token') {
-             if(activeScene) addTokenInstance(activeScene.id, { x: wX - 35, y: wY - 35, imageId: json.imageId, imageSrc: json.imageSrc });
+             if(activeScene) {
+                 addTokenInstance(activeScene.id, {
+                     x: wX - 35, y: wY - 35,
+                     imageId: json.imageId,
+                     imageSrc: json.imageSrc 
+                 });
+             }
           } else if (json.type === 'character_drag') {
               if (activeScene && json.characterId) {
                   const imageId = await importCharacterAsToken(json.characterId);
-                  if (imageId) addTokenInstance(activeScene.id, { x: wX - 35, y: wY - 35, imageId: imageId });
-                  else alert("Este personagem não tem imagem.");
+                  if (imageId) {
+                      addTokenInstance(activeScene.id, {
+                          x: wX - 35, y: wY - 35,
+                          imageId: imageId
+                      });
+                  } else {
+                      alert("Este personagem não tem imagem para criar um token.");
+                  }
               }
           }
       } catch(e){ console.error("Drop Error:", e); }
   };
 
+  // 6. Tela "Sem Aventura"
   if (!activeAdventureId || !activeAdventure) {
       return (
         <div className="w-full h-full bg-ecos-bg flex flex-col items-center justify-center p-6 text-white relative z-50">
@@ -176,7 +233,8 @@ const Board = () => {
                     <button onClick={()=>{if(newAdvName) createAdventure(newAdvName)}} className="bg-neon-green text-black font-bold px-4 rounded"><Plus/></button>
                 </div>
                 <div className="mt-8 pt-4 border-t border-glass-border text-center">
-                    <button onClick={() => { if(window.confirm("Isso apagará TODAS as aventuras e tokens. Confirmar?")) resetAllData() }} className="text-xs bg-red-900/50 hover:bg-red-700 text-white px-3 py-1 rounded border border-red-800 flex items-center justify-center gap-1 mx-auto"><AlertTriangle size={12}/> RESETAR DADOS</button>
+                    <p className="text-xs text-red-400 mb-2 flex items-center justify-center gap-1"><AlertTriangle size={12}/> Problemas de Memória?</p>
+                    <button onClick={() => { if(window.confirm("Isso apagará TODAS as aventuras e tokens. Confirmar?")) resetAllData() }} className="text-xs bg-red-900/50 hover:bg-red-700 text-white px-3 py-1 rounded border border-red-800">RESETAR TUDO</button>
                 </div>
             </div>
         </div>
@@ -184,22 +242,32 @@ const Board = () => {
   }
 
   return (
+    // FIX PRINCIPAL: 'relative' e 'overflow-hidden' rigoroso no container pai.
     <div className="w-full h-full relative overflow-hidden bg-[#15151a]" ref={containerRef}
         onMouseDown={handleMouseDown} onMouseMove={handleMouseMove} onMouseUp={handleMouseUp} onMouseLeave={handleMouseUp}
         onDrop={handleDrop} onDragOver={e => e.preventDefault()}
     >
-        <div style={{ transform: `translate(${view.x}px, ${view.y}px) scale(${view.scale})`, transformOrigin: '0 0', width: '100%', height: '100%' }}>
+        {/* CAMADA DO MAPA - AGORA É 'ABSOLUTE'
+            Isso tira o mapa do fluxo de documento. Ele não empurra mais as bordas da div pai. */}
+        <div className="absolute top-0 left-0 w-full h-full origin-top-left"
+             style={{ transform: `translate(${view.x}px, ${view.y}px) scale(${view.scale})` }}>
+            
             <div className="absolute -top-[50000px] -left-[50000px] w-[100000px] h-[100000px] opacity-20 pointer-events-none" 
                  style={{ backgroundImage: 'radial-gradient(circle, #555 1px, transparent 1px)', backgroundSize: '70px 70px' }} />
+
             {mapParams.url && (
                 <div style={{ transform: `scale(${activeScene.mapScale || 1})`, transformOrigin: '0 0' }}>
                     <img src={mapParams.url} className="max-w-none pointer-events-none select-none opacity-90 shadow-2xl" alt="Map Layer"/>
                 </div>
             )}
+
             {activeScene?.tokens.map(t => (
                 <Token key={t.id} data={t} isSelected={selectedIds.has(t.id)} onMouseDown={handleTokenDown} onResizeStart={handleTokenResizeStart}/>
             ))}
         </div>
+        
+        {/* CAMADA DE UI - ABSOLUTE INSET-0
+            Como o pai tem tamanho fixo (w-full h-full do flex), o inset-0 vai pegar exatamente a tela visível. */}
         <div className="vtt-ui-layer absolute inset-0 pointer-events-none"
             onMouseDown={(e) => e.stopPropagation()} onMouseUp={(e) => e.stopPropagation()} onWheel={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()} onDoubleClick={(e) => e.stopPropagation()}>
             <VTTLayout />
