@@ -117,7 +117,7 @@ export const VTTLayout = ({ zoomValue, onZoomChange }) => {
       if (!uiState.mapConfigOpen) return null;
 
       return (
-          <WindowWrapper containerRef={mapConfigRef} className="absolute top-24 right-4 bg-black/85 border border-glass-border backdrop-blur-sm p-4 rounded-xl shadow-2xl z-50 w-72 animate-in fade-in slide-in-from-top-2 scale-90 origin-top-right">
+          <WindowWrapper containerRef={mapConfigRef} className="absolute top-24 right-4 bg-black/85 border border-glass-border backdrop-blur-sm p-4 rounded-xl shadow-2xl z-50 w-72 scale-90 origin-top-right">
               <div className="flex justify-between items-center mb-4">
                   <h3 className="font-rajdhani font-bold text-white">Configurar Mapa</h3>
                   <button onClick={(e) => toggle('mapConfigOpen', e)}><X size={16} className="text-text-muted hover:text-white"/></button>
@@ -159,7 +159,7 @@ export const VTTLayout = ({ zoomValue, onZoomChange }) => {
   const AssetDock = () => {
       if (!uiState.libraryOpen) return null;
       return (
-          <WindowWrapper containerRef={libraryRef} className="absolute top-24 right-4 w-[288px] bg-black/90 border border-glass-border backdrop-blur-sm rounded-xl flex flex-col max-h-[60vh] z-40 animate-in fade-in slide-in-from-top-2 shadow-2xl scale-90 origin-top-right">
+          <WindowWrapper containerRef={libraryRef} className="absolute top-24 right-4 w-[288px] bg-black/90 border border-glass-border backdrop-blur-sm rounded-xl flex flex-col max-h-[60vh] z-40 shadow-2xl scale-90 origin-top-right">
               <div className="p-3 border-b border-glass-border flex justify-between items-center bg-white/5 rounded-t-xl">
                   <h3 className="font-bold text-white flex gap-2 items-center text-sm"><Box size={16} className="text-neon-blue"/> Biblioteca</h3>
                   <button onClick={(e) => toggle('libraryOpen', e)}><X size={16} className="text-text-muted hover:text-white"/></button>
@@ -183,7 +183,7 @@ export const VTTLayout = ({ zoomValue, onZoomChange }) => {
   const SceneSelector = () => {
       if (!uiState.menuOpen) return null;
       return (
-          <WindowWrapper containerRef={sceneRef} className="absolute top-24 right-4 w-72 bg-black/90 border border-glass-border backdrop-blur-sm rounded-xl shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 scale-90 origin-top-right">
+          <WindowWrapper containerRef={sceneRef} className="absolute top-24 right-4 w-72 bg-black/90 border border-glass-border backdrop-blur-sm rounded-xl shadow-2xl z-50 overflow-hidden scale-90 origin-top-right">
               <div className="max-h-[300px] overflow-y-auto scrollbar-thin">
                   {activeAdventure?.scenes.map(s => (
                       <div key={s.id} onClick={(e) => { e.stopPropagation(); setActiveScene(s.id); toggle('menuOpen', e); }}

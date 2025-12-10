@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useGame } from '../../context/GameContext';
-import { ArrowLeft, Edit2, Plus, X, Upload, Download, Users, Save, Trash2, LogOut, AlertCircle, GripHorizontal } from 'lucide-react';
+import { ArrowLeft, Edit2, Plus, X, Upload, Download, Trash2, LogOut } from 'lucide-react';
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
 
+// Utilitário para redimensionar arrays de dano
 const resizeDamageArray = (currentArray, newSize) => {
     const arr = [...(currentArray || [])];
     while(arr.length < newSize) arr.push(false);
@@ -11,14 +12,27 @@ const resizeDamageArray = (currentArray, newSize) => {
     return arr;
 };
 
+// Componente de Animação: FADE IN VERTICAL (Suave)
+const FadeInView = ({ children, className }) => (
+    <div className={`h-full flex flex-col ${className}`} style={{ animation: 'fadeInUp 0.4s cubic-bezier(0.2, 0.8, 0.2, 1) forwards' }}>
+        <style>{`
+            @keyframes fadeInUp {
+                from { opacity: 0; transform: translateY(10px); }
+                to { opacity: 1; transform: translateY(0); }
+            }
+        `}</style>
+        {children}
+    </div>
+);
+
 const CharacterForm = ({ formData, setFormData, handlePhotoUpload }) => {
     return (
         <div className="space-y-4 pb-4">
             <div className="flex justify-center mb-4">
                 <div className="relative group cursor-pointer" onClick={() => document.getElementById('edit-photo-input').click()}>
-                    <div className={`w-32 h-32 rounded-full border-4 ${formData.photo ? 'border-neon-blue' : 'border-glass-border border-dashed'} overflow-hidden bg-black flex items-center justify-center shadow-2xl`}>
+                    <div className={`w-32 h-32 rounded-full border-4 ${formData.photo ? 'border-neon-blue' : 'border-glass-border border-dashed'} overflow-hidden bg-black flex items-center justify-center shadow-2xl transition-all group-hover:scale-105`}>
                         {formData.photo ? (
-                            <img src={formData.photo} className="w-full h-full object-cover" />
+                            <img src={formData.photo} className="w-full h-full object-cover" alt="Avatar"/>
                         ) : (
                             <Upload size={32} className="text-text-muted opacity-50"/>
                         )}
@@ -33,20 +47,20 @@ const CharacterForm = ({ formData, setFormData, handlePhotoUpload }) => {
             <div className="flex gap-2">
                 <div className="flex-1">
                     <label className="text-xs text-text-muted mb-1 block">Nome</label>
-                    <input className="w-full bg-black/50 border border-glass-border rounded p-2 text-white outline-none focus:border-neon-blue" 
+                    <input className="w-full bg-black/50 border border-glass-border rounded p-2 text-white outline-none focus:border-neon-blue transition-colors" 
                            value={formData.name||''} 
                            onChange={e=>setFormData({...formData, name:e.target.value})}/>
                 </div>
                 <div className="w-20">
                     <label className="text-xs text-text-muted mb-1 block">Karma</label>
-                    <input type="number" className="w-full bg-black/50 border border-glass-border rounded p-2 text-white text-center" 
+                    <input type="number" className="w-full bg-black/50 border border-glass-border rounded p-2 text-white text-center focus:border-neon-blue transition-colors" 
                            value={formData.karmaMax||0} 
                            onChange={e=>setFormData({...formData, karmaMax:parseInt(e.target.value)})}/>
                 </div>
             </div>
             <div>
                 <label className="text-xs text-text-muted mb-1 block">Descrição</label>
-                <input className="w-full bg-black/50 border border-glass-border rounded p-2 text-white" 
+                <input className="w-full bg-black/50 border border-glass-border rounded p-2 text-white focus:border-neon-blue transition-colors" 
                        value={formData.description||''} 
                        onChange={e=>setFormData({...formData, description:e.target.value})}/>
             </div>
@@ -56,7 +70,7 @@ const CharacterForm = ({ formData, setFormData, handlePhotoUpload }) => {
                     {['Mente','Corpo','Destreza','Presenca'].map(a=>(
                         <div key={a}>
                             <label className="text-[9px] text-text-muted block text-center uppercase">{a.substr(0,3)}</label>
-                            <input type="number" className="w-full bg-black/50 border border-glass-border rounded p-1 text-white text-center font-bold" 
+                            <input type="number" className="w-full bg-black/50 border border-glass-border rounded p-1 text-white text-center font-bold focus:border-neon-blue transition-colors" 
                                    value={formData.attributes?.[a.toLowerCase()]||0} 
                                    onChange={e=>setFormData({...formData, attributes:{...formData.attributes, [a.toLowerCase()]:parseInt(e.target.value)}})}/>
                         </div>
@@ -69,7 +83,7 @@ const CharacterForm = ({ formData, setFormData, handlePhotoUpload }) => {
                     {[['superior','G'],['medium','M'],['inferior','L']].map(([k,l])=>(
                         <div key={k} className="flex-1">
                             <label className="text-[9px] text-text-muted block text-center uppercase">{l}</label>
-                            <input type="number" className="w-full bg-black/50 border border-glass-border rounded p-1 text-white text-center" 
+                            <input type="number" className="w-full bg-black/50 border border-glass-border rounded p-1 text-white text-center focus:border-neon-red transition-colors" 
                                    value={formData.damage?.[k]?.length||0} 
                                    onChange={e=>{
                                        const s = parseInt(e.target.value)||0; 
@@ -81,7 +95,7 @@ const CharacterForm = ({ formData, setFormData, handlePhotoUpload }) => {
             </div>
             <div>
                 <label className="text-xs text-text-muted mb-1 block">Perícias</label>
-                <textarea className="w-full bg-black/50 border border-glass-border rounded p-2 text-white h-20 text-sm" 
+                <textarea className="w-full bg-black/50 border border-glass-border rounded p-2 text-white h-20 text-sm focus:border-neon-blue transition-colors" 
                           value={formData.skills||''} 
                           onChange={e=>setFormData({...formData, skills:e.target.value})}/>
             </div>
@@ -92,22 +106,19 @@ const CharacterForm = ({ formData, setFormData, handlePhotoUpload }) => {
 const CharacterSidebar = () => {
   const { 
     gameState, presets, activePresetId,
-    addCharacter, updateCharacter, deleteCharacter, setAllCharacters, importCharacters,
+    addCharacter, updateCharacter, deleteCharacter, setAllCharacters,
     createPreset, loadPreset, saveToPreset, deletePreset, mergePresets, exitPreset
   } = useGame();
   
-  const [view, setView] = useState('hub'); 
+  const [view, setView] = useState('manager'); // manager | hub | details
   const [activeCharId, setActiveCharId] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({});
 
   const [newPresetName, setNewPresetName] = useState("");
   const [isCreatingPreset, setIsCreatingPreset] = useState(false);
-  
-  // Modais
   const [confirmModal, setConfirmModal] = useState({ open: false, title: '', msg: '', onConfirm: null });
-  const [exitModalOpen, setExitModalOpen] = useState(false); // NOVO MODAL DE SAÍDA
-
+  
   const [draggedIndex, setDraggedIndex] = useState(null);
   const footerRef = useRef(null);
   const [footerIconSize, setFooterIconSize] = useState(48);
@@ -115,11 +126,20 @@ const CharacterSidebar = () => {
   const activeChar = gameState.characters.find(c => c.id === activeCharId);
   const currentPreset = presets.find(p => p.id === activePresetId);
 
+  // Controle de View baseado no Preset Ativo
   useEffect(() => {
       if (!activePresetId) setView('manager');
       else if (view === 'manager') setView('hub');
   }, [activePresetId]);
 
+  // AUTO-SAVE: Salva automaticamente sempre que há mudança nos personagens
+  useEffect(() => {
+      if (activePresetId && gameState.characters) {
+          saveToPreset(activePresetId);
+      }
+  }, [gameState.characters, activePresetId, saveToPreset]);
+
+  // Cálculo de tamanho de ícones do rodapé
   useEffect(() => {
       if (!footerRef.current || gameState.characters.length === 0) return;
       const calcSize = () => {
@@ -140,32 +160,28 @@ const CharacterSidebar = () => {
   const showConfirm = (title, msg, action) => setConfirmModal({ open: true, title, msg, onConfirm: action });
   const closeModal = () => setConfirmModal({ ...confirmModal, open: false });
 
-  // REORDENAÇÃO E DRAG PARA O BOARD
+  // --- DRAG AND DROP ---
   const handleDragSortStart = (e, index, char) => {
       setDraggedIndex(index);
-      // Dados para reordenação interna
-      // Dados para o VTT (Board.jsx)
-      e.dataTransfer.setData('application/json', JSON.stringify({ 
-          type: 'character_drag', 
-          characterId: char.id 
-      }));
+      e.dataTransfer.setData('application/json', JSON.stringify({ type: 'character_drag', characterId: char.id }));
       e.dataTransfer.effectAllowed = 'copyMove';
   };
 
   const handleDragSortDrop = (e, dropIndex) => {
       e.stopPropagation();
       if (draggedIndex === null || draggedIndex === dropIndex) return;
-      if (draggedIndex === -1) return; // Arrastou da ficha detalhada, não reordena
+      if (draggedIndex === -1) return; 
 
       const newList = [...gameState.characters];
       const [removed] = newList.splice(draggedIndex, 1);
       newList.splice(dropIndex, 0, removed);
-      setAllCharacters(newList);
+      setAllCharacters(newList); // Isso disparará o Auto-Save
       setDraggedIndex(null);
   };
   const handleDragEnd = () => setDraggedIndex(null);
   const handleDragOver = (e) => e.preventDefault();
 
+  // --- PRESET ACTIONS ---
   const handleExportPresetsZip = async () => {
       const zip = new JSZip();
       zip.file("presets.json", JSON.stringify(presets, null, 2));
@@ -198,27 +214,11 @@ const CharacterSidebar = () => {
       setIsCreatingPreset(false);
   };
 
-  const handleSaveToPreset = () => {
-      if (activePresetId) {
-          saveToPreset(activePresetId);
-          showAlert("Salvo", `Grupo "${currentPreset?.name}" atualizado!`);
-      }
-  };
-  
-  // LOGICA DO MODAL DE SAIR
-  const handleExitRequest = () => setExitModalOpen(true);
-  
-  const handleExitSave = () => {
-      saveToPreset(activePresetId);
-      setExitModalOpen(false);
-      exitPreset();
-  };
-  
-  const handleExitNoSave = () => {
-      setExitModalOpen(false);
-      exitPreset();
+  const handleExitGroup = () => {
+      exitPreset(); 
   };
 
+  // --- CHARACTER ACTIONS ---
   const handleSaveChar = () => {
     if (!formData.name) return showAlert("Erro", "Nome é obrigatório");
     if (activeCharId === 'NEW') {
@@ -259,7 +259,7 @@ const CharacterSidebar = () => {
   const ConfirmationOverlay = () => {
       if (!confirmModal.open) return null;
       return (
-          <div className="absolute inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-center justify-center p-6 animate-in fade-in">
+          <div className="absolute inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-center justify-center p-6" style={{ animation: 'fadeInUp 0.3s ease-out forwards' }}>
               <div className="bg-ecos-bg border border-glass-border p-6 rounded-xl shadow-2xl max-w-xs w-full text-center">
                   <h3 className="text-xl font-rajdhani font-bold text-white mb-2">{confirmModal.title}</h3>
                   <p className="text-text-muted text-sm mb-6">{confirmModal.msg}</p>
@@ -278,27 +278,12 @@ const CharacterSidebar = () => {
       );
   };
 
-  // NOVO MODAL DE CONFIRMAÇÃO DE SAÍDA
-  const ExitModal = () => {
-      if (!exitModalOpen) return null;
-      return (
-          <div className="absolute inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-center justify-center p-6 animate-in fade-in">
-              <div className="bg-ecos-bg border border-glass-border p-6 rounded-xl shadow-2xl max-w-sm w-full text-center">
-                  <h3 className="text-xl font-rajdhani font-bold text-white mb-2">Sair do Grupo?</h3>
-                  <p className="text-text-muted text-sm mb-6">Você tem alterações não salvas no grupo atual.</p>
-                  <div className="flex flex-col gap-3">
-                      <button onClick={handleExitSave} className="w-full py-2 rounded bg-neon-blue text-black font-bold hover:bg-white transition text-sm">SALVAR E SAIR</button>
-                      <button onClick={handleExitNoSave} className="w-full py-2 rounded bg-red-900/50 border border-red-900 text-white hover:bg-red-900 transition text-sm">SAIR SEM SALVAR</button>
-                      <button onClick={() => setExitModalOpen(false)} className="w-full py-2 rounded bg-transparent text-text-muted hover:text-white transition text-sm">CANCELAR</button>
-                  </div>
-              </div>
-          </div>
-      );
-  };
-
+  // ==========================================
+  // VIEW: GERENCIADOR DE GRUPOS
+  // ==========================================
   if (!activePresetId || view === 'manager') {
       return (
-        <div className="h-full flex flex-col p-6 bg-ecos-bg text-text-main overflow-hidden border-r border-glass-border items-center relative">
+        <FadeInView key="manager" className="p-6 bg-ecos-bg text-text-main overflow-hidden border-r border-glass-border items-center relative">
             <ConfirmationOverlay />
             <h1 className="text-3xl font-rajdhani font-bold text-neon-blue mb-2 tracking-widest mt-10">ECOS RPG</h1>
             <p className="text-text-muted text-sm text-center mb-8">Selecione um grupo para começar.</p>
@@ -307,7 +292,7 @@ const CharacterSidebar = () => {
                     {!isCreatingPreset ? (
                         <button onClick={() => setIsCreatingPreset(true)} className="w-full py-3 bg-neon-blue text-black font-bold rounded hover:bg-white transition flex items-center justify-center gap-2"><Plus size={18}/> NOVO GRUPO</button>
                     ) : (
-                        <div className="flex flex-col gap-3 animate-in fade-in">
+                        <div className="flex flex-col gap-3" style={{ animation: 'fadeInUp 0.2s ease-out' }}>
                             <input autoFocus placeholder="Nome..." className="w-full bg-black/50 border border-glass-border rounded p-2 text-white" value={newPresetName} onChange={e=>setNewPresetName(e.target.value)} />
                             <div className="flex gap-2">
                                 <button onClick={() => setIsCreatingPreset(false)} className="flex-1 py-1 text-text-muted text-xs">Cancelar</button>
@@ -318,9 +303,9 @@ const CharacterSidebar = () => {
                 </div>
                 <div className="flex items-center gap-2 text-text-muted text-xs uppercase my-4"><div className="h-px bg-glass-border flex-1"></div><span>Grupos Salvos</span><div className="h-px bg-glass-border flex-1"></div></div>
                 {presets.length === 0 ? <div className="text-center text-text-muted italic text-sm">Vazio.</div> : presets.map(p => (
-                    <div key={p.id} onClick={() => loadPreset(p.id)} className="bg-glass border border-glass-border rounded-lg p-3 flex justify-between items-center cursor-pointer hover:bg-white/5 transition">
+                    <div key={p.id} onClick={() => loadPreset(p.id)} className="bg-glass border border-glass-border rounded-lg p-3 flex justify-between items-center cursor-pointer hover:bg-white/5 transition group">
                         <div><h3 className="font-bold text-white font-rajdhani">{p.name}</h3><div className="text-xs text-text-muted">{p.characters.length} Personagens</div></div>
-                        <button onClick={(e) => { e.stopPropagation(); showConfirm("Apagar Grupo", "Não poderá ser desfeito.", () => deletePreset(p.id)); }} className="p-2 hover:bg-red-900/50 hover:text-red-500 rounded text-text-muted transition"><Trash2 size={16}/></button>
+                        <button onClick={(e) => { e.stopPropagation(); showConfirm("Apagar Grupo", "Não poderá ser desfeito.", () => deletePreset(p.id)); }} className="p-2 hover:bg-red-900/50 hover:text-red-500 rounded text-text-muted transition opacity-0 group-hover:opacity-100"><Trash2 size={16}/></button>
                     </div>
                 ))}
             </div>
@@ -328,28 +313,28 @@ const CharacterSidebar = () => {
                 <button onClick={handleExportPresetsZip} className="flex gap-1 items-center hover:text-white"><Download size={12}/> Exportar</button>
                 <label className="flex gap-1 items-center hover:text-white cursor-pointer"><Upload size={12}/> Importar<input type="file" className="hidden" accept=".zip" onChange={handleImportPresetsZip}/></label>
             </div>
-        </div>
+        </FadeInView>
       );
   }
 
+  // ==========================================
+  // VIEW: HUB (GRID DE PERSONAGENS)
+  // ==========================================
   if (view === 'hub') {
     return (
-      <div className="h-full flex flex-col bg-ecos-bg text-text-main overflow-hidden relative border-r border-glass-border">
+      <FadeInView key="hub" className="bg-ecos-bg text-text-main overflow-hidden relative border-r border-glass-border">
         <ConfirmationOverlay />
-        <ExitModal />
         
         <div className="p-3 bg-neon-purple/10 border-b border-neon-purple/30 flex justify-between items-center shrink-0">
             <div className="flex items-center gap-2 overflow-hidden">
-                <div className="w-2 h-2 rounded-full bg-neon-green animate-pulse"></div>
+                <div className="w-2 h-2 rounded-full bg-neon-green shadow-[0_0_5px_#0f0]"></div>
                 <div className="flex flex-col">
                     <span className="text-[10px] text-neon-purple uppercase font-bold leading-none">Grupo Ativo</span>
                     <span className="font-rajdhani font-bold text-white truncate max-w-[120px] leading-none">{currentPreset?.name}</span>
                 </div>
             </div>
-            <div className="flex gap-1">
-                <button onClick={handleSaveToPreset} className="p-1.5 bg-neon-purple text-black rounded text-xs font-bold hover:bg-white transition flex items-center gap-1"><Save size={14}/> SALVAR</button>
-                <button onClick={handleExitRequest} className="p-1.5 bg-glass border border-glass-border rounded hover:bg-white/10 text-text-muted transition"><LogOut size={14}/></button>
-            </div>
+            {/* Botão Sair */}
+            <button onClick={handleExitGroup} className="p-1.5 bg-glass border border-glass-border rounded hover:bg-red-900/30 hover:text-red-400 text-text-muted transition flex items-center gap-1" title="Sair do Grupo"><LogOut size={14}/> SAIR</button>
         </div>
 
         <div className="flex-1 overflow-y-auto grid grid-cols-2 gap-3 p-3 content-start scrollbar-thin">
@@ -365,19 +350,19 @@ const CharacterSidebar = () => {
                     className={`bg-glass border border-glass-border rounded-lg p-3 flex flex-col items-center cursor-pointer hover:bg-white/5 transition relative group min-h-[110px] ${draggedIndex === index ? 'opacity-30 border-dashed border-neon-blue' : ''}`}
                 >
                     <button onClick={(e) => { e.stopPropagation(); handleDeleteChar(char.id); }} className="absolute top-1 right-1 w-5 h-5 bg-red-600 rounded-full flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity z-10 text-[10px] hover:scale-110"><X size={10}/></button>
-                    <img src={char.photo || 'https://via.placeholder.com/120'} className="w-16 h-16 rounded-full object-cover border border-glass-border mb-2 bg-[#222] pointer-events-none" />
+                    <img src={char.photo || 'https://via.placeholder.com/120'} className="w-16 h-16 rounded-full object-cover border border-glass-border mb-2 bg-[#222] pointer-events-none" alt={char.name} />
                     <span className="font-semibold text-center text-xs leading-tight w-full truncate px-1 pointer-events-none">{char.name}</span>
                 </div>
             ))}
             
-            <div onClick={() => openEdit(true)} className="border border-dashed border-glass-border rounded-lg p-2 flex flex-col items-center justify-center cursor-pointer hover:bg-white/5 opacity-50 hover:opacity-100 min-h-[110px]">
+            <div onClick={() => openEdit(true)} className="border border-dashed border-glass-border rounded-lg p-2 flex flex-col items-center justify-center cursor-pointer hover:bg-white/5 opacity-50 hover:opacity-100 min-h-[110px] transition-all">
                 <Plus size={32} className="text-text-muted"/>
                 <span className="text-xs text-text-muted mt-2">Adicionar</span>
             </div>
         </div>
 
         {isEditing && (
-             <div className="absolute inset-0 bg-ecos-bg z-50 p-4 flex flex-col overflow-hidden animate-in slide-in-from-bottom-5">
+             <div className="absolute inset-0 bg-ecos-bg z-50 p-4 flex flex-col overflow-hidden" style={{ animation: 'fadeInUp 0.3s ease-out' }}>
                 <div className="flex justify-between items-center mb-4"><h2 className="text-lg font-rajdhani font-bold text-neon-blue">Novo Personagem</h2><button onClick={() => setIsEditing(false)}><X size={20}/></button></div>
                 <div className="flex-1 overflow-y-auto scrollbar-thin pr-2">
                     <CharacterForm formData={formData} setFormData={setFormData} handlePhotoUpload={handlePhotoUpload} />
@@ -385,14 +370,16 @@ const CharacterSidebar = () => {
                 <button onClick={handleSaveChar} className="mt-4 w-full py-3 bg-neon-blue/10 border border-neon-blue text-neon-blue font-bold rounded hover:bg-neon-blue hover:text-black transition">ADICIONAR À MESA</button>
              </div>
         )}
-      </div>
+      </FadeInView>
     );
   }
 
+  // ==========================================
+  // VIEW: DETAILS (FICHA DE PERSONAGEM)
+  // ==========================================
   return (
-    <div className="h-full flex flex-col bg-black/80 text-text-main relative overflow-hidden">
+    <FadeInView key={activeCharId || 'details'} className="bg-black/80 text-text-main relative overflow-hidden">
         <ConfirmationOverlay />
-        <ExitModal />
         <div className="flex justify-between items-center p-4 border-b border-glass-border bg-black/40 shrink-0">
             <button onClick={navToHub} className="p-2 rounded-full bg-glass hover:bg-white/10 transition"><ArrowLeft size={20} /></button>
             <button onClick={() => openEdit(false)} className="p-2 rounded-full bg-glass hover:bg-white/10 transition text-neon-purple"><Edit2 size={20} /></button>
@@ -400,7 +387,7 @@ const CharacterSidebar = () => {
 
         <div className="flex-1 overflow-y-auto p-6 scrollbar-thin">
             <div className="flex items-center gap-5 mb-6">
-                <img draggable onDragStart={(e) => handleDragSortStart(e, -1, activeChar)} onDragEnd={handleDragEnd} src={activeChar.photo || 'https://via.placeholder.com/120'} className="w-[100px] h-[100px] rounded-2xl object-cover shadow-lg cursor-grab active:cursor-grabbing"/>
+                <img draggable onDragStart={(e) => handleDragSortStart(e, -1, activeChar)} onDragEnd={handleDragEnd} src={activeChar.photo || 'https://via.placeholder.com/120'} className="w-[100px] h-[100px] rounded-2xl object-cover shadow-lg cursor-grab active:cursor-grabbing hover:scale-105 transition-transform" alt="Avatar"/>
                 <div className="flex-1 flex flex-col justify-center gap-2">
                     <h2 className="text-2xl font-bold leading-tight font-rajdhani">{activeChar.name}</h2>
                     <div className="flex items-center justify-between bg-neon-purple/15 border border-neon-purple rounded-xl p-2 h-[60px] shadow-[0_0_15px_rgba(188,19,254,0.2)]">
@@ -433,12 +420,13 @@ const CharacterSidebar = () => {
                     onClick={() => navToChar(c.id)}
                     style={{ width: footerIconSize, height: footerIconSize }}
                     className={`rounded-full border-2 object-cover cursor-pointer hover:scale-110 transition-transform shrink-0 ${c.id === activeChar.id ? 'border-neon-blue opacity-100 shadow-[0_0_10px_rgba(0,243,255,0.4)]' : 'border-transparent opacity-50 hover:opacity-100'}`} 
+                    alt={c.name}
                  />
              ))}
         </div>
 
         {isEditing && (
-             <div className="absolute inset-0 bg-black/90 backdrop-blur-md z-50 p-4 flex flex-col overflow-y-auto animate-in slide-in-from-right-5">
+             <div className="absolute inset-0 bg-black/90 backdrop-blur-md z-50 p-4 flex flex-col overflow-y-auto" style={{ animation: 'fadeInUp 0.3s ease-out' }}>
                 <div className="flex justify-between items-center mb-4"><h2 className="text-xl font-rajdhani font-bold text-neon-blue">Editar Personagem</h2><button onClick={() => setIsEditing(false)}><X size={24}/></button></div>
                 <div className="flex-1 overflow-y-auto scrollbar-thin pr-2">
                     <CharacterForm formData={formData} setFormData={setFormData} handlePhotoUpload={handlePhotoUpload} />
@@ -446,7 +434,7 @@ const CharacterSidebar = () => {
                 <button onClick={handleSaveChar} className="mt-4 w-full py-3 bg-neon-blue/10 border border-neon-blue text-neon-blue font-bold rounded hover:bg-neon-blue hover:text-black transition">SALVAR ALTERAÇÕES</button>
              </div>
         )}
-    </div>
+    </FadeInView>
   );
 };
 
