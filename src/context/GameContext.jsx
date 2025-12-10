@@ -63,7 +63,8 @@ export const GameProvider = ({ children }) => {
 
   // Helpers de Acesso Rápido
   const activeAdventure = adventures.find(a => a.id === activeAdventureId);
-  const activeScene = activeAdventure?.scenes.find(s => s.id === activeAdventure.activeSceneId);
+// Use '?.' para evitar erro se activeAdventure for undefined
+const activeScene = activeAdventure?.scenes.find(s => s.id === activeAdventure.activeSceneId);
 
   // ==========================================
   // 4. LÓGICA DE AVENTURAS (VTT)

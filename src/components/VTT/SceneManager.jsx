@@ -1,21 +1,22 @@
 import React, { useState } from 'react';
 import { useGame } from '../../context/GameContext';
-import { Plus, X, Image as ImageIcon, Check, Trash2, Map } from 'lucide-react';
+import { Plus, X, Image as ImageIcon, Trash2, Map } from 'lucide-react';
 
 const SceneManager = ({ onClose }) => {
-  const { gameState, addScene, setActiveScene, deleteScene } = useGame();
+  // CORREÇÃO 1: Pegamos activeAdventure e activeScene em vez de gameState
+  const { activeAdventure, activeScene, addScene, setActiveScene, deleteScene } = useGame();
   
   const [isCreating, setIsCreating] = useState(false);
   const [newSceneName, setNewSceneName] = useState("");
   const [newMapImage, setNewMapImage] = useState(null);
 
+  // CORREÇÃO 2: Se não houver aventura carregada, não renderiza nada (evita erro fatal)
+  if (!activeAdventure) return null;
+
   const handleCreate = () => {
     if (!newSceneName) return alert("Dê um nome para a cena.");
+    addScene(newSceneName, newMapImage);
     
-    // addScene retorna o ID da nova cena
-    const newId = addScene(newSceneName, newMapImage);
-    
-    // Reseta form
     setNewSceneName("");
     setNewMapImage(null);
     setIsCreating(false);
@@ -38,37 +39,39 @@ const SceneManager = ({ onClose }) => {
         <h3 className="font-rajdhani font-bold text-white flex items-center gap-2">
             <Map size={18} className="text-neon-green"/> GERENCIAR CENAS
         </h3>
-        <button onClick={onClose} className="text-text-muted hover:text-white"><X size={18}/></button>
+        {/* Adicionei checagem se onClose existe antes de chamar */}
+        <button onClick={() => onClose && onClose()} className="text-text-muted hover:text-white"><X size={18}/></button>
       </div>
 
       {/* Lista de Cenas */}
       <div className="flex-1 overflow-y-auto p-4 space-y-3 scrollbar-thin">
-        {gameState.scenes.length === 0 && !isCreating && (
+        {/* CORREÇÃO 3: Usamos activeAdventure.scenes aqui */}
+        {activeAdventure.scenes.length === 0 && !isCreating && (
             <div className="text-center text-text-muted text-sm py-4">
                 Nenhuma cena criada.
             </div>
         )}
 
-        {gameState.scenes.map(scene => (
+        {activeAdventure.scenes.map(scene => (
             <div 
                 key={scene.id} 
                 onClick={() => setActiveScene(scene.id)}
                 className={`
                     relative group border rounded-lg p-2 cursor-pointer transition-all flex gap-3 items-center
-                    ${gameState.activeSceneId === scene.id ? 'bg-neon-green/10 border-neon-green' : 'bg-glass border-glass-border hover:bg-white/5'}
+                    ${activeScene?.id === scene.id ? 'bg-neon-green/10 border-neon-green' : 'bg-glass border-glass-border hover:bg-white/5'}
                 `}
             >
                 {/* Thumbnail do Mapa */}
                 <div className="w-12 h-12 bg-black rounded border border-glass-border shrink-0 overflow-hidden flex items-center justify-center">
                     {scene.mapImage ? (
-                        <img src={scene.mapImage} className="w-full h-full object-cover" />
+                        <img src={scene.mapImage} className="w-full h-full object-cover" alt="Map" />
                     ) : (
                         <ImageIcon size={16} className="text-text-muted opacity-50"/>
                     )}
                 </div>
                 
                 <div className="flex-1 overflow-hidden">
-                    <div className={`font-bold text-sm truncate ${gameState.activeSceneId === scene.id ? 'text-neon-green' : 'text-white'}`}>
+                    <div className={`font-bold text-sm truncate ${activeScene?.id === scene.id ? 'text-neon-green' : 'text-white'}`}>
                         {scene.name}
                     </div>
                     <div className="text-[10px] text-text-muted">{scene.tokens?.length || 0} Tokens</div>
