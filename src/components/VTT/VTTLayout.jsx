@@ -78,7 +78,7 @@ export const VTTLayout = ({ zoomValue, onZoomChange }) => {
 
       // POSIÇÃO: Right-4 (Ajustado para ficar abaixo da caixa expandida)
       return (
-          <WindowWrapper className="absolute top-28 right-4 bg-ecos-bg border border-glass-border p-4 rounded-xl shadow-2xl z-50 w-72 animate-in fade-in slide-in-from-top-2 origin-top-right">
+          <WindowWrapper className="absolute top-24 right-4 bg-black/85 border border-glass-border backdrop-blur-sm p-4 rounded-xl shadow-2xl z-50 w-72 animate-in fade-in slide-in-from-top-2 scale-90 origin-top-right">
               <div className="flex justify-between items-center mb-4">
                   <h3 className="font-rajdhani font-bold text-white">Configurar Mapa</h3>
                   <button onClick={(e) => toggle('mapConfigOpen', e)}><X size={16} className="text-text-muted hover:text-white"/></button>
@@ -121,7 +121,7 @@ export const VTTLayout = ({ zoomValue, onZoomChange }) => {
       if (!uiState.libraryOpen) return null;
       // POSIÇÃO: Right-4 (Ajustado)
       return (
-          <WindowWrapper className="absolute top-28 right-4 w-[400px] bg-black/90 border border-glass-border rounded-xl flex flex-col max-h-[60vh] z-40 animate-in fade-in slide-in-from-top-2 shadow-2xl origin-top-right">
+          <WindowWrapper className="absolute top-24 right-4 w-[290px] bg-black/90 border border-glass-border backdrop-blur-sm rounded-xl flex flex-col max-h-[60vh] z-40 animate-in fade-in slide-in-from-top-2 shadow-2xl scale-90 origin-top-right">
               <div className="p-3 border-b border-glass-border flex justify-between items-center bg-white/5 rounded-t-xl">
                   <h3 className="font-bold text-white flex gap-2 items-center text-sm"><Box size={16} className="text-neon-blue"/> Biblioteca</h3>
                   <button onClick={(e) => toggle('libraryOpen', e)}><X size={16} className="text-text-muted hover:text-white"/></button>
@@ -146,7 +146,7 @@ export const VTTLayout = ({ zoomValue, onZoomChange }) => {
       if (!uiState.menuOpen) return null;
       // POSIÇÃO: Right-4 (Ajustado)
       return (
-          <WindowWrapper className="absolute top-28 right-4 w-72 bg-ecos-bg border border-glass-border rounded-xl shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 origin-top-right">
+          <WindowWrapper className="absolute top-24 right-4 w-72 bg-black/90 border border-glass-border backdrop-blur-sm rounded-xl shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 scale-90 origin-top-right">
               <div className="max-h-[300px] overflow-y-auto scrollbar-thin">
                   {activeAdventure?.scenes.map(s => (
                       <div key={s.id} onClick={(e) => { e.stopPropagation(); setActiveScene(s.id); toggle('menuOpen', e); }}
@@ -202,22 +202,34 @@ export const VTTLayout = ({ zoomValue, onZoomChange }) => {
           
           {/* HEADER ALINHADO À DIREITA COM SLIDER INTEGRADO */}
           {/* Mudança: Flex-col para empilhar slider e botões na mesma caixa */}
-          <div className="absolute top-4 right-4 flex flex-col bg-black/80 rounded-lg border border-glass-border shadow-lg backdrop-blur-sm pointer-events-auto z-40 w-max overflow-hidden"
+          <div className="absolute top-4 right-4 flex flex-col bg-black/80 rounded-lg border border-glass-border shadow-lg backdrop-blur-sm pointer-events-auto z-40 w-max overflow-hidden scale-90 origin-top-right"
                onClick={e => e.stopPropagation()} onMouseDown={e => e.stopPropagation()}>
               
               {/* SLIDER DE ZOOM (Linha superior) */}
               {onZoomChange && (
-                <div className="px-3 py-2 border-b border-white/5 flex items-center gap-2 justify-center bg-black/20">
-                    <Search size={12} className="text-text-muted"/>
+                <div className="px-3 py-2 border-b border-white/5 flex items-center gap-2 justify-left bg-black/20">
+                    <Search size={15} className="text-text-muted"/>
                     <input 
                         type="range" 
                         min="10" 
                         max="400" 
                         value={zoomValue || 100} 
                         onChange={onZoomChange}
-                        className="w-32 h-1.5 bg-white/20 rounded-lg appearance-none cursor-pointer accent-neon-green hover:accent-white transition-all"
+                        className="
+                            w-60 h-2 bg-white/20 rounded-lg appearance-none cursor-pointer outline-none
+                            [&::-webkit-slider-thumb]:appearance-none 
+                            [&::-webkit-slider-thumb]:w-3 
+                            [&::-webkit-slider-thumb]:h-3 
+                            [&::-webkit-slider-thumb]:rounded-full 
+                            [&::-webkit-slider-thumb]:bg-white 
+                            [&::-webkit-slider-thumb]:shadow-[0_0_10px_rgba(255,255,255,0.5)]
+                            [&::-moz-range-thumb]:w-3 
+                            [&::-moz-range-thumb]:h-3 
+                            [&::-moz-range-thumb]:rounded-full 
+                            [&::-moz-range-thumb]:bg-white
+                            [&::-moz-range-thumb]:border-none
+                        "
                     />
-                    <span className="text-[10px] font-mono text-neon-green w-8 text-right">{zoomValue}%</span>
                 </div>
               )}
 
