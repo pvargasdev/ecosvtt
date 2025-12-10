@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useGame } from '../../context/GameContext';
-import { Settings, Image as ImageIcon, Box, Map, Plus, Trash2, X, ChevronDown, LogOut, Edit2, RotateCcw, Check } from 'lucide-react';
+import { Settings, Image as ImageIcon, Box, Map, Plus, Trash2, X, ChevronDown, LogOut, Edit2, RotateCcw, Check, Search } from 'lucide-react';
 import { imageDB } from '../../context/db';
 
 const LibraryThumb = ({ token }) => {
@@ -23,7 +23,7 @@ const LibraryThumb = ({ token }) => {
     );
 };
 
-export const VTTLayout = () => {
+export const VTTLayout = ({ zoomValue, onZoomChange }) => {
   const { 
     activeAdventure, activeScene, 
     addScene, setActiveScene, updateScene, updateSceneMap, deleteScene,
@@ -76,9 +76,9 @@ export const VTTLayout = () => {
 
       if (!uiState.mapConfigOpen) return null;
 
-      // POSIÇÃO: Right-4
+      // POSIÇÃO: Right-4 (Ajustado para ficar abaixo da caixa expandida)
       return (
-          <WindowWrapper className="absolute top-16 right-4 bg-ecos-bg border border-glass-border p-4 rounded-xl shadow-2xl z-50 w-72 animate-in fade-in slide-in-from-top-2 origin-top-right">
+          <WindowWrapper className="absolute top-28 right-4 bg-ecos-bg border border-glass-border p-4 rounded-xl shadow-2xl z-50 w-72 animate-in fade-in slide-in-from-top-2 origin-top-right">
               <div className="flex justify-between items-center mb-4">
                   <h3 className="font-rajdhani font-bold text-white">Configurar Mapa</h3>
                   <button onClick={(e) => toggle('mapConfigOpen', e)}><X size={16} className="text-text-muted hover:text-white"/></button>
@@ -119,9 +119,9 @@ export const VTTLayout = () => {
 
   const AssetDock = () => {
       if (!uiState.libraryOpen) return null;
-      // POSIÇÃO: Right-4
+      // POSIÇÃO: Right-4 (Ajustado)
       return (
-          <WindowWrapper className="absolute top-16 right-4 w-[400px] bg-black/90 border border-glass-border rounded-xl flex flex-col max-h-[60vh] z-40 animate-in fade-in slide-in-from-top-2 shadow-2xl origin-top-right">
+          <WindowWrapper className="absolute top-28 right-4 w-[400px] bg-black/90 border border-glass-border rounded-xl flex flex-col max-h-[60vh] z-40 animate-in fade-in slide-in-from-top-2 shadow-2xl origin-top-right">
               <div className="p-3 border-b border-glass-border flex justify-between items-center bg-white/5 rounded-t-xl">
                   <h3 className="font-bold text-white flex gap-2 items-center text-sm"><Box size={16} className="text-neon-blue"/> Biblioteca</h3>
                   <button onClick={(e) => toggle('libraryOpen', e)}><X size={16} className="text-text-muted hover:text-white"/></button>
@@ -144,9 +144,9 @@ export const VTTLayout = () => {
 
   const SceneSelector = () => {
       if (!uiState.menuOpen) return null;
-      // POSIÇÃO: Right-4
+      // POSIÇÃO: Right-4 (Ajustado)
       return (
-          <WindowWrapper className="absolute top-14 right-4 w-72 bg-ecos-bg border border-glass-border rounded-xl shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 origin-top-right">
+          <WindowWrapper className="absolute top-28 right-4 w-72 bg-ecos-bg border border-glass-border rounded-xl shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 origin-top-right">
               <div className="max-h-[300px] overflow-y-auto scrollbar-thin">
                   {activeAdventure?.scenes.map(s => (
                       <div key={s.id} onClick={(e) => { e.stopPropagation(); setActiveScene(s.id); toggle('menuOpen', e); }}
@@ -200,24 +200,44 @@ export const VTTLayout = () => {
   return (
       <div className="absolute inset-0 pointer-events-none z-50">
           
-          {/* HEADER ALINHADO À DIREITA */}
-          <div className="absolute top-4 right-4 flex items-center gap-2 bg-black/80 p-1.5 rounded-lg border border-glass-border shadow-lg backdrop-blur-sm pointer-events-auto z-40 w-max"
+          {/* HEADER ALINHADO À DIREITA COM SLIDER INTEGRADO */}
+          {/* Mudança: Flex-col para empilhar slider e botões na mesma caixa */}
+          <div className="absolute top-4 right-4 flex flex-col bg-black/80 rounded-lg border border-glass-border shadow-lg backdrop-blur-sm pointer-events-auto z-40 w-max overflow-hidden"
                onClick={e => e.stopPropagation()} onMouseDown={e => e.stopPropagation()}>
               
-              <button onClick={(e) => toggle('menuOpen', e)} className="flex items-center gap-2 px-3 py-1.5 hover:bg-white/10 rounded text-white transition border border-transparent hover:border-glass-border">
-                  <Map size={16} className="text-neon-green"/>
-                  <span className="font-rajdhani font-bold uppercase text-sm max-w-[150px] truncate">{activeScene?.name || "Sem Cena"}</span>
-                  <ChevronDown size={14} className="text-text-muted"/>
-              </button>
-              
-              <div className="w-px h-6 bg-glass-border mx-1"></div>
-              
-              <button onClick={(e) => toggle('mapConfigOpen', e)} className={`p-2 rounded hover:bg-white/10 transition ${uiState.mapConfigOpen ? 'text-neon-blue' : 'text-text-muted'}`} title="Configurar Mapa"><Settings size={18}/></button>
-              <button onClick={(e) => toggle('libraryOpen', e)} className={`p-2 rounded hover:bg-white/10 transition ${uiState.libraryOpen ? 'text-neon-blue' : 'text-text-muted'}`} title="Biblioteca"><Box size={18}/></button>
-              
-              <div className="w-px h-6 bg-glass-border mx-1"></div>
-              
-              <button onClick={(e) => { e.stopPropagation(); setConfirmModal({ open: true, message: "Sair da aventura?", onConfirm: () => setActiveAdventureId(null) }); }} className="p-2 rounded hover:bg-red-500/20 text-text-muted hover:text-red-500" title="Sair"><LogOut size={18}/></button>
+              {/* SLIDER DE ZOOM (Linha superior) */}
+              {onZoomChange && (
+                <div className="px-3 py-2 border-b border-white/5 flex items-center gap-2 justify-center bg-black/20">
+                    <Search size={12} className="text-text-muted"/>
+                    <input 
+                        type="range" 
+                        min="10" 
+                        max="400" 
+                        value={zoomValue || 100} 
+                        onChange={onZoomChange}
+                        className="w-32 h-1.5 bg-white/20 rounded-lg appearance-none cursor-pointer accent-neon-green hover:accent-white transition-all"
+                    />
+                    <span className="text-[10px] font-mono text-neon-green w-8 text-right">{zoomValue}%</span>
+                </div>
+              )}
+
+              {/* BOTÕES DE MENU (Linha inferior) */}
+              <div className="flex items-center gap-2 p-1.5">
+                <button onClick={(e) => toggle('menuOpen', e)} className="flex items-center gap-2 px-3 py-1.5 hover:bg-white/10 rounded text-white transition border border-transparent hover:border-glass-border">
+                    <Map size={16} className="text-neon-green"/>
+                    <span className="font-rajdhani font-bold uppercase text-sm max-w-[150px] truncate">{activeScene?.name || "Sem Cena"}</span>
+                    <ChevronDown size={14} className="text-text-muted"/>
+                </button>
+                
+                <div className="w-px h-6 bg-glass-border mx-1"></div>
+                
+                <button onClick={(e) => toggle('mapConfigOpen', e)} className={`p-2 rounded hover:bg-white/10 transition ${uiState.mapConfigOpen ? 'text-neon-blue' : 'text-text-muted'}`} title="Configurar Mapa"><Settings size={18}/></button>
+                <button onClick={(e) => toggle('libraryOpen', e)} className={`p-2 rounded hover:bg-white/10 transition ${uiState.libraryOpen ? 'text-neon-blue' : 'text-text-muted'}`} title="Biblioteca"><Box size={18}/></button>
+                
+                <div className="w-px h-6 bg-glass-border mx-1"></div>
+                
+                <button onClick={(e) => { e.stopPropagation(); setConfirmModal({ open: true, message: "Sair da aventura?", onConfirm: () => setActiveAdventureId(null) }); }} className="p-2 rounded hover:bg-red-500/20 text-text-muted hover:text-red-500" title="Sair"><LogOut size={18}/></button>
+              </div>
           </div>
 
           <MapConfigModal />

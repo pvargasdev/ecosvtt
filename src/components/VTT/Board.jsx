@@ -108,13 +108,11 @@ const Board = () => {
           const diffX = target.x - prev.x;
           const diffY = target.y - prev.y;
 
-          // Condição de parada (precisão pequena)
           if (Math.abs(diffScale) < 0.001 && Math.abs(diffX) < 0.5 && Math.abs(diffY) < 0.5) {
               animationRef.current = null;
-              return target; // Snap to target
+              return target; 
           }
 
-          // Interpolação Linear (Lerp) para suavidade
           const nextScale = prev.scale + (diffScale * CAMERA_SMOOTHING);
           const nextX = prev.x + (diffX * CAMERA_SMOOTHING);
           const nextY = prev.y + (diffY * CAMERA_SMOOTHING);
@@ -137,7 +135,6 @@ const Board = () => {
       const val = parseFloat(e.target.value);
       setSliderValue(val);
       
-      // Calcula o novo target baseado no centro da tela
       const newScale = val / 100;
       const node = containerRef.current;
       if (node) {
@@ -145,7 +142,7 @@ const Board = () => {
           const centerX = rect.width / 2;
           const centerY = rect.height / 2;
           
-          const prevScale = targetViewRef.current.scale; // Baseado no ultimo target
+          const prevScale = targetViewRef.current.scale;
           const ratio = newScale / prevScale;
           
           let newX = centerX - (centerX - targetViewRef.current.x) * ratio;
@@ -183,8 +180,6 @@ const Board = () => {
         let newY = mouseY - (mouseY - currentTarget.y) * ratio;
 
         setSliderValue(Math.round(clampedScale * 100));
-        
-        // Atualiza o Target, não a View diretamente
         targetViewRef.current = { scale: clampedScale, x: newX, y: newY };
         startAnimation();
     };
@@ -194,15 +189,14 @@ const Board = () => {
   }, []);
 
   // ==========================================
-  // MANIPULAÇÃO DO MOUSE
+  // MANIPULAÇÃO DO MOUSE (Correção de Bug)
   // ==========================================
   const handleMouseDown = (e) => {
-    if (e.target.closest('.vtt-ui-layer') || e.target.closest('.token') || e.target.closest('.zoom-control')) return;
+    if (e.target.closest('.vtt-ui-layer') || e.target.closest('.token')) return;
     
     if (!e.ctrlKey && !e.metaKey) setSelectedIds(new Set());
 
     if (e.button === 1 || (isSpacePressed && e.button === 0)) {
-        // Salva a posição inicial do Mouse e a posição inicial do Target View
         setInteraction({ 
             mode: 'PANNING', 
             startX: e.clientX, 
@@ -218,24 +212,22 @@ const Board = () => {
     if (isSpacePressed || e.button !== 0) return; 
 
     const isMultiSelect = e.ctrlKey || e.metaKey;
-    const newSelection = new Set(isMultiSelect ? selectedIds : []);
 
     if (isMultiSelect) {
+        // Toggle de seleção com Ctrl
+        const newSelection = new Set(selectedIds);
         if (newSelection.has(id)) newSelection.delete(id);
         else newSelection.add(id);
+        setSelectedIds(newSelection);
     } else {
+        // CORREÇÃO AQUI:
+        // Se o token JÁ está selecionado, não faz nada (mantém o grupo selecionado para arrastar)
+        // Se o token NÃO está selecionado, limpa os outros e seleciona só ele
         if (!selectedIds.has(id)) {
-            newSelection.clear();
-            newSelection.add(id);
-        } else {
-             if(!selectedIds.has(id)) {
-                 newSelection.clear();
-                 selectedIds.forEach(i => newSelection.add(i));
-             }
+            setSelectedIds(new Set([id]));
         }
     }
     
-    setSelectedIds(newSelection);
     setInteraction({ mode: 'DRAGGING', activeTokenId: id, startX: e.clientX, startY: e.clientY });
   };
 
@@ -258,7 +250,6 @@ const Board = () => {
         newX = Math.min(Math.max(newX, -currentLimit), currentLimit);
         newY = Math.min(Math.max(newY, -currentLimit), currentLimit);
         
-        // Atualiza o alvo para onde o mouse está arrastando
         targetViewRef.current = { ...targetViewRef.current, x: newX, y: newY };
         startAnimation();
 
@@ -311,9 +302,6 @@ const Board = () => {
       } catch(e){ console.error("Drop Error:", e); }
   };
 
-  // ==========================================
-  // TELA DE SELEÇÃO DE AVENTURA
-  // ==========================================
   if (!activeAdventureId || !activeAdventure) {
       return (
         <div className="w-full h-full bg-ecos-bg flex flex-col items-center justify-center p-6 text-white relative z-50">
@@ -396,23 +384,8 @@ const Board = () => {
         </div>
         
         <div className="vtt-ui-layer absolute inset-0 pointer-events-none" onMouseDown={(e) => e.stopPropagation()} onMouseUp={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()} onDoubleClick={(e) => e.stopPropagation()}>
-            <VTTLayout />
-
-            {/* CONTROLE DE ZOOM ALINHADO À DIREITA */}
-            <div className="absolute bottom-6 right-4 flex flex-col items-center gap-2 pointer-events-auto zoom-control animate-in fade-in slide-in-from-bottom-4">
-                <div className="bg-black/80 backdrop-blur-sm border border-glass-border px-4 py-2 rounded-full shadow-2xl flex items-center gap-3">
-                    <Search size={14} className="text-text-muted" />
-                    <input 
-                        type="range" 
-                        min="10" 
-                        max="400" 
-                        value={sliderValue} 
-                        onChange={handleSliderZoom}
-                        className="w-48 h-1.5 bg-white/20 rounded-lg appearance-none cursor-pointer accent-neon-green hover:accent-white transition-all"
-                    />
-                    <span className="text-xs font-mono text-neon-green w-10 text-right">{sliderValue}%</span>
-                </div>
-            </div>
+            {/* AGORA O VTTLAYOUT RECEBE O ZOOM PARA RENDERIZAR O SLIDER DENTRO DELE */}
+            <VTTLayout zoomValue={sliderValue} onZoomChange={handleSliderZoom} />
         </div>
     </div>
   );
