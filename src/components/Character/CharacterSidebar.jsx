@@ -434,7 +434,7 @@ const CharacterSidebar = ({ isCollapsed, setIsCollapsed }) => {
                 <div className="p-4 rounded-full bg-glass-border/20">
                     <Plus size={32} className="text-text-muted"/>
                 </div>
-                <span className="text-sm text-text-muted font-rajdhani uppercase tracking-widest">Novo</span>
+                <span className="text-sm text-text-muted font-rajdhani uppercase tracking-widest">Novo personagem</span>
             </div>
         </div>
 
