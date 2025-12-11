@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useLayoutEffect } from 'react';
+import React, { useState, useRef, useEffect, useLayoutEffect, useCallback } from 'react';
 import { useGame } from '../../context/GameContext';
 import Token from './Token';
 import { VTTLayout } from './VTTLayout';
@@ -100,7 +100,8 @@ const Board = () => {
   // UNIFIED SMOOTH CAMERA (PAN & ZOOM)
   // ==========================================
 
-  const animateCamera = () => {
+  // Usando useCallback para evitar recriação constante e referências perdidas
+  const animateCamera = useCallback(() => {
       setView(prev => {
           const target = targetViewRef.current;
           
@@ -108,8 +109,10 @@ const Board = () => {
           const diffX = target.x - prev.x;
           const diffY = target.y - prev.y;
 
+          // Tolerância para parar a animação
           if (Math.abs(diffScale) < 0.001 && Math.abs(diffX) < 0.5 && Math.abs(diffY) < 0.5) {
               animationRef.current = null;
+              // Snap to target to prevent micro-blur
               return target; 
           }
 
@@ -123,13 +126,13 @@ const Board = () => {
       if (animationRef.current) {
           animationRef.current = requestAnimationFrame(animateCamera);
       }
-  };
+  }, []);
 
-  const startAnimation = () => {
+  const startAnimation = useCallback(() => {
       if (!animationRef.current) {
           animationRef.current = requestAnimationFrame(animateCamera);
       }
-  };
+  }, [animateCamera]);
 
   const handleSliderZoom = (e) => {
       const val = parseFloat(e.target.value);
@@ -142,9 +145,8 @@ const Board = () => {
           const centerX = rect.width / 2;
           const centerY = rect.height / 2;
           
-          const prevScale = targetViewRef.current.scale;
-          const ratio = newScale / prevScale;
-          
+          // Calcula onde o centro estava
+          const ratio = newScale / targetViewRef.current.scale;
           let newX = centerX - (centerX - targetViewRef.current.x) * ratio;
           let newY = centerY - (centerY - targetViewRef.current.y) * ratio;
           
@@ -162,20 +164,33 @@ const Board = () => {
     if (!node) return;
 
     const onWheel = (e) => {
+        // Bloqueia zoom se estiver rolando uma lista
         if (e.target.closest('.overflow-y-auto')) return;
+        
         e.preventDefault(); 
         
-        const scaleAmount = -e.deltaY * 0.001;
-        const currentTarget = targetViewRef.current;
+        // CORREÇÃO: Normaliza o delta para evitar problemas entre mouse e trackpad
+        // Usa Math.sign para garantir direção constante, multiplica por 0.1 (10% de zoom por tick)
+        const zoomIntensity = 0.1;
+        const scaleAmount = -Math.sign(e.deltaY) * zoomIntensity;
         
+        const currentTarget = targetViewRef.current;
         const rawNewScale = currentTarget.scale * (1 + scaleAmount);
+        
+        // Clamp scale
+        const clampedScale = Math.min(Math.max(MIN_SCALE, rawNewScale), MAX_SCALE);
+        
+        // Se a escala não mudou (limites atingidos), ignora
+        if (Math.abs(clampedScale - currentTarget.scale) < 0.001) return;
+
         const rect = node.getBoundingClientRect();
+        // Mouse relativo ao container visual
         const mouseX = e.clientX - rect.left;
         const mouseY = e.clientY - rect.top;
         
-        const clampedScale = Math.min(Math.max(MIN_SCALE, rawNewScale), MAX_SCALE);
         const ratio = clampedScale / currentTarget.scale;
         
+        // Zoom em direção ao mouse
         let newX = mouseX - (mouseX - currentTarget.x) * ratio;
         let newY = mouseY - (mouseY - currentTarget.y) * ratio;
 
@@ -184,12 +199,14 @@ const Board = () => {
         startAnimation();
     };
     
+    // Adiciona o listener com passive: false para permitir preventDefault
     node.addEventListener('wheel', onWheel, { passive: false });
+    
     return () => node.removeEventListener('wheel', onWheel);
-  }, []);
+  }, [startAnimation]); // Adicionado startAnimation nas dependências
 
   // ==========================================
-  // MANIPULAÇÃO DO MOUSE (Correção de Bug)
+  // MANIPULAÇÃO DO MOUSE
   // ==========================================
   const handleMouseDown = (e) => {
     if (e.target.closest('.vtt-ui-layer') || e.target.closest('.token')) return;
@@ -214,15 +231,11 @@ const Board = () => {
     const isMultiSelect = e.ctrlKey || e.metaKey;
 
     if (isMultiSelect) {
-        // Toggle de seleção com Ctrl
         const newSelection = new Set(selectedIds);
         if (newSelection.has(id)) newSelection.delete(id);
         else newSelection.add(id);
         setSelectedIds(newSelection);
     } else {
-        // CORREÇÃO AQUI:
-        // Se o token JÁ está selecionado, não faz nada (mantém o grupo selecionado para arrastar)
-        // Se o token NÃO está selecionado, limpa os outros e seleciona só ele
         if (!selectedIds.has(id)) {
             setSelectedIds(new Set([id]));
         }
@@ -362,9 +375,6 @@ const Board = () => {
       );
   }
 
-  // ==========================================
-  // RENDER DO BOARD
-  // ==========================================
   return (
     <div className="w-full h-full relative overflow-hidden bg-[#15151a]" ref={containerRef}
         onMouseDown={handleMouseDown} onMouseMove={handleMouseMove} onMouseUp={handleMouseUp} onMouseLeave={handleMouseUp}
@@ -384,7 +394,6 @@ const Board = () => {
         </div>
         
         <div className="vtt-ui-layer absolute inset-0 pointer-events-none" onMouseDown={(e) => e.stopPropagation()} onMouseUp={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()} onDoubleClick={(e) => e.stopPropagation()}>
-            {/* AGORA O VTTLAYOUT RECEBE O ZOOM PARA RENDERIZAR O SLIDER DENTRO DELE */}
             <VTTLayout zoomValue={sliderValue} onZoomChange={handleSliderZoom} />
         </div>
     </div>
