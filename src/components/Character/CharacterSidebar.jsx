@@ -67,7 +67,7 @@ const CharacterForm = ({ formData, setFormData, handlePhotoUpload }) => {
                            onChange={e=>setFormData({...formData, name:e.target.value})}/>
                 </div>
                 <div className="w-20">
-                    <label className="text-xs text-text-muted mb-1 block">Karma</label>
+                    <label className="text-xs text-text-muted mb-1 block">Karma Máx.</label>
                     <input type="text"
                            maxLength={1}
                            onFocus={handleFocus}
