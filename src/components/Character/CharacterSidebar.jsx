@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useGame } from '../../context/GameContext';
-import { ArrowLeft, Menu, Edit2, Plus, X, Upload, Download, Trash2, LogOut } from 'lucide-react';
+import { ArrowLeft, Menu, Edit2, Plus, X, Upload, Download, Trash2 } from 'lucide-react';
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
 
@@ -62,12 +62,11 @@ const CharacterForm = ({ formData, setFormData, handlePhotoUpload }) => {
                     <label className="text-xs text-text-muted mb-1 block">Nome</label>
                     <input className={`w-full bg-black/50 border border-glass-border rounded p-2 text-white outline-none focus:${THEME_BORDER_PURPLE} transition-colors`}
                            value={formData.name||''} 
-                           maxLength={40} // Proteção contra texto infinito
+                           maxLength={40} 
                            onChange={e=>setFormData({...formData, name:e.target.value})}/>
                 </div>
                 <div className="w-20">
                     <label className="text-xs text-text-muted mb-1 block">Karma</label>
-                    {/* Proteção: Input TEXT com maxLength 1 e regex numérico */}
                     <input type="text"
                            maxLength={1}
                            className={`w-full bg-black/50 border border-glass-border rounded p-2 text-white text-center outline-none focus:${THEME_BORDER_PURPLE} transition-colors`} 
@@ -78,7 +77,7 @@ const CharacterForm = ({ formData, setFormData, handlePhotoUpload }) => {
             <div>
                 <label className="text-xs text-text-muted mb-1 block">Descrição</label>
                 <input className={`w-full bg-black/50 border border-glass-border rounded p-2 text-white outline-none focus:${THEME_BORDER_PURPLE} transition-colors`}
-                       maxLength={100} // Proteção básica
+                       maxLength={100}
                        value={formData.description||''} 
                        onChange={e=>setFormData({...formData, description:e.target.value})}/>
             </div>
@@ -91,7 +90,6 @@ const CharacterForm = ({ formData, setFormData, handlePhotoUpload }) => {
                         {['Mente','Corpo','Destreza','Presenca'].map(a=>(
                             <div key={a}>
                                 <label className="text-[9px] text-text-muted block text-center uppercase">{a.substr(0,3)}</label>
-                                {/* Proteção: Input TEXT com maxLength 1 */}
                                 <input type="text"
                                     maxLength={1} 
                                     className={`w-full bg-black/50 border border-glass-border rounded p-1 text-white text-center font-bold outline-none focus:${THEME_BORDER_PURPLE} transition-colors`}
@@ -103,7 +101,7 @@ const CharacterForm = ({ formData, setFormData, handlePhotoUpload }) => {
                 </div>
             </div>
 
-            {/* PERICIAS - Com Scroll e Altura Fixa */}
+            {/* PERICIAS - Com Scroll no Form */}
             <div>
                 <label className="text-xs text-text-muted mb-1 block">Perícias</label>
                 <textarea 
@@ -113,7 +111,7 @@ const CharacterForm = ({ formData, setFormData, handlePhotoUpload }) => {
                     onChange={e=>setFormData({...formData, skills:e.target.value})}/>
             </div>
 
-            {/* TRAUMAS - Com Scroll e Altura Fixa */}
+            {/* TRAUMAS - Com Scroll no Form */}
             <div>
                 <label className="text-xs text-text-muted mb-1 block">Traumas</label>
                 <textarea 
@@ -131,7 +129,6 @@ const CharacterForm = ({ formData, setFormData, handlePhotoUpload }) => {
                         {[['superior','Grave'],['medium','Moderado'],['inferior','Leve']].map(([k,l])=>(
                             <div key={k} className="flex-1">
                                 <label className="text-[9px] text-text-muted block text-center uppercase">{l}</label>
-                                {/* Proteção: Input TEXT com maxLength 1 */}
                                 <input type="text"
                                     maxLength={1} 
                                     className="w-full bg-black/50 border border-glass-border rounded p-1 text-white text-center outline-none focus:border-neon-red transition-colors" 
@@ -476,8 +473,8 @@ const CharacterSidebar = ({ isCollapsed, setIsCollapsed }) => {
 
                 <div className="flex-1 overflow-y-auto p-6 scrollbar-thin">
                     
-                    {/* CABEÇALHO */}
-                    <div className="flex items-center gap-5 mb-4">
+                    {/* CABEÇALHO ATUALIZADO (Avatar + Nome/Karma alinhados) */}
+                    <div className="flex items-center gap-4 mb-4">
                         <img 
                             draggable 
                             onDragStart={(e) => handleDragSortStart(e, -1, activeChar)} 
@@ -487,17 +484,17 @@ const CharacterSidebar = ({ isCollapsed, setIsCollapsed }) => {
                             alt="Avatar"
                         />
                         
-                        <div className="flex-1 flex flex-col justify-center gap-1 min-w-0">
-                            <div className="flex flex-col justify-center min-h-[1rem]">
-                                {/* AQUI NO DETAILS: SEM A LINHA DIVISÓRIA ABAIXO DO NOME */}
-                                <h2 
-                                    className="text-2xl font-bold leading-tight font-rajdhani line-clamp-1 text-ellipsis overflow-hidden break-words w-full" 
-                                    title={activeChar.name}
-                                >
-                                    {activeChar.name}
-                                </h2>
-                            </div>
+                        {/* Agrupamento Nome e Karma - Centralizado verticalmente com h-full do container flex */}
+                        <div className="flex-1 flex flex-col justify-center gap-2 h-[100px] min-w-0">
+                            {/* Nome: 1 Linha, Truncate, Sem espaço extra */}
+                            <h2 
+                                className="text-2xl font-bold leading-none font-rajdhani truncate w-full text-white" 
+                                title={activeChar.name}
+                            >
+                                {activeChar.name}
+                            </h2>
 
+                            {/* Caixa de Karma */}
                             <div className={`flex items-center justify-between bg-[#d084ff]/15 border border-[#d084ff] rounded-xl p-2 h-[60px] w-full ${THEME_GLOW}`}>
                                 <button 
                                     onClick={() => updateCharacter(activeChar.id, { karma: Math.max(0, activeChar.karma - 1) })} 
@@ -507,7 +504,7 @@ const CharacterSidebar = ({ isCollapsed, setIsCollapsed }) => {
                                 </button>
                                 <div className="flex flex-col items-center min-w-[3rem]">
                                     <span className={`text-[10px] ${THEME_PURPLE} font-bold tracking-widest uppercase`}>KARMA</span>
-                                    <span className="text-2xl font-rajdhani font-bold text-white drop-shadow-[0_0_10px_#d084ff] leading-none">{activeChar.karma}</span>
+                                    <span className="text-3xl font-rajdhani font-bold text-white drop-shadow-[0_0_10px_#d084ff] leading-none">{activeChar.karma}</span>
                                 </div>
                                 <button 
                                     onClick={() => updateCharacter(activeChar.id, { karma: Math.min(activeChar.karmaMax, activeChar.karma + 1) })} 
@@ -521,7 +518,7 @@ const CharacterSidebar = ({ isCollapsed, setIsCollapsed }) => {
 
                     {/* DESCRIÇÃO */}
                     <div className="bg-glass border border-glass-border rounded-xl p-1.5 mb-4 min-h-[30px] flex items-center relative overflow-hidden">
-                         <span className="text-lg font-rajdhani font-semibold text-text-main line-clamp-2 text-ellipsis w-full text-center leading-tight">
+                         <span className="text-lg font-rajdhani font-semibold text-text-main line-clamp-2 text-center text-ellipsis w-full leading-tight">
                             {activeChar.description || '---'}
                          </span>
                     </div>
@@ -533,7 +530,6 @@ const CharacterSidebar = ({ isCollapsed, setIsCollapsed }) => {
                                 {['mente','corpo','destreza','presenca'].map(a=>(
                                     <div key={a} className="bg-black/20 border border-white/5 rounded-lg flex flex-col items-center justify-center p-1 overflow-hidden">
                                         <span className="font-rajdhani font-bold text-2xl text-neon-blue drop-shadow-[0_0_5px_rgba(0,243,255,0.3)] leading-none">{activeChar.attributes[a]}</span>
-                                        {/* AQUI: Truncar para 3 letras apenas visualmente */}
                                         <span className="text-[10px] uppercase text-text-muted mt-1 tracking-wider truncate max-w-full">
                                             {a.substring(0,3)}
                                         </span>
@@ -541,9 +537,10 @@ const CharacterSidebar = ({ isCollapsed, setIsCollapsed }) => {
                                 ))}
                             </div>
                         </div>
+                        {/* PERÍCIAS: Com Scroll */}
                         <div className="flex-1 bg-glass border border-glass-border rounded-xl p-3 flex flex-col overflow-hidden">
                             <span className="text-xs uppercase text-neon-green font-bold tracking-wider mb-2 block border-b border-glass-border pb-2 shrink-0">Perícias</span>
-                            <div className="text-sm text-gray-300 whitespace-pre-line overflow-y-auto flex-1 scrollbar-none">
+                            <div className="text-sm text-gray-300 whitespace-pre-line overflow-y-auto flex-1 max-h-[8rem] scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-transparent pr-2">
                                 {activeChar.skills || '-'}
                             </div>
                         </div>
@@ -574,9 +571,10 @@ const CharacterSidebar = ({ isCollapsed, setIsCollapsed }) => {
                             </div>
                         </div>
 
+                        {/* TRAUMAS: Com Scroll */}
                         <div className="flex-1 bg-glass border border-glass-border rounded-xl p-3 flex flex-col overflow-hidden">
                             <span className="text-xs uppercase text-neon-red font-bold tracking-wider mb-2 block border-b border-glass-border pb-2 shrink-0">Traumas</span>
-                            <div className="text-sm text-gray-300 whitespace-pre-line overflow-y-auto flex-1 scrollbar-none">
+                            <div className="text-sm text-gray-300 whitespace-pre-line overflow-y-auto flex-1 max-h-[8rem] scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-transparent pr-2">
                                 {activeChar.traumas || '-'}
                             </div>
                         </div>
