@@ -174,7 +174,7 @@ export const VTTLayout = ({ zoomValue, onZoomChange, activeTool, setActiveTool }
       return (
           <WindowWrapper containerRef={mapConfigRef} className="absolute top-24 right-4 bg-black/85 border border-glass-border backdrop-blur-sm p-4 rounded-xl shadow-2xl z-50 w-72 scale-90 origin-top-right">
               <div className="flex justify-between items-center mb-4">
-                  <h3 className="font-rajdhani font-bold text-white">Configurar Mapa</h3>
+                  <h3 className="font-rajdhani font-bold text-white">Configurar Fundo</h3>
                   <button onClick={(e) => toggle('mapConfigOpen', e)}><X size={16} className="text-text-muted hover:text-white"/></button>
               </div>
               <div className="space-y-4">
@@ -369,7 +369,7 @@ export const VTTLayout = ({ zoomValue, onZoomChange, activeTool, setActiveTool }
                 
                 <div className="w-px h-6 bg-glass-border mx-1"></div>
                 
-                <button onClick={(e) => toggle('mapConfigOpen', e)} className={`p-2 rounded hover:bg-white/10 transition ${uiState.mapConfigOpen ? 'text-neon-blue' : 'text-text-muted'}`} title="Configurar Mapa"><ImageIcon size={18}/></button>
+                <button onClick={(e) => toggle('mapConfigOpen', e)} className={`p-2 rounded hover:bg-white/10 transition ${uiState.mapConfigOpen ? 'text-neon-blue' : 'text-text-muted'}`} title="Configurar Fundo"><ImageIcon size={18}/></button>
                 <button onClick={(e) => toggle('libraryOpen', e)} className={`p-2 rounded hover:bg-white/10 transition ${uiState.libraryOpen ? 'text-neon-blue' : 'text-text-muted'}`} title="Biblioteca"><Box size={18}/></button>
                 
                 <div className="w-px h-6 bg-glass-border mx-1"></div>
