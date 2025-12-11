@@ -340,19 +340,31 @@ const Board = () => {
   // ==========================================
   // MANIPULAÇÃO DO MOUSE
   // ==========================================
-  const handleMouseDown = (e) => {
-    if (e.target.closest('.vtt-ui-layer') || e.target.closest('.token') || e.target.closest('.fog-area')) return;
-    
-    // Limpa seleções baseado na ferramenta ativa
-    if (activeTool === 'select' && !e.ctrlKey && !e.metaKey) {
-        setSelectedIds(new Set());
-        setSelectedFogIds(new Set());
-    } else if (activeTool === 'fogOfWar' && !e.ctrlKey && !e.metaKey) {
-        setSelectedFogIds(new Set());
-        setSelectedIds(new Set());
-    }
+  
+  // NOVO: Previne o comportamento padrão do botão do meio/roda
 
+  const handleAuxClick = (e) => {
+      // Este evento ocorre quando e.button === 1 (botão do meio)
+      if (e.button === 1) {
+          e.preventDefault();
+      }
+  };
+
+  const handleMouseDown = (e) => {
+    // 1. IGNORAR se o clique foi em UI
+    if (e.target.closest('.vtt-ui-layer')) return;
+
+    // A. INICIAR PANNING (Clique do meio ou Espaço+Clique Esquerdo)
     if (e.button === 1 || (isSpacePressed && e.button === 0)) {
+        // e.preventDefault() já foi chamado no onAuxClick (para e.button === 1) ou será chamado no keydown (para Espaço)
+        
+        // REMOVIDO: A verificação que impedia panning sobre elementos interativos
+        // O panning deve funcionar mesmo sobre tokens e fog areas
+        // if (e.target.closest('.token') || e.target.closest('.fog-area')) {
+        //     return;
+        // }
+        
+        // Se chegou aqui, inicia o PANNING independentemente do que está abaixo
         setInteraction({ 
             mode: 'PANNING', 
             startX: e.clientX, 
@@ -363,8 +375,24 @@ const Board = () => {
         return;
     }
 
-    // Modo Fog of War - Iniciar desenho
-    if (activeTool === 'fogOfWar' && e.button === 0) {
+    // B. LÓGICA DE CLIQUE ESQUERDO (e.button === 0, sem Barra de Espaço)
+    
+    const isClickingElement = e.target.closest('.token') || e.target.closest('.fog-area');
+
+    // Limpa seleções se o clique for em uma área vazia (ou se não for multifoco)
+    if (!isClickingElement || (!e.ctrlKey && !e.metaKey)) {
+        if (activeTool === 'select') {
+            setSelectedIds(new Set());
+            setSelectedFogIds(new Set());
+        } else if (activeTool === 'fogOfWar') {
+            // No modo Fog, se clicar em área vazia, inicia o desenho (abaixo), mas limpa seleção.
+            setSelectedFogIds(new Set());
+            setSelectedIds(new Set());
+        }
+    }
+    
+    // C. Modo Fog of War - Iniciar desenho
+    if (activeTool === 'fogOfWar' && e.button === 0 && !isClickingElement) {
         const rect = containerRef.current.getBoundingClientRect();
         const worldX = (e.clientX - rect.left - view.x) / view.scale;
         const worldY = (e.clientY - rect.top - view.y) / view.scale;
@@ -376,14 +404,22 @@ const Board = () => {
             currentX: worldX,
             currentY: worldY
         });
-        setSelectedFogIds(new Set());
         return;
     }
   };
 
   const handleTokenDown = (e, id) => {
+    // Se for botão do meio (roda) ou direito, retorna SEM stopPropagation
+    if (e.button === 1 || e.button === 2) return;
+    
     e.stopPropagation();
-    if (isSpacePressed || e.button !== 0) return; 
+    
+    // Se a barra de espaço estiver pressionada, permite o panning
+    if (isSpacePressed) return;
+    
+    // Só processa clique esquerdo (botão 0)
+    if (e.button !== 0) return;
+    
     if (activeTool !== 'select') return;
 
     const isMultiSelect = e.ctrlKey || e.metaKey;
@@ -395,7 +431,7 @@ const Board = () => {
         setSelectedIds(newSelection);
     } else {
         if (!selectedIds.has(id)) {
-            setSelectedIds(new Set([id]));
+        setSelectedIds(new Set([id]));
         }
     }
     
@@ -404,6 +440,9 @@ const Board = () => {
   };
 
   const handleFogDown = (e, id) => {
+    // Se for botão do meio (roda) ou direito, retorna SEM stopPropagation
+    if (e.button === 1 || e.button === 2) return;
+    
     e.stopPropagation();
     if (activeTool !== 'select') return;
     
@@ -495,30 +534,30 @@ const Board = () => {
   };
 
   const handleMouseUp = () => {
-    // Finalizar desenho de Fog of War
-    if (fogDrawing.isDrawing && activeTool === 'fogOfWar') {
-        const { startX, startY, currentX, currentY } = fogDrawing;
-        const width = currentX - startX;
-        const height = currentY - startY;
-        
-        // Só cria se tiver tamanho mínimo
-        if (Math.abs(width) > 10 && Math.abs(height) > 10 && activeScene) {
-            const fogArea = {
-                x: Math.min(startX, currentX),
-                y: Math.min(startY, currentY),
-                width: Math.abs(width),
-                height: Math.abs(height),
-                color: 'rgba(0, 0, 0, 0.85)',
-            };
-            
-            addFogArea(activeScene.id, fogArea);
-        }
-        
-        setFogDrawing({ isDrawing: false, startX: 0, startY: 0, currentX: 0, currentY: 0 });
-    }
-    
-    setInteraction({ mode: 'IDLE', activeTokenId: null, activeFogId: null });
-  };
+  // Finalizar desenho de Fog of War
+  if (fogDrawing.isDrawing && activeTool === 'fogOfWar') {
+      const { startX, startY, currentX, currentY } = fogDrawing; // CORRIGIDO
+      const width = currentX - startX;
+      const height = currentY - startY;
+      
+      // Só cria se tiver tamanho mínimo
+      if (Math.abs(width) > 10 && Math.abs(height) > 10 && activeScene) {
+          const fogArea = {
+              x: Math.min(startX, currentX),
+              y: Math.min(startY, currentY),
+              width: Math.abs(width),
+              height: Math.abs(height),
+              color: 'rgba(0, 0, 0, 0.85)',
+          };
+          
+          addFogArea(activeScene.id, fogArea);
+      }
+      
+      setFogDrawing({ isDrawing: false, startX: 0, startY: 0, currentX: 0, currentY: 0 });
+  }
+  
+  setInteraction({ mode: 'IDLE', activeTokenId: null, activeFogId: null });
+};
 
   const handleDrop = async (e) => {
       e.preventDefault();
@@ -614,8 +653,13 @@ const Board = () => {
 
   return (
     <div className="w-full h-full relative overflow-hidden bg-[#15151a]" ref={containerRef}
-        onMouseDown={handleMouseDown} onMouseMove={handleMouseMove} onMouseUp={handleMouseUp} onMouseLeave={handleMouseUp}
-        onDrop={handleDrop} onDragOver={e => e.preventDefault()}
+        onMouseDown={handleMouseDown} 
+        onMouseMove={handleMouseMove} 
+        onMouseUp={handleMouseUp} 
+        onMouseLeave={handleMouseUp}
+        onDrop={handleDrop} 
+        onDragOver={e => e.preventDefault()}
+        onAuxClick={handleAuxClick} // ADICIONADO: Captura o clique do meio/roda
     >
         <div className="absolute top-0 left-0 w-full h-full origin-top-left"
              style={{ transform: `translate(${view.x}px, ${view.y}px) scale(${view.scale})` }}>
