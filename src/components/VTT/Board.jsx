@@ -13,7 +13,9 @@ const CAMERA_SMOOTHING = 0.15; // Suavização unificada (Zoom e Pan)
 const Board = () => {
   const { 
     activeAdventureId, activeAdventure, activeScene, 
+    activeTool, setActiveTool,
     addTokenInstance, updateTokenInstance, deleteMultipleTokenInstances,
+    addFogArea, updateFogArea, deleteMultipleFogAreas,
     importCharacterAsToken, 
     createAdventure, adventures, setActiveAdventureId, deleteAdventure, 
     updateAdventure, duplicateAdventure, 
@@ -35,7 +37,28 @@ const Board = () => {
   const [sliderValue, setSliderValue] = useState(100);
   
   const [selectedIds, setSelectedIds] = useState(new Set()); 
-  const [interaction, setInteraction] = useState({ mode: 'IDLE', startX: 0, startY: 0, initialVal: 0, activeTokenId: null });
+  const [selectedFogIds, setSelectedFogIds] = useState(new Set());
+  const [interaction, setInteraction] = useState({ 
+    mode: 'IDLE', 
+    startX: 0, 
+    startY: 0, 
+    initialVal: 0, 
+    activeTokenId: null,
+    activeFogId: null,
+    initialViewX: 0,
+    initialViewY: 0,
+    fogStartX: 0,
+    fogStartY: 0
+  });
+  
+  const [fogDrawing, setFogDrawing] = useState({
+    isDrawing: false,
+    startX: 0,
+    startY: 0,
+    currentX: 0,
+    currentY: 0
+  });
+  
   const [isSpacePressed, setIsSpacePressed] = useState(false);
   const [mapParams, setMapParams] = useState({ url: null, id: null });
 
@@ -75,32 +98,57 @@ const Board = () => {
       }
   }, [activeScene, mapParams.id, mapParams.url]);
 
+  // Atalhos de teclado
   useEffect(() => {
     const handleKeyDown = (e) => {
         if (e.code === 'Space' && !e.repeat) setIsSpacePressed(true);
-
-        if ((e.key === 'Delete' || e.key === 'Backspace') && selectedIds.size > 0) {
-            if (['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) return;
-            deleteMultipleTokenInstances(activeScene?.id, Array.from(selectedIds));
+        
+        // Atalhos de ferramenta
+        if (e.key === 'v' && !e.ctrlKey && !e.metaKey) {
+            e.preventDefault();
+            setActiveTool('select');
+            setSelectedFogIds(new Set());
+        }
+        if (e.key === 'f' && !e.ctrlKey && !e.metaKey) {
+            e.preventDefault();
+            setActiveTool('fogOfWar');
             setSelectedIds(new Set());
         }
+
+        if ((e.key === 'Delete' || e.key === 'Backspace')) {
+            if (['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) return;
+            
+            // Deletar tokens selecionados
+            if (selectedIds.size > 0 && activeScene) {
+                deleteMultipleTokenInstances(activeScene?.id, Array.from(selectedIds));
+                setSelectedIds(new Set());
+            }
+            
+            // Deletar fog areas selecionadas
+            if (selectedFogIds.size > 0 && activeScene) {
+                deleteMultipleFogAreas(activeScene?.id, Array.from(selectedFogIds));
+                setSelectedFogIds(new Set());
+            }
+        }
     };
+    
     const handleKeyUp = (e) => {
         if (e.code === 'Space') setIsSpacePressed(false);
     };
+    
     window.addEventListener('keydown', handleKeyDown); 
     window.addEventListener('keyup', handleKeyUp);
+    
     return () => { 
         window.removeEventListener('keydown', handleKeyDown); 
         window.removeEventListener('keyup', handleKeyUp); 
     };
-  }, [selectedIds, activeScene, deleteMultipleTokenInstances]);
+  }, [selectedIds, selectedFogIds, activeScene, deleteMultipleTokenInstances, deleteMultipleFogAreas, setActiveTool]);
 
   // ==========================================
   // UNIFIED SMOOTH CAMERA (PAN & ZOOM)
   // ==========================================
 
-  // Usando useCallback para evitar recriação constante e referências perdidas
   const animateCamera = useCallback(() => {
       setView(prev => {
           const target = targetViewRef.current;
@@ -109,10 +157,8 @@ const Board = () => {
           const diffX = target.x - prev.x;
           const diffY = target.y - prev.y;
 
-          // Tolerância para parar a animação
           if (Math.abs(diffScale) < 0.001 && Math.abs(diffX) < 0.5 && Math.abs(diffY) < 0.5) {
               animationRef.current = null;
-              // Snap to target to prevent micro-blur
               return target; 
           }
 
@@ -145,7 +191,6 @@ const Board = () => {
           const centerX = rect.width / 2;
           const centerY = rect.height / 2;
           
-          // Calcula onde o centro estava
           const ratio = newScale / targetViewRef.current.scale;
           let newX = centerX - (centerX - targetViewRef.current.x) * ratio;
           let newY = centerY - (centerY - targetViewRef.current.y) * ratio;
@@ -164,33 +209,26 @@ const Board = () => {
     if (!node) return;
 
     const onWheel = (e) => {
-        // Bloqueia zoom se estiver rolando uma lista
         if (e.target.closest('.overflow-y-auto')) return;
         
         e.preventDefault(); 
         
-        // CORREÇÃO: Normaliza o delta para evitar problemas entre mouse e trackpad
-        // Usa Math.sign para garantir direção constante, multiplica por 0.1 (10% de zoom por tick)
         const zoomIntensity = 0.1;
         const scaleAmount = -Math.sign(e.deltaY) * zoomIntensity;
         
         const currentTarget = targetViewRef.current;
         const rawNewScale = currentTarget.scale * (1 + scaleAmount);
         
-        // Clamp scale
         const clampedScale = Math.min(Math.max(MIN_SCALE, rawNewScale), MAX_SCALE);
         
-        // Se a escala não mudou (limites atingidos), ignora
         if (Math.abs(clampedScale - currentTarget.scale) < 0.001) return;
 
         const rect = node.getBoundingClientRect();
-        // Mouse relativo ao container visual
         const mouseX = e.clientX - rect.left;
         const mouseY = e.clientY - rect.top;
         
         const ratio = clampedScale / currentTarget.scale;
         
-        // Zoom em direção ao mouse
         let newX = mouseX - (mouseX - currentTarget.x) * ratio;
         let newY = mouseY - (mouseY - currentTarget.y) * ratio;
 
@@ -199,19 +237,25 @@ const Board = () => {
         startAnimation();
     };
     
-    // Adiciona o listener com passive: false para permitir preventDefault
     node.addEventListener('wheel', onWheel, { passive: false });
     
     return () => node.removeEventListener('wheel', onWheel);
-  }, [startAnimation]); // Adicionado startAnimation nas dependências
+  }, [startAnimation]);
 
   // ==========================================
   // MANIPULAÇÃO DO MOUSE
   // ==========================================
   const handleMouseDown = (e) => {
-    if (e.target.closest('.vtt-ui-layer') || e.target.closest('.token')) return;
+    if (e.target.closest('.vtt-ui-layer') || e.target.closest('.token') || e.target.closest('.fog-area')) return;
     
-    if (!e.ctrlKey && !e.metaKey) setSelectedIds(new Set());
+    // Limpa seleções baseado na ferramenta ativa
+    if (activeTool === 'select' && !e.ctrlKey && !e.metaKey) {
+        setSelectedIds(new Set());
+        setSelectedFogIds(new Set());
+    } else if (activeTool === 'fogOfWar' && !e.ctrlKey && !e.metaKey) {
+        setSelectedFogIds(new Set());
+        setSelectedIds(new Set());
+    }
 
     if (e.button === 1 || (isSpacePressed && e.button === 0)) {
         setInteraction({ 
@@ -221,12 +265,31 @@ const Board = () => {
             initialViewX: targetViewRef.current.x,
             initialViewY: targetViewRef.current.y
         });
+        return;
+    }
+
+    // Modo Fog of War - Iniciar desenho
+    if (activeTool === 'fogOfWar' && e.button === 0) {
+        const rect = containerRef.current.getBoundingClientRect();
+        const worldX = (e.clientX - rect.left - view.x) / view.scale;
+        const worldY = (e.clientY - rect.top - view.y) / view.scale;
+        
+        setFogDrawing({
+            isDrawing: true,
+            startX: worldX,
+            startY: worldY,
+            currentX: worldX,
+            currentY: worldY
+        });
+        setSelectedFogIds(new Set());
+        return;
     }
   };
 
   const handleTokenDown = (e, id) => {
     e.stopPropagation();
     if (isSpacePressed || e.button !== 0) return; 
+    if (activeTool !== 'select') return;
 
     const isMultiSelect = e.ctrlKey || e.metaKey;
 
@@ -241,17 +304,59 @@ const Board = () => {
         }
     }
     
+    setSelectedFogIds(new Set());
     setInteraction({ mode: 'DRAGGING', activeTokenId: id, startX: e.clientX, startY: e.clientY });
+  };
+
+  const handleFogDown = (e, id) => {
+    e.stopPropagation();
+    if (activeTool !== 'select') return;
+    
+    const isMultiSelect = e.ctrlKey || e.metaKey;
+    
+    if (isMultiSelect) {
+        const newSelection = new Set(selectedFogIds);
+        if (newSelection.has(id)) newSelection.delete(id);
+        else newSelection.add(id);
+        setSelectedFogIds(newSelection);
+    } else {
+        if (!selectedFogIds.has(id)) {
+            setSelectedFogIds(new Set([id]));
+        }
+    }
+    
+    setSelectedIds(new Set());
+    setInteraction({ 
+        mode: 'DRAGGING_FOG', 
+        activeFogId: id, 
+        startX: e.clientX, 
+        startY: e.clientY 
+    });
   };
 
   const handleTokenResizeStart = (e, id) => {
       e.stopPropagation();
-      if (!activeScene) return;
+      if (!activeScene || activeTool !== 'select') return;
       const token = activeScene.tokens.find(t => t.id === id);
       if (token) setInteraction({ mode: 'RESIZING', activeTokenId: id, startX: e.clientX, initialVal: token.scale || 1 });
   };
 
   const handleMouseMove = (e) => {
+    // Desenho de Fog of War em tempo real
+    if (fogDrawing.isDrawing && activeTool === 'fogOfWar') {
+        const rect = containerRef.current.getBoundingClientRect();
+        const worldX = (e.clientX - rect.left - view.x) / view.scale;
+        const worldY = (e.clientY - rect.top - view.y) / view.scale;
+        
+        setFogDrawing(prev => ({
+            ...prev,
+            currentX: worldX,
+            currentY: worldY
+        }));
+        return;
+    }
+
+    // Outros modos de interação
     if (interaction.mode === 'PANNING') {
         const deltaX = e.clientX - interaction.startX;
         const deltaY = e.clientY - interaction.startY;
@@ -274,6 +379,19 @@ const Board = () => {
             if (t) updateTokenInstance(activeScene.id, id, { x: t.x + dx, y: t.y + dy });
         });
         setInteraction(p => ({ ...p, startX: e.clientX, startY: e.clientY }));
+        
+    } else if (interaction.mode === 'DRAGGING_FOG' && activeScene) {
+        const dx = (e.clientX - interaction.startX) / view.scale;
+        const dy = (e.clientY - interaction.startY) / view.scale;
+        
+        selectedFogIds.forEach(fogId => {
+            const fog = activeScene.fogOfWar?.find(f => f.id === fogId);
+            if (fog) {
+                updateFogArea(activeScene.id, fogId, { x: fog.x + dx, y: fog.y + dy });
+            }
+        });
+        setInteraction(p => ({ ...p, startX: e.clientX, startY: e.clientY }));
+        
     } else if (interaction.mode === 'RESIZING' && activeScene) {
         const deltaX = (e.clientX - interaction.startX);
         const newScale = Math.max(0.5, interaction.initialVal + (deltaX / 100));
@@ -281,7 +399,31 @@ const Board = () => {
     }
   };
 
-  const handleMouseUp = () => setInteraction({ mode: 'IDLE', activeTokenId: null });
+  const handleMouseUp = () => {
+    // Finalizar desenho de Fog of War
+    if (fogDrawing.isDrawing && activeTool === 'fogOfWar') {
+        const { startX, startY, currentX, currentY } = fogDrawing;
+        const width = currentX - startX;
+        const height = currentY - startY;
+        
+        // Só cria se tiver tamanho mínimo
+        if (Math.abs(width) > 10 && Math.abs(height) > 10 && activeScene) {
+            const fogArea = {
+                x: Math.min(startX, currentX),
+                y: Math.min(startY, currentY),
+                width: Math.abs(width),
+                height: Math.abs(height),
+                color: 'rgba(0, 0, 0, 0.85)',
+            };
+            
+            addFogArea(activeScene.id, fogArea);
+        }
+        
+        setFogDrawing({ isDrawing: false, startX: 0, startY: 0, currentX: 0, currentY: 0 });
+    }
+    
+    setInteraction({ mode: 'IDLE', activeTokenId: null, activeFogId: null });
+  };
 
   const handleDrop = async (e) => {
       e.preventDefault();
@@ -388,13 +530,48 @@ const Board = () => {
                     <img src={mapParams.url} className="max-w-none pointer-events-none select-none opacity-90 shadow-2xl" alt="Map Layer"/>
                 </div>
             )}
+            
+            {/* Tokens (z-index: 10) */}
             {activeScene?.tokens.map(t => (
                 <Token key={t.id} data={t} isSelected={selectedIds.has(t.id)} onMouseDown={handleTokenDown} onResizeStart={handleTokenResizeStart}/>
+            ))}
+            
+            {/* Fog of War Preview durante desenho */}
+            {fogDrawing.isDrawing && (
+                <div
+                    className="absolute pointer-events-none fog-area"
+                    style={{
+                        left: Math.min(fogDrawing.startX, fogDrawing.currentX),
+                        top: Math.min(fogDrawing.startY, fogDrawing.currentY),
+                        width: Math.abs(fogDrawing.currentX - fogDrawing.startX),
+                        height: Math.abs(fogDrawing.currentY - fogDrawing.startY),
+                        backgroundColor: 'rgba(0, 0, 0, 0.7)',
+                        border: '2px dashed rgba(255, 255, 255, 0.3)',
+                        zIndex: 15,
+                    }}
+                />
+            )}
+            
+            {/* Fog of War Areas (z-index: 15) */}
+            {activeScene?.fogOfWar?.map(fog => (
+                <div
+                    key={fog.id}
+                    className={`fog-area absolute ${selectedFogIds.has(fog.id) ? 'ring-2 ring-yellow-400' : ''} ${activeTool === 'select' ? 'cursor-move' : 'cursor-default'}`}
+                    style={{
+                        left: fog.x,
+                        top: fog.y,
+                        width: fog.width,
+                        height: fog.height,
+                        backgroundColor: 'rgba(0, 0, 0, 1)',
+                        zIndex: 15,
+                    }}
+                    onMouseDown={(e) => handleFogDown(e, fog.id)}
+                />
             ))}
         </div>
         
         <div className="vtt-ui-layer absolute inset-0 pointer-events-none" onMouseDown={(e) => e.stopPropagation()} onMouseUp={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()} onDoubleClick={(e) => e.stopPropagation()}>
-            <VTTLayout zoomValue={sliderValue} onZoomChange={handleSliderZoom} />
+            <VTTLayout zoomValue={sliderValue} onZoomChange={handleSliderZoom} activeTool={activeTool} setActiveTool={setActiveTool} />
         </div>
     </div>
   );

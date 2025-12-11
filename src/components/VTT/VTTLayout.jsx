@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useGame } from '../../context/GameContext';
-import { Settings, Image as ImageIcon, Box, Map, Plus, Trash2, X, ChevronDown, LogOut, Edit2, RotateCcw, Check, Search } from 'lucide-react';
+import { Settings, Image as ImageIcon, Box, Map, Plus, Trash2, X, ChevronDown, LogOut, Edit2, RotateCcw, Check, Search, Square, MousePointer } from 'lucide-react';
 import { imageDB } from '../../context/db';
 
 const LibraryThumb = ({ token }) => {
@@ -23,7 +23,7 @@ const LibraryThumb = ({ token }) => {
     );
 };
 
-export const VTTLayout = ({ zoomValue, onZoomChange }) => {
+export const VTTLayout = ({ zoomValue, onZoomChange, activeTool, setActiveTool }) => {
   const { 
     activeAdventure, activeScene, 
     addScene, setActiveScene, updateScene, updateSceneMap, deleteScene,
@@ -255,7 +255,7 @@ export const VTTLayout = ({ zoomValue, onZoomChange }) => {
                         value={zoomValue || 100} 
                         onChange={onZoomChange}
                         className="
-                            w-60 h-2 bg-white/20 rounded-lg appearance-none cursor-pointer outline-none
+                            w-80 h-2 bg-white/20 rounded-lg appearance-none cursor-pointer outline-none
                             [&::-webkit-slider-thumb]:appearance-none 
                             [&::-webkit-slider-thumb]:w-3 
                             [&::-webkit-slider-thumb]:h-3 
@@ -274,6 +274,26 @@ export const VTTLayout = ({ zoomValue, onZoomChange }) => {
 
               {/* BOTÕES DE MENU */}
               <div className="flex items-center gap-2 p-1.5">
+                
+                {/* Botões de Ferramenta */}
+                <button 
+                  onClick={() => setActiveTool('select')}
+                  className={`p-2 rounded hover:bg-white/10 transition ${activeTool === 'select' ? 'bg-white/20 text-neon-green' : 'text-text-muted'}`}
+                  title="Modo Seleção (V)"
+                >
+                  <MousePointer size={18}/>
+                </button>
+                
+                <button 
+                  onClick={() => setActiveTool('fogOfWar')}
+                  className={`p-2 rounded hover:bg-white/10 transition ${activeTool === 'fogOfWar' ? 'bg-white/20 text-neon-purple' : 'text-text-muted'}`}
+                  title="Fog of War (F)"
+                >
+                  <Square size={18}/>
+                </button>
+                
+                <div className="w-px h-6 bg-glass-border mx-1"></div>
+                
                 <button onClick={(e) => toggle('menuOpen', e)} className="flex items-center gap-2 px-3 py-1.5 hover:bg-white/10 rounded text-white transition border border-transparent hover:border-glass-border">
                     <Map size={16} className="text-neon-green"/>
                     <span className="font-rajdhani font-bold uppercase text-sm max-w-[150px] truncate">{activeScene?.name || "Sem Cena"}</span>

@@ -287,7 +287,7 @@ const CharacterSidebar = () => {
       return (
         <FadeInView key="manager" className="p-6 bg-ecos-bg text-text-main overflow-hidden border-r border-glass-border items-center relative">
             <ConfirmationOverlay />
-            <h1 className="text-3xl font-rajdhani font-bold text-neon-blue mb-2 tracking-widest mt-10">ECOS RPG</h1>
+            <h1 className="text-3xl font-rajdhani font-bold text-neon-blue mb-2 tracking-widest mt-10">PERSONAGENS</h1>
             <p className="text-text-muted text-sm text-center mb-8">Selecione um grupo para começar.</p>
             <div className="w-full max-w-xs space-y-4 flex-1 overflow-y-auto scrollbar-none pb-20">
                 <div className="bg-glass border border-glass-border rounded-lg p-4">
