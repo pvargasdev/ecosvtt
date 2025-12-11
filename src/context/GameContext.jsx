@@ -65,7 +65,7 @@ export const GameProvider = ({ children }) => {
         scenes: [{ id: newSceneId, name: "Cena 1", mapImageId: null, mapScale: 1.0, tokens: [], fogOfWar: [] }]
     };
     setAdventures(prev => [...prev, newAdventure]);
-    setActiveAdventureId(newAdventure.id);
+    //setActiveAdventureId(newAdventure.id);
   }, []);
 
   const deleteAdventure = useCallback((id) => {

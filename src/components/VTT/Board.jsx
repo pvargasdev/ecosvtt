@@ -607,8 +607,31 @@ const Board = () => {
                     {adventures.length === 0 && <p className="text-text-muted text-center text-sm py-4">Nenhuma aventura criada.</p>}
                 </div>
                 <div className="flex gap-2 pt-4 border-t border-glass-border">
-                    <input className="flex-1 bg-black/50 border border-glass-border rounded p-2 text-white" placeholder="Nova Aventura..." value={newAdvName} onChange={e=>setNewAdvName(e.target.value)}/>
-                    <button onClick={()=>{if(newAdvName) { createAdventure(newAdvName); setNewAdvName(""); }}} className="bg-neon-green text-black font-bold px-4 rounded hover:bg-white transition"><Plus/></button>
+                    <input 
+                        className="flex-1 bg-black/50 border border-glass-border rounded p-2 text-white" 
+                        placeholder="Nome da Aventura" 
+                        value={newAdvName} 
+                        onChange={e => setNewAdvName(e.target.value)}
+                        onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                                // Lógica de Nome Padrão
+                                const finalName = newAdvName.trim() === "" ? "Nova Aventura" : newAdvName;
+                                createAdventure(finalName);
+                                setNewAdvName("");
+                            }
+                        }}
+                    />
+                    <button 
+                        onClick={() => {
+                            // Lógica de Nome Padrão
+                            const finalName = newAdvName.trim() === "" ? "Nova Aventura" : newAdvName;
+                            createAdventure(finalName); 
+                            setNewAdvName(""); 
+                        }} 
+                        className="bg-neon-green text-black font-bold px-4 rounded hover:bg-white transition"
+                    >
+                        <Plus/>
+                    </button>
                     <div className="relative">
                         <button onClick={() => importInputRef.current?.click()} className="bg-glass border border-glass-border text-white px-3 py-2 rounded h-full hover:bg-white/10 transition" title="Importar"><Download size={20}/></button>
                         <input ref={importInputRef} type="file" accept=".zip" className="hidden" onChange={(e) => { const file = e.target.files[0]; if(file) importAdventure(file); e.target.value = null; }}/>
