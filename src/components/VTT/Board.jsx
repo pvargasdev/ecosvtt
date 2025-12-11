@@ -126,7 +126,6 @@ const Board = () => {
   // Atalhos de teclado
   useEffect(() => {
     const handleKeyDown = (e) => {
-        if (e.code === 'Space' && !e.repeat) setIsSpacePressed(true);
 
         if ((e.key === 'Delete' || e.key === 'Backspace')) {
             if (['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) return;
@@ -161,7 +160,6 @@ const Board = () => {
     };
     
     const handleKeyUp = (e) => {
-        if (e.code === 'Space') setIsSpacePressed(false);
 
         // Teclas para zoom por teclado
         if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
@@ -360,7 +358,7 @@ const Board = () => {
     if (e.target.closest('.vtt-ui-layer')) return;
 
     // A. INICIAR PANNING (Clique do meio ou Espaço+Clique Esquerdo)
-    if (e.button === 1 || (isSpacePressed && e.button === 0)) {
+    if (e.button === 1) {
         // e.preventDefault() já foi chamado no onAuxClick (para e.button === 1) ou será chamado no keydown (para Espaço)
         
         // Se chegou aqui, inicia o PANNING independentemente do que está abaixo
@@ -411,8 +409,7 @@ const Board = () => {
     // Se for botão do meio (roda) ou direito, retorna SEM stopPropagation
     if (e.button === 1 || e.button === 2) return;
     
-    // Se a barra de espaço estiver pressionada, permite o panning (retorna SEM stopPropagation)
-    if (isSpacePressed) return;
+    // Se a barra de espaço estiver pressionada, permite o panning (retorna SEM stopPropagation
     
     // Apenas agora faz stopPropagation para cliques normais de token
     e.stopPropagation();

@@ -1,9 +1,10 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useGame } from '../../context/GameContext';
-import { Settings, Image as ImageIcon, Box, Map, Plus, Trash2, X, ChevronDown, LogOut, Edit2, RotateCcw, Check, Search, Square, MousePointer, AlertTriangle } from 'lucide-react';
+import { Settings, Image as ImageIcon, Box, ArrowLeft, Map, Plus, Trash2, X, ChevronDown, LogOut, Edit2, RotateCcw, Check, Search, Square, MousePointer, AlertTriangle } from 'lucide-react';
 import { imageDB } from '../../context/db';
 
-// --- CORREÇÃO DO PISCA (FLICKER) MANTIDA ---
+// --- COMPONENTES AUXILIARES ---
+
 const LibraryThumb = React.memo(({ token }) => {
     const [src, setSrc] = useState(null);
     
@@ -79,7 +80,6 @@ export const VTTLayout = ({ zoomValue, onZoomChange, activeTool, setActiveTool }
 
   const [uiState, setUiState] = useState({ menuOpen: false, libraryOpen: false, mapConfigOpen: false });
   const [confirmModal, setConfirmModal] = useState({ open: false, message: '', onConfirm: null });
-  const [inputModal, setInputModal] = useState({ open: false, title: '', value: '', onConfirm: null });
   const [alertMessage, setAlertMessage] = useState(null); 
   const clearAlert = useCallback(() => setAlertMessage(null), []);
 
@@ -93,7 +93,6 @@ export const VTTLayout = ({ zoomValue, onZoomChange, activeTool, setActiveTool }
 
   // Helper para fechar todos os menus
   const closeAllMenus = useCallback(() => {
-      // Só atualiza o estado se algo estiver aberto, para evitar renders desnecessários
       setUiState(prev => {
           if (prev.menuOpen || prev.libraryOpen || prev.mapConfigOpen) {
               return { menuOpen: false, libraryOpen: false, mapConfigOpen: false };
@@ -119,15 +118,12 @@ export const VTTLayout = ({ zoomValue, onZoomChange, activeTool, setActiveTool }
   // ==========================================
   useEffect(() => {
       const handleOutsideInteraction = (event) => {
-          // 1. Se a interação for dentro do cabeçalho (botões), não fecha imediatamente.
-          // Deixa o evento propagar para que o botão 'toggle' funcione.
           if (headerRef.current && headerRef.current.contains(event.target)) {
               return;
           }
 
           let shouldClose = false;
 
-          // Se clicou fora de qualquer janela aberta, marca para fechar
           if (uiState.menuOpen && sceneRef.current && !sceneRef.current.contains(event.target)) {
               shouldClose = true;
           }
@@ -138,26 +134,19 @@ export const VTTLayout = ({ zoomValue, onZoomChange, activeTool, setActiveTool }
               shouldClose = true;
           }
 
-          // Se clicou no "vazio" (fora de janelas e fora do header), fecha tudo
-          // Isso cobre cliques no mapa VTT ou scroll (wheel) no mapa.
           if (shouldClose || (!uiState.menuOpen && !uiState.libraryOpen && !uiState.mapConfigOpen)) {
-               // A verificação extra acima garante que se eu clicar no mapa com tudo fechado, nada acontece,
-               // mas se algo estiver aberto, shouldClose será true por causa das verificações de ref.
-               // Simplificando: Se algo está aberto e cliquei fora das janelas (e fora do header), fecho.
                if (uiState.menuOpen || uiState.libraryOpen || uiState.mapConfigOpen) {
                    closeAllMenus();
                }
           }
       };
       
-      // Listener de teclado para fechar ao usar setas (Zoom)
       const handleKeyDown = (e) => {
           if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
               closeAllMenus();
           }
       };
 
-      // Capture: true garante que pegamos o evento antes do stopPropagation do Board.jsx
       document.addEventListener("mousedown", handleOutsideInteraction, { capture: true });
       document.addEventListener("wheel", handleOutsideInteraction, { capture: true });
       window.addEventListener("keydown", handleKeyDown);
@@ -281,24 +270,116 @@ export const VTTLayout = ({ zoomValue, onZoomChange, activeTool, setActiveTool }
       );
   };
 
+  // --- SELETOR DE CENAS POLIDO E INLINE ---
   const SceneSelector = () => {
       if (!uiState.menuOpen) return null;
+
+      // Estados locais para edição inline
+      const [isCreating, setIsCreating] = useState(false);
+      const [newSceneName, setNewSceneName] = useState("");
+      
+      const [renamingId, setRenamingId] = useState(null);
+      const [renameValue, setRenameValue] = useState("");
+      
+      const [deletingId, setDeletingId] = useState(null);
+
+      const handleCreate = () => {
+          const name = newSceneName.trim() || "Nova Cena";
+          addScene(name);
+          setNewSceneName("");
+          setIsCreating(false);
+      };
+
+      const handleRename = (id) => {
+          if (!renameValue.trim()) return setRenamingId(null);
+          updateScene(id, { name: renameValue });
+          setRenamingId(null);
+      };
+
       return (
-          <WindowWrapper containerRef={sceneRef} className="absolute top-24 right-4 w-72 bg-black/90 border border-glass-border backdrop-blur-sm rounded-xl shadow-2xl z-50 overflow-hidden scale-90 origin-top-right">
-              <div className="max-h-[300px] overflow-y-auto scrollbar-thin">
-                  {activeAdventure?.scenes.map(s => (
-                      <div key={s.id} onClick={(e) => { e.stopPropagation(); setActiveScene(s.id); toggle('menuOpen', e); }}
-                           className={`p-3 flex justify-between items-center cursor-pointer hover:bg-white/5 border-l-2 group ${activeScene?.id === s.id ? 'border-neon-green bg-white/5' : 'border-transparent'}`}>
-                          <span className="text-sm font-bold text-white truncate max-w-[150px]">{s.name}</span>
-                          <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                              <button onClick={(e) => { e.stopPropagation(); setInputModal({ open: true, title: "Renomear Cena", value: s.name, onConfirm: (val) => updateScene(s.id, { name: val }) }); }} className="text-text-muted hover:text-white p-1"><Edit2 size={14}/></button>
-                              <button onClick={(e) => { e.stopPropagation(); setConfirmModal({ open: true, message: `Excluir "${s.name}"?`, onConfirm: () => deleteScene(s.id) }); }} className="text-text-muted hover:text-red-500 p-1"><Trash2 size={14}/></button>
+          <WindowWrapper containerRef={sceneRef} className="absolute top-24 right-4 w-72 bg-black/90 border border-glass-border backdrop-blur-sm rounded-xl shadow-2xl z-50 overflow-hidden scale-90 origin-top-right flex flex-col max-h-[60vh]">
+              <div className="p-3 border-b border-glass-border bg-white/5">
+                  <h3 className="font-rajdhani font-bold text-white text-sm">Cenas da Aventura</h3>
+              </div>
+
+              <div className="overflow-y-auto scrollbar-thin flex-1">
+                  {activeAdventure?.scenes.map(s => {
+                      // 1. MODO DELETAR (Confirmação Inline)
+                      if (deletingId === s.id) {
+                          return (
+                              <div key={s.id} className="p-2 m-2 rounded bg-red-900/30 border border-red-500/50 flex justify-between items-center animate-in fade-in duration-200">
+                                  <span className="text-white text-xs font-bold pl-1">Excluir cena?</span>
+                                  <div className="flex gap-1">
+                                      <button onClick={(e)=>{e.stopPropagation(); setDeletingId(null);}} className="p-1 rounded bg-black/40 hover:bg-white/20 text-text-muted hover:text-white transition"><ArrowLeft size={14}/></button>
+                                      <button onClick={(e)=>{e.stopPropagation(); deleteScene(s.id); setDeletingId(null);}} className="p-1 rounded bg-red-600 hover:bg-red-500 text-white transition"><Trash2 size={14}/></button>
+                                  </div>
+                              </div>
+                          );
+                      }
+
+                      // 2. MODO RENOMEAR (Input Inline)
+                      if (renamingId === s.id) {
+                          return (
+                              <div key={s.id} className="p-2 m-2 rounded bg-white/10 border border-white/30 flex items-center gap-1 animate-in fade-in duration-200">
+                                  <input 
+                                      autoFocus
+                                      className="flex-1 bg-black/50 border border-glass-border rounded px-2 py-1 text-white text-sm outline-none focus:border-white"
+                                      value={renameValue}
+                                      onChange={e => setRenameValue(e.target.value)}
+                                      onKeyDown={e => {
+                                          if (e.key === 'Enter') handleRename(s.id);
+                                          if (e.key === 'Escape') setRenamingId(null);
+                                      }}
+                                  />
+                                  <button onClick={() => handleRename(s.id)} className="p-1 text-neon-green hover:text-white"><Check size={14}/></button>
+                                  <button onClick={() => setRenamingId(null)} className="p-1 text-red-400 hover:text-white"><X size={14}/></button>
+                              </div>
+                          );
+                      }
+
+                      // 3. MODO VISUALIZAÇÃO (Padrão)
+                      return (
+                          <div key={s.id} onClick={(e) => { e.stopPropagation(); setActiveScene(s.id); toggle('menuOpen', e); }}
+                               className={`p-3 flex justify-between items-center cursor-pointer hover:bg-white/5 border-l-2 group transition-colors ${activeScene?.id === s.id ? 'border-neon-green bg-white/5' : 'border-transparent'}`}>
+                              <span className={`text-sm font-bold truncate max-w-[150px] ${activeScene?.id === s.id ? 'text-neon-green' : 'text-white'}`}>{s.name}</span>
+                              <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                  <button onClick={(e) => { e.stopPropagation(); setRenamingId(s.id); setRenameValue(s.name); setDeletingId(null); }} className="text-text-muted hover:text-yellow-400 p-1 transition"><Edit2 size={14}/></button>
+                                  <button onClick={(e) => { e.stopPropagation(); setDeletingId(s.id); setRenamingId(null); }} className="text-text-muted hover:text-red-500 p-1 transition"><Trash2 size={14}/></button>
+                              </div>
+                          </div>
+                      );
+                  })}
+              </div>
+
+              {/* ÁREA DE CRIAÇÃO (Footer) */}
+              <div className="p-3 border-t border-glass-border bg-black/40">
+                  {!isCreating ? (
+                      <button 
+                          onClick={(e) => { e.stopPropagation(); setIsCreating(true); }}
+                          className="w-full py-2 bg-neon-green/10 border border-neon-green/30 text-neon-green rounded text-xs font-bold hover:bg-neon-green hover:text-black hover:shadow-[0_0_10px_rgba(0,255,0,0.3)] transition flex items-center justify-center gap-2"
+                      >
+                          <Plus size={14} strokeWidth={3}/> NOVA CENA
+                      </button>
+                  ) : (
+                      <div className="flex flex-col gap-2 animate-in fade-in slide-in-from-bottom-2 duration-200">
+                          <input 
+                              autoFocus
+                              placeholder="Nome da Cena..."
+                              className="w-full bg-[#15151a] border border-neon-green text-white placeholder-white/20 rounded p-2 text-sm outline-none focus:shadow-[0_0_10px_rgba(0,255,0,0.2)] transition-all"
+                              value={newSceneName}
+                              onChange={e => setNewSceneName(e.target.value)}
+                              onKeyDown={e => {
+                                  if (e.key === 'Enter') handleCreate();
+                                  if (e.key === 'Escape') setIsCreating(false);
+                              }}
+                          />
+                          <div className="flex gap-2">
+                              <button onClick={() => setIsCreating(false)} className="flex-1 py-1.5 text-xs text-text-muted hover:text-white transition">Cancelar</button>
+                              <button onClick={handleCreate} className="flex-1 py-1.5 bg-neon-green text-black font-bold rounded text-xs hover:bg-white hover:scale-105 active:scale-95 transition-all shadow-lg shadow-green-900/20">CRIAR</button>
                           </div>
                       </div>
-                  ))}
+                  )}
               </div>
-              <button onClick={(e) => { e.stopPropagation(); setInputModal({ open: true, title: "Nome da Cena", value: "", onConfirm: (name) => addScene(name) }); }} 
-                      className="w-full p-3 bg-black/20 hover:bg-neon-green/20 text-neon-green text-xs font-bold flex items-center justify-center gap-2 border-t border-glass-border"><Plus size={14}/> NOVA CENA</button>
           </WindowWrapper>
       );
   };
@@ -313,22 +394,6 @@ export const VTTLayout = ({ zoomValue, onZoomChange, activeTool, setActiveTool }
                   <div className="flex gap-3">
                       <button onClick={()=>setConfirmModal({open:false,message:'',onConfirm:null})} className="flex-1 py-2 bg-glass rounded text-white hover:bg-white/10">Cancelar</button>
                       <button onClick={()=>{confirmModal.onConfirm();setConfirmModal({open:false,message:'',onConfirm:null})}} className="flex-1 py-2 bg-red-600 rounded text-white font-bold hover:bg-red-500">Confirmar</button>
-                  </div>
-              </div>
-          </div> 
-      ); 
-  };
-
-  const InputModal = () => { 
-      if (!inputModal.open) return null; 
-      return ( 
-          <div className="absolute inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm pointer-events-auto" onMouseDown={e=>e.stopPropagation()}>
-              <div className="bg-ecos-bg border border-glass-border p-6 rounded-xl shadow-2xl max-w-sm w-full mx-4">
-                  <h3 className="text-xl font-bold text-white mb-4">{inputModal.title}</h3>
-                  <input autoFocus className="w-full bg-black/50 border border-glass-border rounded p-3 text-white mb-6 outline-none focus:border-neon-green" value={inputModal.value} onChange={(e)=>setInputModal(prev=>({...prev,value:e.target.value}))} onKeyDown={(e)=>{if(e.key==='Enter'&&inputModal.value){inputModal.onConfirm(inputModal.value);setInputModal({open:false,title:'',value:'',onConfirm:null});}}} />
-                  <div className="flex gap-3">
-                      <button onClick={()=>setInputModal({open:false,title:'',value:'',onConfirm:null})} className="flex-1 py-2 bg-glass rounded text-white hover:bg-white/10">Cancelar</button>
-                      <button onClick={()=>{if(inputModal.value){inputModal.onConfirm(inputModal.value);setInputModal({open:false,title:'',value:'',onConfirm:null});}}} className="flex-1 py-2 bg-neon-green rounded text-black font-bold hover:bg-white">Salvar</button>
                   </div>
               </div>
           </div> 
@@ -356,7 +421,6 @@ export const VTTLayout = ({ zoomValue, onZoomChange, activeTool, setActiveTool }
                         max="300" 
                         value={zoomValue || 100} 
                         onChange={onZoomChange}
-                        // --- INTERAÇÃO DIRETA: Fecha menus ao clicar no slider ---
                         onMouseDown={closeAllMenus}
                         className="
                             w-80 h-2 bg-white/20 rounded-lg appearance-none cursor-pointer outline-none
@@ -378,7 +442,6 @@ export const VTTLayout = ({ zoomValue, onZoomChange, activeTool, setActiveTool }
 
               <div className="flex items-center gap-2 p-1.5">
                 
-                {/* Botões de Modo: Fecham os menus ao clicar */}
                 <button 
                   onClick={() => { setActiveTool('select'); closeAllMenus(); }}
                   className={`p-2 rounded hover:bg-white/10 transition ${activeTool === 'select' ? 'bg-white/20 text-neon-green' : 'text-text-muted'}`}
@@ -410,7 +473,6 @@ export const VTTLayout = ({ zoomValue, onZoomChange, activeTool, setActiveTool }
                 
                 <div className="w-px h-6 bg-glass-border mx-1"></div>
                 
-                {/* Botão Sair: Fecha os menus ao clicar */}
                 <button onClick={(e) => { 
                     e.stopPropagation(); 
                     closeAllMenus();
@@ -423,7 +485,6 @@ export const VTTLayout = ({ zoomValue, onZoomChange, activeTool, setActiveTool }
           <AssetDock />
           <SceneSelector />
           <ConfirmationModal />
-          <InputModal />
       </div>
   );
 };

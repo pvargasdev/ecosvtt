@@ -211,7 +211,6 @@ export const GameProvider = ({ children }) => {
       setAdventures(prev => prev.map(adv => adv.id !== activeAdventureId ? adv : { 
           ...adv, 
           scenes: [...adv.scenes, newScene], 
-          activeSceneId: newId 
       }));
   }, [activeAdventureId]);
 
