@@ -216,7 +216,7 @@ export const VTTLayout = ({ zoomValue, onZoomChange, activeTool, setActiveTool }
       return (
           <WindowWrapper containerRef={libraryRef} className="absolute top-24 right-4 w-[288px] bg-black/90 border border-glass-border backdrop-blur-sm rounded-xl flex flex-col max-h-[60vh] z-40 shadow-2xl scale-90 origin-top-right">
               <div className="p-3 border-b border-glass-border flex justify-between items-center bg-white/5 rounded-t-xl">
-                  <h3 className="font-bold text-white flex gap-2 items-center text-sm">Biblioteca de Tokens</h3>
+                  <h3 className="font-rajdhani font-bold text-white">Biblioteca de Tokens</h3>
                   <button onClick={(e) => toggle('libraryOpen', e)}><X size={16} className="text-text-muted hover:text-white"/></button>
               </div>
               <div className="p-3 grid grid-cols-4 gap-3 overflow-y-auto scrollbar-thin flex-1 min-h-[150px]">

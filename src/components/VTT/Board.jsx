@@ -346,12 +346,6 @@ const Board = () => {
     if (e.button === 1 || (isSpacePressed && e.button === 0)) {
         // e.preventDefault() já foi chamado no onAuxClick (para e.button === 1) ou será chamado no keydown (para Espaço)
         
-        // REMOVIDO: A verificação que impedia panning sobre elementos interativos
-        // O panning deve funcionar mesmo sobre tokens e fog areas
-        // if (e.target.closest('.token') || e.target.closest('.fog-area')) {
-        //     return;
-        // }
-        
         // Se chegou aqui, inicia o PANNING independentemente do que está abaixo
         setInteraction({ 
             mode: 'PANNING', 
@@ -641,14 +635,17 @@ const Board = () => {
   }
 
   return (
-    <div className="w-full h-full relative overflow-hidden bg-[#15151a]" ref={containerRef}
+    // AQUI: Adicionado Lógica de Cursor e Borda para Feedback Visual
+    <div 
+        className={`w-full h-full relative overflow-hidden bg-[#15151a] transition-colors duration-300 ${activeTool === 'fogOfWar' ? 'cursor-crosshair' : 'cursor-default'}`} 
+        ref={containerRef}
         onMouseDown={handleMouseDown} 
         onMouseMove={handleMouseMove} 
         onMouseUp={handleMouseUp} 
         onMouseLeave={handleMouseUp}
         onDrop={handleDrop} 
         onDragOver={e => e.preventDefault()}
-        onAuxClick={handleAuxClick} // ADICIONADO: Captura o clique do meio/roda
+        onAuxClick={handleAuxClick} 
     >
         <div className="absolute top-0 left-0 w-full h-full origin-top-left"
              style={{ transform: `translate(${view.x}px, ${view.y}px) scale(${view.scale})` }}>
