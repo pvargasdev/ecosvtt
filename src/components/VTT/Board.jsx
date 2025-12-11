@@ -412,10 +412,11 @@ const Board = () => {
     // Se for botão do meio (roda) ou direito, retorna SEM stopPropagation
     if (e.button === 1 || e.button === 2) return;
     
-    e.stopPropagation();
-    
-    // Se a barra de espaço estiver pressionada, permite o panning
+    // Se a barra de espaço estiver pressionada, permite o panning (retorna SEM stopPropagation)
     if (isSpacePressed) return;
+    
+    // Apenas agora faz stopPropagation para cliques normais de token
+    e.stopPropagation();
     
     // Só processa clique esquerdo (botão 0)
     if (e.button !== 0) return;
@@ -431,13 +432,13 @@ const Board = () => {
         setSelectedIds(newSelection);
     } else {
         if (!selectedIds.has(id)) {
-        setSelectedIds(new Set([id]));
+            setSelectedIds(new Set([id]));
         }
     }
     
     setSelectedFogIds(new Set());
     setInteraction({ mode: 'DRAGGING', activeTokenId: id, startX: e.clientX, startY: e.clientY });
-  };
+};
 
   const handleFogDown = (e, id) => {
     // Se for botão do meio (roda) ou direito, retorna SEM stopPropagation

@@ -100,7 +100,7 @@ const CharacterForm = ({ formData, setFormData, handlePhotoUpload }) => {
             <div className="bg-red-900/10 p-2 rounded border border-red-900/30">
                 <span className="text-xs uppercase text-neon-red mb-2 block">Tolerância a Dano</span>
                 <div className="flex gap-2">
-                    {[['superior','G'],['medium','M'],['inferior','L']].map(([k,l])=>(
+                    {[['superior','Grave'],['medium','Moderado'],['inferior','Leve']].map(([k,l])=>(
                         <div key={k} className="flex-1">
                             <label className="text-[9px] text-text-muted block text-center uppercase">{l}</label>
                             <input type="number" 
