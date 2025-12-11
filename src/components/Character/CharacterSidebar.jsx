@@ -491,7 +491,7 @@ const CharacterSidebar = ({ isCollapsed, setIsCollapsed }) => {
                 <div className="flex justify-between items-center p-4 border-b border-glass-border bg-black/40 shrink-0">
                     <button onClick={navToHub} className="p-2 rounded-full bg-glass hover:bg-white/10 transition"><ArrowLeft size={20} /></button>
                     <div className="flex gap-2">
-                        <button onClick={() => openEdit(false)} className={`p-2 rounded-full bg-glass hover:bg-white/10 transition ${THEME_PURPLE}`}><Edit2 size={20} /></button>
+                        <button onClick={() => openEdit(false)} className={`p-2 rounded-full bg-glass hover:bg-white/10 transition text-text-muted hover:text-white`}><Edit2 size={20} /></button>
                         <button onClick={() => setIsCollapsed(true)} className="p-2 rounded-full bg-glass hover:bg-white/10 transition text-text-muted hover:text-white"><Menu size={20} /></button>
                     </div>
                 </div>
