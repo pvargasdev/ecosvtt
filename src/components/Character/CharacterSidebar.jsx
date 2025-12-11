@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useGame } from '../../context/GameContext';
-import { ArrowLeft, ArrowRight, Edit2, Plus, X, Upload, Download, Trash2, LogOut } from 'lucide-react';
+import { ArrowLeft, Menu, Edit2, Plus, X, Upload, Download, Trash2} from 'lucide-react';
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
 
@@ -30,7 +30,7 @@ const CharacterForm = ({ formData, setFormData, handlePhotoUpload }) => {
         <div className="space-y-4 pb-4">
             <div className="flex justify-center mb-4">
                 <div className="relative group cursor-pointer" onClick={() => document.getElementById('edit-photo-input').click()}>
-                    <div className={`w-32 h-32 rounded-full border-4 ${formData.photo ? 'border-neon-blue' : 'border-glass-border border-dashed'} overflow-hidden bg-black flex items-center justify-center shadow-2xl transition-all group-hover:scale-105`}>
+                    <div className={`w-32 h-32 rounded-full border-4 ${formData.photo ? 'border-neon-purple' : 'border-glass-border border-dashed'} overflow-hidden bg-black flex items-center justify-center shadow-2xl transition-all group-hover:scale-105`}>
                         {formData.photo ? (
                             <img src={formData.photo} className="w-full h-full object-cover" alt="Avatar"/>
                         ) : (
@@ -47,21 +47,21 @@ const CharacterForm = ({ formData, setFormData, handlePhotoUpload }) => {
             <div className="flex gap-2">
                 <div className="flex-1">
                     <label className="text-xs text-text-muted mb-1 block">Nome</label>
-                    <input className="w-full bg-black/50 border border-glass-border rounded p-2 text-white outline-none focus:border-neon-blue transition-colors" 
+                    <input className="w-full bg-black/50 border border-glass-border rounded p-2 text-white outline-none focus:border-neon-purple transition-colors" 
                            value={formData.name||''} 
                            onChange={e=>setFormData({...formData, name:e.target.value})}/>
                 </div>
                 <div className="w-20">
                     <label className="text-xs text-text-muted mb-1 block">Karma</label>
                     <input type="number" 
-                           className="w-full bg-black/50 border border-glass-border rounded p-2 text-white text-center focus:border-neon-blue transition-colors [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" 
+                           className="w-full bg-black/50 border border-glass-border rounded p-2 text-white text-center focus:border-neon-purple transition-colors [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" 
                            value={formData.karmaMax||0} 
                            onChange={e=>setFormData({...formData, karmaMax:parseInt(e.target.value)})}/>
                 </div>
             </div>
             <div>
                 <label className="text-xs text-text-muted mb-1 block">Descrição</label>
-                <input className="w-full bg-black/50 border border-glass-border rounded p-2 text-white focus:border-neon-blue transition-colors" 
+                <input className="w-full bg-black/50 border border-glass-border rounded p-2 text-white focus:border-neon-purple transition-colors" 
                        value={formData.description||''} 
                        onChange={e=>setFormData({...formData, description:e.target.value})}/>
             </div>
@@ -72,7 +72,7 @@ const CharacterForm = ({ formData, setFormData, handlePhotoUpload }) => {
                         <div key={a}>
                             <label className="text-[9px] text-text-muted block text-center uppercase">{a.substr(0,3)}</label>
                             <input type="number" 
-                                   className="w-full bg-black/50 border border-glass-border rounded p-1 text-white text-center font-bold focus:border-neon-blue transition-colors [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" 
+                                   className="w-full bg-black/50 border border-glass-border rounded p-1 text-white text-center font-bold focus:border-neon-purple transition-colors [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" 
                                    value={formData.attributes?.[a.toLowerCase()]||0} 
                                    onChange={e=>setFormData({...formData, attributes:{...formData.attributes, [a.toLowerCase()]:parseInt(e.target.value)}})}/>
                         </div>
@@ -83,7 +83,7 @@ const CharacterForm = ({ formData, setFormData, handlePhotoUpload }) => {
             {/* PERICIAS (Acima) */}
             <div>
                 <label className="text-xs text-text-muted mb-1 block">Perícias</label>
-                <textarea className="w-full bg-black/50 border border-glass-border rounded p-2 text-white h-20 text-sm focus:border-neon-blue transition-colors" 
+                <textarea className="w-full bg-black/50 border border-glass-border rounded p-2 text-white h-20 text-sm focus:border-neon-purple transition-colors" 
                           value={formData.skills||''} 
                           onChange={e=>setFormData({...formData, skills:e.target.value})}/>
             </div>
@@ -166,7 +166,7 @@ const CharacterSidebar = ({ isCollapsed, setIsCollapsed }) => {
       calcSize();
       window.addEventListener('resize', calcSize);
       return () => window.removeEventListener('resize', calcSize);
-  }, [gameState.characters.length, view, isCollapsed]); // Add isCollapsed dependência
+  }, [gameState.characters.length, view, isCollapsed]);
 
   const showAlert = (title, msg) => setConfirmModal({ open: true, title, msg, onConfirm: null });
   const showConfirm = (title, msg, action) => setConfirmModal({ open: true, title, msg, onConfirm: action });
@@ -289,15 +289,15 @@ const CharacterSidebar = ({ isCollapsed, setIsCollapsed }) => {
              {/* Botão de Abrir */}
              <button 
                 onClick={() => setIsCollapsed(false)} 
-                className="p-2 rounded-full bg-glass hover:bg-white/10 text-neon-blue transition shadow-lg border border-glass-border"
+                className="p-2 rounded-full bg-glass hover:bg-white/10 text-neon-purple transition shadow-lg border border-glass-border"
                 title="Expandir"
              >
-                <ArrowRight size={20} />
+                <Menu size={20} />
              </button>
 
              {/* Placeholder Vertical */}
              <div className="flex-1 flex items-center justify-center">
-                <span className="text-neon-blue font-rajdhani font-bold tracking-[0.3em] text-xl rotate-90 whitespace-nowrap opacity-50 select-none">
+                <span className="text-neon-purple font-rajdhani font-bold tracking-[0.3em] text-xl rotate-90 whitespace-nowrap opacity-50 select-none">
                     PERSONAGENS
                 </span>
              </div>
@@ -313,27 +313,28 @@ const CharacterSidebar = ({ isCollapsed, setIsCollapsed }) => {
         <FadeInView key="manager" className="p-6 bg-ecos-bg text-text-main overflow-hidden border-r border-glass-border items-center relative">
             <ConfirmationOverlay />
             
-            {/* Botão de Colapso (Posicionado Absoluto) */}
+            {/* Botão de Colapso */}
             <button 
                 onClick={() => setIsCollapsed(true)} 
                 className="absolute top-2 right-2 p-2 rounded-full text-text-muted hover:text-white hover:bg-white/5 transition z-50"
                 title="Recolher"
             >
-                <ArrowLeft size={20} />
+                <Menu size={20} />
             </button>
 
-            <h1 className="text-3xl font-rajdhani font-bold text-neon-blue mb-2 tracking-widest mt-10">PERSONAGENS</h1>
+            {/* Título Roxo */}
+            <h1 className="text-3xl font-rajdhani font-bold text-neon-purple mb-2 tracking-widest mt-10">PERSONAGENS</h1>
             <p className="text-text-muted text-sm text-center mb-8">Selecione um grupo para começar.</p>
             <div className="w-full max-w-xs space-y-4 flex-1 overflow-y-auto scrollbar-none pb-20">
                 <div className="bg-glass border border-glass-border rounded-lg p-4">
                     {!isCreatingPreset ? (
-                        <button onClick={() => setIsCreatingPreset(true)} className="w-full py-3 bg-neon-blue text-black font-bold rounded hover:bg-white transition flex items-center justify-center gap-2"><Plus size={18}/> NOVO GRUPO</button>
+                        <button onClick={() => setIsCreatingPreset(true)} className="w-full py-3 bg-neon-purple text-black font-bold rounded hover:bg-white transition flex items-center justify-center gap-2"><Plus size={18}/> NOVO GRUPO</button>
                     ) : (
                         <div className="flex flex-col gap-3" style={{ animation: 'fadeInUp 0.2s ease-out' }}>
                             <input autoFocus placeholder="Nome..." className="w-full bg-black/50 border border-glass-border rounded p-2 text-white" value={newPresetName} onChange={e=>setNewPresetName(e.target.value)} />
                             <div className="flex gap-2">
                                 <button onClick={() => setIsCreatingPreset(false)} className="flex-1 py-1 text-text-muted text-xs">Cancelar</button>
-                                <button onClick={handleCreateNewPreset} className="flex-1 py-1 bg-neon-blue text-black font-bold rounded text-xs">OK</button>
+                                <button onClick={handleCreateNewPreset} className="flex-1 py-1 bg-neon-purple text-black font-bold rounded text-xs">OK</button>
                             </div>
                         </div>
                     )}
@@ -361,17 +362,21 @@ const CharacterSidebar = ({ isCollapsed, setIsCollapsed }) => {
     return (
       <FadeInView key="hub" className="bg-ecos-bg text-text-main overflow-hidden relative border-r border-glass-border">
         <ConfirmationOverlay />
-        <div className="p-3 bg-neon-purple/10 border-b border-neon-purple/30 flex justify-between items-center shrink-0">
-            <div className="left-4 flex items-center gap-2 overflow-hidden">
+        {/* Header Redesenhado - Botão SAIR movido para a Esquerda */}
+        <div className="flex justify-between items-center p-4 border-b border-glass-border bg-black/40 shrink-0">
+            <div className="flex items-center gap-3">
+                {/* Botão Sair do Grupo (Antes do nome) */}
+                <button onClick={() => exitPreset()} className="p-2 rounded-full bg-glass hover:bg-red-900/30 hover:text-red-400 text-text-muted transition" title="Sair do Grupo"><ArrowLeft size={20}/></button>
+                
                 <div className="flex flex-col">
-                    <span className="text-[10px] text-neon-purple uppercase font-bold leading-none">Grupo</span>
-                    <span className="font-rajdhani font-bold text-white truncate max-w-[120px] leading-none">{currentPreset?.name}</span>
+                    <span className="text-[10px] text-text-muted uppercase font-bold leading-none">Grupo</span>
+                    <span className="font-rajdhani font-bold text-white truncate max-w-[150px] leading-none mt-1">{currentPreset?.name}</span>
                 </div>
             </div>
-            {/* Header Controls (Logout + Collapse) */}
+            
+            {/* Header Controls (Apenas Collapse) */}
             <div className="flex items-center gap-2">
-                <button onClick={() => exitPreset()} className="p-1.5 bg-glass border border-glass-border rounded hover:bg-red-900/30 hover:text-red-400 text-text-muted transition flex items-center gap-1" title="Sair do Grupo"><LogOut size={14}/></button>
-                <button onClick={() => setIsCollapsed(true)} className="p-1.5 bg-glass border border-glass-border rounded hover:bg-white/10 text-text-muted hover:text-white transition" title="Recolher"><ArrowLeft size={14}/></button>
+                <button onClick={() => setIsCollapsed(true)} className="p-2 rounded-full bg-glass hover:bg-white/10 text-text-muted hover:text-white transition" title="Recolher"><Menu size={20}/></button>
             </div>
         </div>
 
@@ -385,7 +390,7 @@ const CharacterSidebar = ({ isCollapsed, setIsCollapsed }) => {
                     onDragOver={handleDragOver}
                     onDrop={(e) => handleDragSortDrop(e, index)}
                     onClick={() => navToChar(char.id)}
-                    className={`bg-glass border border-glass-border rounded-lg p-3 flex flex-col items-center cursor-pointer hover:bg-white/5 transition relative group min-h-[110px] ${draggedIndex === index ? 'opacity-30 border-dashed border-neon-blue' : ''}`}
+                    className={`bg-glass border border-glass-border rounded-lg p-3 flex flex-col items-center cursor-pointer hover:bg-white/5 transition relative group min-h-[110px] ${draggedIndex === index ? 'opacity-30 border-dashed border-neon-purple' : ''}`}
                 >
                     <button onClick={(e) => { e.stopPropagation(); handleDeleteChar(char.id); }} className="absolute top-1 right-1 w-5 h-5 bg-red-600 rounded-full flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity z-10 text-[10px] hover:scale-110"><X size={10}/></button>
                     <img src={char.photo || 'https://via.placeholder.com/120'} className="w-16 h-16 rounded-full object-cover border border-glass-border mb-2 bg-[#222] pointer-events-none" alt={char.name} />
@@ -397,9 +402,9 @@ const CharacterSidebar = ({ isCollapsed, setIsCollapsed }) => {
 
         {isEditing && (
              <div className="absolute inset-0 bg-ecos-bg z-50 p-4 flex flex-col overflow-hidden" style={{ animation: 'fadeInUp 0.3s ease-out' }}>
-                <div className="flex justify-between items-center mb-4"><h2 className="text-lg font-rajdhani font-bold text-neon-blue">Novo Personagem</h2><button onClick={() => setIsEditing(false)}><X size={20}/></button></div>
+                <div className="flex justify-between items-center mb-4"><h2 className="text-lg font-rajdhani font-bold text-neon-purple">Novo Personagem</h2><button onClick={() => setIsEditing(false)}><X size={20}/></button></div>
                 <div className="flex-1 overflow-y-auto scrollbar-thin pr-2"><CharacterForm formData={formData} setFormData={setFormData} handlePhotoUpload={handlePhotoUpload} /></div>
-                <button onClick={handleSaveChar} className="mt-4 w-full py-3 bg-neon-blue/10 border border-neon-blue text-neon-blue font-bold rounded hover:bg-neon-blue hover:text-black transition">ADICIONAR À MESA</button>
+                <button onClick={handleSaveChar} className="mt-4 w-full py-3 bg-neon-purple/10 border border-neon-purple text-neon-purple font-bold rounded hover:bg-neon-purple hover:text-black transition">ADICIONAR À MESA</button>
              </div>
         )}
       </FadeInView>
@@ -416,13 +421,12 @@ const CharacterSidebar = ({ isCollapsed, setIsCollapsed }) => {
         {/* CONTAINER ANIMADO DO CONTEÚDO */}
         <div className="flex-1 relative overflow-hidden">
             <FadeInView key={activeCharId || 'details'} className="absolute inset-0 flex flex-col">
-                {/* Header (Fica dentro do FadeIn para trocar junto com o char) */}
+                {/* Header */}
                 <div className="flex justify-between items-center p-4 border-b border-glass-border bg-black/40 shrink-0">
                     <button onClick={navToHub} className="p-2 rounded-full bg-glass hover:bg-white/10 transition"><ArrowLeft size={20} /></button>
-                    {/* Controles da Direita: Editar + Colapsar */}
                     <div className="flex gap-2">
                         <button onClick={() => openEdit(false)} className="p-2 rounded-full bg-glass hover:bg-white/10 transition text-neon-purple"><Edit2 size={20} /></button>
-                        <button onClick={() => setIsCollapsed(true)} className="p-2 rounded-full bg-glass hover:bg-white/10 transition text-text-muted hover:text-white"><ArrowLeft size={20} /></button>
+                        <button onClick={() => setIsCollapsed(true)} className="p-2 rounded-full bg-glass hover:bg-white/10 transition text-text-muted hover:text-white"><Menu size={20} /></button>
                     </div>
                 </div>
 
@@ -447,7 +451,7 @@ const CharacterSidebar = ({ isCollapsed, setIsCollapsed }) => {
                         </div>
                     </div>
                     
-                    {/* LINHA DE DANO E TRAUMAS (LADO A LADO - CORRIGIDO) */}
+                    {/* LINHA DE DANO E TRAUMAS */}
                     <div className="flex gap-4 mb-4 min-h-[160px]">
                         {/* Dano */}
                         <div className="flex-1 bg-glass border border-glass-border rounded-xl p-3 flex flex-col">
@@ -498,7 +502,7 @@ const CharacterSidebar = ({ isCollapsed, setIsCollapsed }) => {
                     src={c.photo || 'https://via.placeholder.com/50'}
                     onClick={() => navToChar(c.id)}
                     style={{ width: footerIconSize, height: footerIconSize }}
-                    className={`rounded-full border-2 object-cover cursor-pointer hover:scale-110 transition-transform shrink-0 ${c.id === activeChar.id ? 'border-neon-blue opacity-100 shadow-[0_0_10px_rgba(0,243,255,0.4)]' : 'border-transparent opacity-50 hover:opacity-100'}`} 
+                    className={`rounded-full border-2 object-cover cursor-pointer hover:scale-110 transition-transform shrink-0 ${c.id === activeChar.id ? 'border-neon-purple opacity-100 shadow-[0_0_10px_rgba(188,19,254,0.4)]' : 'border-transparent opacity-50 hover:opacity-100'}`} 
                     alt={c.name}
                  />
              ))}
@@ -506,11 +510,11 @@ const CharacterSidebar = ({ isCollapsed, setIsCollapsed }) => {
 
         {isEditing && (
              <div className="absolute inset-0 bg-black/90 backdrop-blur-md z-50 p-4 flex flex-col overflow-y-auto" style={{ animation: 'fadeInUp 0.3s ease-out' }}>
-                <div className="flex justify-between items-center mb-4"><h2 className="text-xl font-rajdhani font-bold text-neon-blue">Editar Personagem</h2><button onClick={() => setIsEditing(false)}><X size={24}/></button></div>
+                <div className="flex justify-between items-center mb-4"><h2 className="text-xl font-rajdhani font-bold text-neon-purple">Editar Personagem</h2><button onClick={() => setIsEditing(false)}><X size={24}/></button></div>
                 <div className="flex-1 overflow-y-auto scrollbar-thin pr-2">
                     <CharacterForm formData={formData} setFormData={setFormData} handlePhotoUpload={handlePhotoUpload} />
                 </div>
-                <button onClick={handleSaveChar} className="mt-4 w-full py-3 bg-neon-blue/10 border border-neon-blue text-neon-blue font-bold rounded hover:bg-neon-blue hover:text-black transition">SALVAR ALTERAÇÕES</button>
+                <button onClick={handleSaveChar} className="mt-4 w-full py-3 bg-neon-purple/10 border border-neon-purple text-neon-purple font-bold rounded hover:bg-neon-purple hover:text-black transition">SALVAR ALTERAÇÕES</button>
              </div>
         )}
     </div>
