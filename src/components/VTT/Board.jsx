@@ -460,7 +460,7 @@ const Board = () => {
   if (!activeAdventureId || !activeAdventure) {
       return (
         <div className="w-full h-full bg-ecos-bg flex flex-col items-center justify-center p-6 text-white relative z-50">
-            <h1 className="text-5xl font-rajdhani font-bold text-neon-green mb-8 tracking-widest">O TABULEIRO</h1>
+            <h1 className="text-5xl font-rajdhani font-bold text-neon-green mb-8 tracking-widest">TABULEIRO</h1>
             <div className="bg-glass border border-glass-border rounded-xl p-6 shadow-2xl w-full max-w-lg relative">
                 <h2 className="text-xl font-bold mb-4">Suas Aventuras</h2>
                 <div className="max-h-[300px] overflow-y-auto space-y-2 mb-4 scrollbar-thin pr-2">
