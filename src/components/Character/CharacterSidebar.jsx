@@ -426,7 +426,7 @@ const CharacterSidebar = ({ isCollapsed, setIsCollapsed }) => {
                     onDragOver={handleDragOver}
                     onDrop={(e) => handleDragSortDrop(e, index)}
                     onClick={() => navToChar(char.id)}
-                    className={`bg-black/20 border border-glass-border rounded-xl p-4 flex flex-col items-center justify-start py-6 gap-4 cursor-pointer hover:bg-white/5 transition relative group h-[200px] ${draggedIndex === index ? `opacity-30 border-dashed ${THEME_BORDER_PURPLE}` : ''}`}
+                    className={`bg-black/20 border border-glass-border rounded-xl p-4 flex flex-col items-center justify-start py-6 gap-4 cursor-pointer hover:bg-white/5 transition relative group h-[198px] ${draggedIndex === index ? `opacity-30 border-dashed ${THEME_BORDER_PURPLE}` : ''}`}
                 >
                     <button onClick={(e) => { e.stopPropagation(); handleDeleteChar(char.id); }} className="absolute top-2 right-2 w-6 h-6 bg-red-600 rounded-full flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity z-10 text-xs hover:scale-110 shadow-md"><X size={12}/></button>
                     
@@ -621,7 +621,7 @@ const CharacterSidebar = ({ isCollapsed, setIsCollapsed }) => {
                     src={c.photo || 'https://via.placeholder.com/50'}
                     onClick={() => navToChar(c.id)}
                     style={{ width: footerIconSize, height: footerIconSize }}
-                    className={`rounded-full border-2 object-cover cursor-pointer hover:scale-110 transition-transform shrink-0 ${c.id === activeChar.id ? `border-[#d084ff] opacity-100 shadow-[0_0_15px_rgba(208,132,255,0.5)]` : 'border-transparent opacity-50 hover:opacity-100'}`} 
+                    className={`rounded-full border-2 object-cover cursor-pointer hover:scale-110 transition-transform shrink-0 ${c.id === activeChar.id ? `border-white opacity-100 shadow-[0_0_15px_rgba(208,132,255,0.5)]` : 'border-transparent opacity-50 hover:opacity-100'}`} 
                     alt={c.name}
                  />
              ))}
