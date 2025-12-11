@@ -710,9 +710,6 @@ const Board = () => {
                         </div>
                     )}
                 </div>
-                <div className="mt-8 pt-4 border-t border-glass-border text-center">
-                    <button onClick={() => { if(window.confirm("Isso apagará TODAS as aventuras e tokens. Confirmar?")) resetAllData() }} className="text-[10px] text-red-500 hover:text-red-400 flex items-center justify-center gap-1 mx-auto opacity-50 hover:opacity-100 transition"><AlertTriangle size={10}/> Resetar Banco de Dados</button>
-                </div>
                 {deleteModal && (
                     <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm rounded-xl animate-in fade-in">
                         <div className="bg-ecos-bg border border-glass-border p-5 rounded-lg shadow-2xl w-3/4 max-w-sm text-center">
