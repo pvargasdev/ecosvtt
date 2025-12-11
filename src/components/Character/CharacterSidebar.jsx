@@ -389,8 +389,8 @@ const CharacterSidebar = ({ isCollapsed, setIsCollapsed }) => {
                 ))}
             </div>
             <div className="w-full border-t border-glass-border pt-4 flex justify-between text-xs text-text-muted">
-                <button onClick={handleExportPresetsZip} className="flex gap-1 items-center hover:text-white"><Download size={12}/> Exportar</button>
-                <label className="flex gap-1 items-center hover:text-white cursor-pointer"><Upload size={12}/> Importar<input type="file" className="hidden" accept=".zip" onChange={handleImportPresetsZip}/></label>
+                <button onClick={handleExportPresetsZip} className="flex gap-1 items-center hover:text-white"><Upload size={12}/> Exportar</button>
+                <label className="flex gap-1 items-center hover:text-white cursor-pointer"><Download size={12}/> Importar<input type="file" className="hidden" accept=".zip" onChange={handleImportPresetsZip}/></label>
             </div>
         </FadeInView>
       );
