@@ -5,7 +5,6 @@ import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
 
 // --- CONFIGURAÇÃO DE CORES ---
-// Roxo mais claro (Light Neon Purple)
 const THEME_PURPLE = "text-[#d084ff]";
 const THEME_BORDER_PURPLE = "border-[#d084ff]";
 const THEME_BG_PURPLE = "bg-[#d084ff]";
@@ -34,6 +33,12 @@ const FadeInView = ({ children, className }) => (
 );
 
 const CharacterForm = ({ formData, setFormData, handlePhotoUpload }) => {
+    // Helper para inputs de 1 digito apenas
+    const handleSingleDigit = (value) => {
+        const clean = value.replace(/\D/g, '').slice(0, 1);
+        return clean === '' ? 0 : parseInt(clean);
+    };
+
     return (
         <div className="space-y-4 pb-4">
             <div className="flex justify-center mb-4">
@@ -55,22 +60,25 @@ const CharacterForm = ({ formData, setFormData, handlePhotoUpload }) => {
             <div className="flex gap-2">
                 <div className="flex-1">
                     <label className="text-xs text-text-muted mb-1 block">Nome</label>
-                    {/* Adicionado outline-none para remover o bug do navegador */}
-                    <input className={`w-full bg-black/50 border border-glass-border rounded p-2 text-white outline-none focus:border-white transition-colors`}
+                    <input className={`w-full bg-black/50 border border-glass-border rounded p-2 text-white outline-none focus:${THEME_BORDER_PURPLE} transition-colors`}
                            value={formData.name||''} 
+                           maxLength={40} // Proteção contra texto infinito
                            onChange={e=>setFormData({...formData, name:e.target.value})}/>
                 </div>
                 <div className="w-20">
-                    <label className="text-xs text-text-muted mb-1 block">Karma Máx.</label>
-                    <input type="number" 
-                           className={`w-full bg-black/50 border border-glass-border rounded p-2 text-white text-center outline-none focus:border-white transition-colors [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none`} 
+                    <label className="text-xs text-text-muted mb-1 block">Karma</label>
+                    {/* Proteção: Input TEXT com maxLength 1 e regex numérico */}
+                    <input type="text"
+                           maxLength={1}
+                           className={`w-full bg-black/50 border border-glass-border rounded p-2 text-white text-center outline-none focus:${THEME_BORDER_PURPLE} transition-colors`} 
                            value={formData.karmaMax||0} 
-                           onChange={e=>setFormData({...formData, karmaMax:parseInt(e.target.value)})}/>
+                           onChange={e=>setFormData({...formData, karmaMax: handleSingleDigit(e.target.value)})}/>
                 </div>
             </div>
             <div>
                 <label className="text-xs text-text-muted mb-1 block">Descrição</label>
-                <input className={`w-full bg-black/50 border border-glass-border rounded p-2 text-white outline-none focus:border-white transition-colors`}
+                <input className={`w-full bg-black/50 border border-glass-border rounded p-2 text-white outline-none focus:${THEME_BORDER_PURPLE} transition-colors`}
+                       maxLength={100} // Proteção básica
                        value={formData.description||''} 
                        onChange={e=>setFormData({...formData, description:e.target.value})}/>
             </div>
@@ -83,45 +91,53 @@ const CharacterForm = ({ formData, setFormData, handlePhotoUpload }) => {
                         {['Mente','Corpo','Destreza','Presenca'].map(a=>(
                             <div key={a}>
                                 <label className="text-[9px] text-text-muted block text-center uppercase">{a.substr(0,3)}</label>
-                                <input type="number" 
-                                    className={`w-full bg-black/50 border border-glass-border rounded p-1 text-white text-center font-bold outline-none focus:border-white transition-colors [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none`}
+                                {/* Proteção: Input TEXT com maxLength 1 */}
+                                <input type="text"
+                                    maxLength={1} 
+                                    className={`w-full bg-black/50 border border-glass-border rounded p-1 text-white text-center font-bold outline-none focus:${THEME_BORDER_PURPLE} transition-colors`}
                                     value={formData.attributes?.[a.toLowerCase()]||0} 
-                                    onChange={e=>setFormData({...formData, attributes:{...formData.attributes, [a.toLowerCase()]:parseInt(e.target.value)}})}/>
+                                    onChange={e=>setFormData({...formData, attributes:{...formData.attributes, [a.toLowerCase()]: handleSingleDigit(e.target.value)}})}/>
                             </div>
                         ))}
                     </div>
                 </div>
             </div>
 
-            {/* PERICIAS */}
+            {/* PERICIAS - Com Scroll e Altura Fixa */}
             <div>
                 <label className="text-xs text-text-muted mb-1 block">Perícias</label>
-                <textarea className={`w-full bg-black/50 border border-glass-border rounded p-2 text-white h-20 text-sm outline-none focus:border-white transition-colors`}
-                          value={formData.skills||''} 
-                          onChange={e=>setFormData({...formData, skills:e.target.value})}/>
+                <textarea 
+                    className={`w-full bg-black/50 border border-glass-border rounded p-2 text-white text-sm outline-none focus:${THEME_BORDER_PURPLE} transition-colors resize-none h-32 max-h-32 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-transparent`}
+                    value={formData.skills||''} 
+                    placeholder="Liste as perícias..."
+                    onChange={e=>setFormData({...formData, skills:e.target.value})}/>
             </div>
 
-            {/* TRAUMAS */}
+            {/* TRAUMAS - Com Scroll e Altura Fixa */}
             <div>
                 <label className="text-xs text-text-muted mb-1 block">Traumas</label>
-                <textarea className="w-full bg-black/50 border border-glass-border rounded p-2 text-white h-20 text-sm outline-none focus:border-white transition-colors" 
-                          value={formData.traumas||''} 
-                          onChange={e=>setFormData({...formData, traumas:e.target.value})}/>
+                <textarea 
+                    className="w-full bg-black/50 border border-glass-border rounded p-2 text-white text-sm outline-none focus:border-neon-red transition-colors resize-none h-32 max-h-32 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-transparent" 
+                    value={formData.traumas||''} 
+                    placeholder="Liste os traumas..."
+                    onChange={e=>setFormData({...formData, traumas:e.target.value})}/>
             </div>
             
             {/* PAINEL DE DANO */}
             <div>
-                <label className="text-xs text-text-muted mb-1 block">Tolerância a Dano</label>
+                <label className="text-xs text-neon-red mb-1 block">Tolerância a Dano</label>
                 <div className="bg-red-900/10 p-2 rounded border border-red-900/30">
                     <div className="flex gap-2">
                         {[['superior','Grave'],['medium','Moderado'],['inferior','Leve']].map(([k,l])=>(
                             <div key={k} className="flex-1">
                                 <label className="text-[9px] text-text-muted block text-center uppercase">{l}</label>
-                                <input type="number" 
-                                    className="w-full bg-black/50 border border-glass-border rounded p-1 text-white text-center outline-none focus:border-white transition-colors [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" 
+                                {/* Proteção: Input TEXT com maxLength 1 */}
+                                <input type="text"
+                                    maxLength={1} 
+                                    className="w-full bg-black/50 border border-glass-border rounded p-1 text-white text-center outline-none focus:border-neon-red transition-colors" 
                                     value={formData.damage?.[k]?.length||0} 
                                     onChange={e=>{
-                                        const s = parseInt(e.target.value)||0; 
+                                        const s = handleSingleDigit(e.target.value); 
                                         setFormData({...formData, damage:{...formData.damage, [k]:resizeDamageArray(formData.damage[k], s)}});
                                     }}/>
                             </div>
@@ -284,7 +300,7 @@ const CharacterSidebar = ({ isCollapsed, setIsCollapsed }) => {
                       {confirmModal.onConfirm ? (
                           <>
                             <button onClick={closeModal} className="px-4 py-2 rounded border border-glass-border text-text-muted hover:bg-white/10 transition text-sm">Cancelar</button>
-                            <button onClick={() => { confirmModal.onConfirm(); closeModal(); }} className={`px-4 py-2 rounded bg-red-600 text-white font-bold hover:bg-red-500 transition text-sm`}>Confirmar</button>
+                            <button onClick={() => { confirmModal.onConfirm(); closeModal(); }} className={`px-4 py-2 rounded ${THEME_BG_PURPLE} text-black font-bold hover:bg-white transition text-sm`}>Confirmar</button>
                           </>
                       ) : (
                           <button onClick={closeModal} className="px-6 py-2 rounded bg-glass border border-glass-border text-white hover:bg-white/10 transition text-sm">OK</button>
@@ -296,12 +312,11 @@ const CharacterSidebar = ({ isCollapsed, setIsCollapsed }) => {
   };
 
   // ==========================================
-  // VIEW: ESTADO COLAPSADO (Minimalista)
+  // VIEW: ESTADO COLAPSADO
   // ==========================================
   if (isCollapsed) {
     return (
         <div className="h-full flex flex-col items-center py-4 bg-black/80 border-r border-glass-border gap-6 overflow-hidden">
-             {/* Botão de Abrir */}
              <button 
                 onClick={() => setIsCollapsed(false)} 
                 className="p-2 rounded-full bg-glass hover:bg-white/10 text-text-muted hover:text-white transition"
@@ -309,8 +324,6 @@ const CharacterSidebar = ({ isCollapsed, setIsCollapsed }) => {
              >
                 <Menu size={20} />
              </button>
-
-             {/* Placeholder Vertical */}
              <div className="flex-1 flex items-center justify-center">
                 <span className={`font-rajdhani font-bold tracking-[0.3em] text-xl rotate-90 whitespace-nowrap opacity-50 select-none ${THEME_PURPLE}`}>
                     PERSONAGENS
@@ -325,10 +338,8 @@ const CharacterSidebar = ({ isCollapsed, setIsCollapsed }) => {
   // ==========================================
   if (!activePresetId || view === 'manager') {
       return (
-        // Alterado de bg-ecos-bg para bg-black/80 para consistência com Details
         <FadeInView key="manager" className="p-6 bg-black/80 text-text-main overflow-hidden border-r border-glass-border items-center relative">
             <ConfirmationOverlay />
-            
             <button 
                 onClick={() => setIsCollapsed(true)} 
                 className="absolute top-2 right-2 p-2 rounded-full text-text-muted hover:text-white hover:bg-white/5 transition z-50"
@@ -336,14 +347,11 @@ const CharacterSidebar = ({ isCollapsed, setIsCollapsed }) => {
             >
                 <Menu size={20} />
             </button>
-
             <h1 className={`text-3xl font-rajdhani font-bold ${THEME_PURPLE} mb-2 tracking-widest mt-10`}>PERSONAGENS</h1>
             <p className="text-text-muted text-sm text-center mb-8">Selecione um grupo para começar.</p>
             <div className="w-full max-w-xs space-y-4 flex-1 overflow-y-auto scrollbar-none pb-20">
-                {/* Alterado bg-glass para bg-black/20 para ser mais escuro */}
                 <div className="bg-glass border border-glass-border rounded-lg p-0">
                     {!isCreatingPreset ? (
-                        // Botão alterado: Roxo Claro + Glow
                         <button 
                             onClick={() => setIsCreatingPreset(true)} 
                             className={`w-full py-3 bg-[#d084ff]/10 border border-[#d084ff] text-[#d084ff] font-bold rounded hover:bg-[#d084ff] hover:text-black transition-all flex items-center justify-center gap-2 ${THEME_GLOW} ${THEME_GLOW_HOVER}`}
@@ -362,7 +370,6 @@ const CharacterSidebar = ({ isCollapsed, setIsCollapsed }) => {
                 </div>
                 <div className="flex items-center gap-2 text-text-muted text-xs uppercase my-4"><div className="h-px bg-glass-border flex-1"></div><span>Grupos Salvos</span><div className="h-px bg-glass-border flex-1"></div></div>
                 {presets.length === 0 ? <div className="text-center text-text-muted italic text-sm">Vazio.</div> : presets.map(p => (
-                    // Alterado bg-glass para bg-black/20 e adicionado hover mais escuro
                     <div key={p.id} onClick={() => loadPreset(p.id)} className="bg-black/20 border border-glass-border rounded-lg p-3 flex justify-between items-center cursor-pointer hover:bg-white/5 transition group">
                         <div><h3 className="font-bold text-white font-rajdhani">{p.name}</h3><div className="text-xs text-text-muted">{p.characters.length} Personagens</div></div>
                         <button onClick={(e) => { e.stopPropagation(); showConfirm("Apagar Grupo", "Não poderá ser desfeito.", () => deletePreset(p.id)); }} className="p-2 hover:bg-red-900/50 hover:text-red-500 rounded text-text-muted transition opacity-0 group-hover:opacity-100"><Trash2 size={16}/></button>
@@ -382,7 +389,6 @@ const CharacterSidebar = ({ isCollapsed, setIsCollapsed }) => {
   // ==========================================
   if (view === 'hub') {
     return (
-      // Alterado de bg-ecos-bg para bg-black/80
       <FadeInView key="hub" className="bg-black/80 text-text-main overflow-hidden relative border-r border-glass-border">
         <ConfirmationOverlay />
         <div className="flex justify-between items-center p-4 border-b border-glass-border bg-black/40 shrink-0">
@@ -398,7 +404,7 @@ const CharacterSidebar = ({ isCollapsed, setIsCollapsed }) => {
             </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto grid grid-cols-2 gap-3 p-3 content-start scrollbar-thin">
+        <div className="flex-1 overflow-y-auto grid grid-cols-2 gap-4 p-4 content-start scrollbar-thin">
             {gameState.characters.map((char, index) => (
                 <div 
                     key={char.id}
@@ -408,22 +414,37 @@ const CharacterSidebar = ({ isCollapsed, setIsCollapsed }) => {
                     onDragOver={handleDragOver}
                     onDrop={(e) => handleDragSortDrop(e, index)}
                     onClick={() => navToChar(char.id)}
-                    // Alterado bg-glass para bg-black/20
-                    className={`bg-black/20 border border-glass-border rounded-lg p-3 flex flex-col items-center cursor-pointer hover:bg-white/5 transition relative group min-h-[110px] ${draggedIndex === index ? `opacity-30 border-dashed ${THEME_BORDER_PURPLE}` : ''}`}
+                    className={`bg-black/20 border border-glass-border rounded-xl p-4 flex flex-col items-center justify-start py-6 gap-4 cursor-pointer hover:bg-white/5 transition relative group h-[200px] ${draggedIndex === index ? `opacity-30 border-dashed ${THEME_BORDER_PURPLE}` : ''}`}
                 >
-                    <button onClick={(e) => { e.stopPropagation(); handleDeleteChar(char.id); }} className="absolute top-1 right-1 w-5 h-5 bg-red-600 rounded-full flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity z-10 text-[10px] hover:scale-110"><X size={10}/></button>
-                    <img src={char.photo || 'https://via.placeholder.com/120'} className="w-16 h-16 rounded-full object-cover border border-glass-border mb-2 bg-[#222] pointer-events-none" alt={char.name} />
-                    <span className="font-semibold text-center text-xs leading-tight w-full truncate px-1 pointer-events-none">{char.name}</span>
+                    <button onClick={(e) => { e.stopPropagation(); handleDeleteChar(char.id); }} className="absolute top-2 right-2 w-6 h-6 bg-red-600 rounded-full flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity z-10 text-xs hover:scale-110 shadow-md"><X size={12}/></button>
+                    
+                    <img src={char.photo || 'https://via.placeholder.com/150'} className="w-24 h-24 rounded-full object-cover border-2 border-glass-border bg-[#222] pointer-events-none shadow-lg" alt={char.name} />
+                    
+                    <div className="w-full flex flex-col items-center gap-1">
+                        <span className="font-semibold text-center text-lg leading-tight w-full line-clamp-2 px-1 text-white pointer-events-none break-words">
+                            {char.name}
+                        </span>
+                        
+                        {/* AQUI NO HUB: MANTÉM A LINHA DIVISÓRIA (se nome curto) */}
+                        {char.name.length <= 12 && (
+                             <div className="w-10 h-[2px] bg-white/20 rounded-full mt-1"></div>
+                        )}
+                    </div>
                 </div>
             ))}
-            <div onClick={() => openEdit(true)} className="border border-dashed border-glass-border rounded-lg p-2 flex flex-col items-center justify-center cursor-pointer hover:bg-white/5 opacity-50 hover:opacity-100 min-h-[110px] transition-all"><Plus size={32} className="text-text-muted"/><span className="text-xs text-text-muted mt-2">Adicionar</span></div>
+            
+            <div onClick={() => openEdit(true)} className="border border-dashed border-glass-border rounded-xl p-4 flex flex-col items-center justify-center cursor-pointer hover:bg-white/5 opacity-50 hover:opacity-100 h-[200px] transition-all gap-3">
+                <div className="p-4 rounded-full bg-glass-border/20">
+                    <Plus size={32} className="text-text-muted"/>
+                </div>
+                <span className="text-sm text-text-muted font-rajdhani uppercase tracking-widest">Novo</span>
+            </div>
         </div>
 
         {isEditing && (
              <div className="absolute inset-0 bg-ecos-bg z-50 p-4 flex flex-col overflow-hidden" style={{ animation: 'fadeInUp 0.3s ease-out' }}>
                 <div className="flex justify-between items-center mb-4"><h2 className={`text-lg font-rajdhani font-bold ${THEME_PURPLE}`}>Novo Personagem</h2><button onClick={() => setIsEditing(false)}><X size={20}/></button></div>
                 <div className="flex-1 overflow-y-auto scrollbar-thin pr-2"><CharacterForm formData={formData} setFormData={setFormData} handlePhotoUpload={handlePhotoUpload} /></div>
-                {/* Botão consistente com o "Novo Grupo" (Outline + Glow) */}
                 <button 
                     onClick={handleSaveChar} 
                     className={`mt-4 w-full py-3 bg-[#d084ff]/10 border border-[#d084ff] text-[#d084ff] font-bold rounded hover:bg-[#d084ff] hover:text-black transition-all ${THEME_GLOW} ${THEME_GLOW_HOVER}`}
@@ -437,16 +458,14 @@ const CharacterSidebar = ({ isCollapsed, setIsCollapsed }) => {
   }
 
   // ==========================================
-  // VIEW: DETAILS (FICHA COM RODAPÉ ESTATICO)
+  // VIEW: DETAILS (FICHA)
   // ==========================================
   return (
     <div className="h-full flex flex-col bg-black/80 text-text-main relative overflow-hidden">
         <ConfirmationOverlay />
         
-        {/* CONTAINER ANIMADO DO CONTEÚDO */}
         <div className="flex-1 relative overflow-hidden">
             <FadeInView key={activeCharId || 'details'} className="absolute inset-0 flex flex-col">
-                {/* Header */}
                 <div className="flex justify-between items-center p-4 border-b border-glass-border bg-black/40 shrink-0">
                     <button onClick={navToHub} className="p-2 rounded-full bg-glass hover:bg-white/10 transition"><ArrowLeft size={20} /></button>
                     <div className="flex gap-2">
@@ -456,45 +475,84 @@ const CharacterSidebar = ({ isCollapsed, setIsCollapsed }) => {
                 </div>
 
                 <div className="flex-1 overflow-y-auto p-6 scrollbar-thin">
+                    
+                    {/* CABEÇALHO */}
                     <div className="flex items-center gap-5 mb-4">
-                        <img draggable onDragStart={(e) => handleDragSortStart(e, -1, activeChar)} onDragEnd={handleDragEnd} src={activeChar.photo || 'https://via.placeholder.com/120'} className="w-[100px] h-[100px] rounded-2xl object-cover shadow-lg cursor-grab active:cursor-grabbing hover:scale-105 transition-transform" alt="Avatar"/>
-                        <div className="flex-1 flex flex-col justify-center gap-2">
-                            <h2 className="text-2xl font-bold leading-tight font-rajdhani">{activeChar.name}</h2>
-                            {/* KARMA ATUALIZADO: Cor Clara + Glow */}
-                            <div className={`flex items-center justify-between bg-[#d084ff]/15 border border-[#d084ff] rounded-xl p-2 h-[60px] ${THEME_GLOW}`}>
+                        <img 
+                            draggable 
+                            onDragStart={(e) => handleDragSortStart(e, -1, activeChar)} 
+                            onDragEnd={handleDragEnd} 
+                            src={activeChar.photo || 'https://via.placeholder.com/120'} 
+                            className="w-[100px] h-[100px] rounded-2xl object-cover shadow-lg cursor-grab active:cursor-grabbing hover:scale-105 transition-transform shrink-0" 
+                            alt="Avatar"
+                        />
+                        
+                        <div className="flex-1 flex flex-col justify-center gap-1 min-w-0">
+                            <div className="flex flex-col justify-center min-h-[1rem]">
+                                {/* AQUI NO DETAILS: SEM A LINHA DIVISÓRIA ABAIXO DO NOME */}
+                                <h2 
+                                    className="text-2xl font-bold leading-tight font-rajdhani line-clamp-1 text-ellipsis overflow-hidden break-words w-full" 
+                                    title={activeChar.name}
+                                >
+                                    {activeChar.name}
+                                </h2>
+                            </div>
+
+                            <div className={`flex items-center justify-between bg-[#d084ff]/15 border border-[#d084ff] rounded-xl p-2 h-[60px] w-full ${THEME_GLOW}`}>
                                 <button 
                                     onClick={() => updateCharacter(activeChar.id, { karma: Math.max(0, activeChar.karma - 1) })} 
-                                    className="w-10 h-full flex items-center justify-center text-xl bg-[#d084ff]/20 rounded hover:bg-[#d084ff] hover:text-black hover:shadow-[0_0_10px_#d084ff] transition-all"
+                                    className="w-10 h-full flex items-center justify-center text-xl bg-[#d084ff]/20 rounded hover:bg-[#d084ff] hover:text-black hover:shadow-[0_0_10px_#d084ff] transition-all shrink-0"
                                 >
                                     -
                                 </button>
-                                <div className="flex flex-col items-center">
+                                <div className="flex flex-col items-center min-w-[3rem]">
                                     <span className={`text-[10px] ${THEME_PURPLE} font-bold tracking-widest uppercase`}>KARMA</span>
-                                    <span className="text-2xl font-rajdhani font-bold text-white drop-shadow-[0_0_10px_#d084ff]">{activeChar.karma}</span>
+                                    <span className="text-2xl font-rajdhani font-bold text-white drop-shadow-[0_0_10px_#d084ff] leading-none">{activeChar.karma}</span>
                                 </div>
                                 <button 
                                     onClick={() => updateCharacter(activeChar.id, { karma: Math.min(activeChar.karmaMax, activeChar.karma + 1) })} 
-                                    className="w-10 h-full flex items-center justify-center text-xl bg-[#d084ff]/20 rounded hover:bg-[#d084ff] hover:text-black hover:shadow-[0_0_10px_#d084ff] transition-all"
+                                    className="w-10 h-full flex items-center justify-center text-xl bg-[#d084ff]/20 rounded hover:bg-[#d084ff] hover:text-black hover:shadow-[0_0_10px_#d084ff] transition-all shrink-0"
                                 >
                                     +
                                 </button>
                             </div>
                         </div>
                     </div>
-                    <div className="bg-glass border border-glass-border rounded-xl p-2 mb-4 text-center min-h-[50px] flex items-center justify-center"><span className="text-lg font-rajdhani font-semibold text-text-main truncate w-full">{activeChar.description || '---'}</span></div>
+
+                    {/* DESCRIÇÃO */}
+                    <div className="bg-glass border border-glass-border rounded-xl p-1.5 mb-4 min-h-[30px] flex items-center relative overflow-hidden">
+                         <span className="text-lg font-rajdhani font-semibold text-text-main line-clamp-2 text-ellipsis w-full text-center leading-tight">
+                            {activeChar.description || '---'}
+                         </span>
+                    </div>
+
+                    {/* ATRIBUTOS E PERÍCIAS */}
                     <div className="flex gap-4 mb-4 min-h-[160px]">
-                        <div className="flex-1 bg-glass border border-glass-border rounded-xl p-3 flex flex-col justify-center"><div className="grid grid-cols-2 gap-3 h-full">{['mente','corpo','destreza','presenca'].map(a=><div key={a} className="bg-black/20 border border-white/5 rounded-lg flex flex-col items-center justify-center p-1"><span className="font-rajdhani font-bold text-2xl text-neon-blue drop-shadow-[0_0_5px_rgba(0,243,255,0.3)] leading-none">{activeChar.attributes[a]}</span><span className="text-[10px] uppercase text-text-muted mt-1 tracking-wider">{a}</span></div>)}</div></div>
-                        <div className="flex-1 bg-glass border border-glass-border rounded-xl p-3 flex flex-col">
-                            <span className="text-xs uppercase text-neon-green font-bold tracking-wider mb-2 block border-b border-glass-border pb-2">Perícias</span>
-                            <div className="text-sm text-gray-300 whitespace-pre-line overflow-y-auto flex-1 scrollbar-none">{activeChar.skills || '-'}</div>
+                        <div className="flex-1 bg-glass border border-glass-border rounded-xl p-3 flex flex-col justify-center">
+                            <div className="grid grid-cols-2 gap-3 h-full">
+                                {['mente','corpo','destreza','presenca'].map(a=>(
+                                    <div key={a} className="bg-black/20 border border-white/5 rounded-lg flex flex-col items-center justify-center p-1 overflow-hidden">
+                                        <span className="font-rajdhani font-bold text-2xl text-neon-blue drop-shadow-[0_0_5px_rgba(0,243,255,0.3)] leading-none">{activeChar.attributes[a]}</span>
+                                        {/* AQUI: Truncar para 3 letras apenas visualmente */}
+                                        <span className="text-[10px] uppercase text-text-muted mt-1 tracking-wider truncate max-w-full">
+                                            {a.substring(0,3)}
+                                        </span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                        <div className="flex-1 bg-glass border border-glass-border rounded-xl p-3 flex flex-col overflow-hidden">
+                            <span className="text-xs uppercase text-neon-green font-bold tracking-wider mb-2 block border-b border-glass-border pb-2 shrink-0">Perícias</span>
+                            <div className="text-sm text-gray-300 whitespace-pre-line overflow-y-auto flex-1 scrollbar-none">
+                                {activeChar.skills || '-'}
+                            </div>
                         </div>
                     </div>
                     
-                    {/* LINHA DE DANO E TRAUMAS */}
+                    {/* DANO E TRAUMAS */}
                     <div className="flex gap-4 mb-4 min-h-[160px]">
-                        {/* Dano */}
-                        <div className="flex-1 bg-glass border border-glass-border rounded-xl p-3 flex flex-col">
-                            <span className="text-xs uppercase text-neon-red font-bold tracking-wider mb-2 block border-b border-glass-border pb-2">Dano</span>
+                        <div className="flex-1 bg-glass border border-glass-border rounded-xl p-3 flex flex-col overflow-hidden">
+                            <span className="text-xs uppercase text-neon-red font-bold tracking-wider mb-2 block border-b border-glass-border pb-2 shrink-0">Dano</span>
                             <div className="flex flex-col gap-2 h-full justify-between">
                                 {['superior', 'medium', 'inferior'].map((k) => (
                                     <div key={k} className="flex gap-2 flex-1 w-full">
@@ -516,9 +574,8 @@ const CharacterSidebar = ({ isCollapsed, setIsCollapsed }) => {
                             </div>
                         </div>
 
-                        {/* Traumas */}
-                        <div className="flex-1 bg-glass border border-glass-border rounded-xl p-3 flex flex-col">
-                            <span className="text-xs uppercase text-neon-red font-bold tracking-wider mb-2 block border-b border-glass-border pb-2">Traumas</span>
+                        <div className="flex-1 bg-glass border border-glass-border rounded-xl p-3 flex flex-col overflow-hidden">
+                            <span className="text-xs uppercase text-neon-red font-bold tracking-wider mb-2 block border-b border-glass-border pb-2 shrink-0">Traumas</span>
                             <div className="text-sm text-gray-300 whitespace-pre-line overflow-y-auto flex-1 scrollbar-none">
                                 {activeChar.traumas || '-'}
                             </div>
@@ -528,7 +585,7 @@ const CharacterSidebar = ({ isCollapsed, setIsCollapsed }) => {
             </FadeInView>
         </div>
 
-        {/* FOOTER ESTATICO */}
+        {/* FOOTER */}
         <div ref={footerRef} className="bg-black/80 border-t border-glass-border flex items-center justify-center gap-2 px-3 py-2 shrink-0 overflow-hidden" style={{ minHeight: footerIconSize + 20 }}>
              {gameState.characters.map((c, index) => (
                  <img 
