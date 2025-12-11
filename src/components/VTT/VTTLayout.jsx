@@ -1,7 +1,10 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useGame } from '../../context/GameContext';
-import { Settings, Image as ImageIcon, Box, Map, Plus, Trash2, X, ChevronDown, LogOut, Edit2, RotateCcw, Check, Search, Square, MousePointer } from 'lucide-react';
+import { Settings, Image as ImageIcon, Box, Map, Plus, Trash2, X, ChevronDown, LogOut, Edit2, RotateCcw, Check, Search, Square, MousePointer, AlertTriangle } from 'lucide-react';
 import { imageDB } from '../../context/db';
+
+// Limites de Verificação
+// REMOVIDOS MAX_FILE_SIZE_MB e MAX_DIMENSION_PX conforme solicitado.
 
 const LibraryThumb = ({ token }) => {
     const [src, setSrc] = useState(null);
@@ -23,6 +26,38 @@ const LibraryThumb = ({ token }) => {
     );
 };
 
+// Componente de Alerta Interno
+const InternalAlert = ({ message, clearAlert }) => {
+    useEffect(() => {
+        if (message) {
+            const timer = setTimeout(() => {
+                clearAlert();
+            }, 5000); // Esconde após 5 segundos
+            return () => clearTimeout(timer);
+        }
+    }, [message, clearAlert]);
+
+    if (!message) return null;
+
+    return (
+        <div 
+            className="absolute top-4 left-1/2 transform -translate-x-1/2 p-3 bg-red-900/90 border border-red-700 rounded-lg shadow-xl backdrop-blur-sm z-[100] pointer-events-auto flex items-center gap-3 text-sm text-white"
+            style={{ animation: 'fadeInDown 0.3s ease-out forwards' }}
+        >
+            <style>{`
+                @keyframes fadeInDown {
+                    from { opacity: 0; transform: translate(-50%, -20px); }
+                    to { opacity: 1; transform: translate(-50%, 0); }
+                }
+            `}</style>
+            <AlertTriangle size={18} className="text-yellow-400 shrink-0"/>
+            <span className='font-semibold'>{message}</span>
+            <button onClick={clearAlert} className="text-red-300 hover:text-white shrink-0"><X size={16}/></button>
+        </div>
+    );
+};
+
+
 export const VTTLayout = ({ zoomValue, onZoomChange, activeTool, setActiveTool }) => {
   const { 
     activeAdventure, activeScene, 
@@ -33,6 +68,9 @@ export const VTTLayout = ({ zoomValue, onZoomChange, activeTool, setActiveTool }
   const [uiState, setUiState] = useState({ menuOpen: false, libraryOpen: false, mapConfigOpen: false });
   const [confirmModal, setConfirmModal] = useState({ open: false, message: '', onConfirm: null });
   const [inputModal, setInputModal] = useState({ open: false, title: '', value: '', onConfirm: null });
+  // MANTENDO O ESTADO: Mensagem de alerta interna (para erros de mapa ou futuro uso)
+  const [alertMessage, setAlertMessage] = useState(null); 
+  const clearAlert = useCallback(() => setAlertMessage(null), []);
 
   // Refs para inputs
   const mapInputRef = useRef(null);
@@ -44,6 +82,23 @@ export const VTTLayout = ({ zoomValue, onZoomChange, activeTool, setActiveTool }
   const libraryRef = useRef(null);     // Referência da biblioteca
   const sceneRef = useRef(null);       // Referência do seletor de cenas
 
+  // ==========================================
+  // FUNÇÃO DE UPLOAD MULTIPLO (SIMPLIFICADA)
+  // ==========================================
+  const handleMultiTokenUpload = async (event) => {
+      const files = event.target.files;
+      if (!files || files.length === 0) return;
+
+      // Itera sobre todos os arquivos e chama o addTokenToLibrary para cada um
+      for (let i = 0; i < files.length; i++) {
+          const file = files[i];
+          addTokenToLibrary(file);
+      }
+      
+      // Limpa o input após o processamento
+      event.target.value = ''; 
+  };
+  
   // ==========================================
   // CLICK OUTSIDE LOGIC
   // ==========================================
@@ -168,7 +223,15 @@ export const VTTLayout = ({ zoomValue, onZoomChange, activeTool, setActiveTool }
                   <div onClick={() => tokenInputRef.current?.click()} className="aspect-square border border-dashed border-glass-border rounded hover:bg-white/10 flex flex-col items-center justify-center cursor-pointer text-text-muted hover:text-neon-blue transition">
                       <Plus size={24}/><span className="text-[10px] mt-1">Add</span>
                   </div>
-                  <input ref={tokenInputRef} type="file" className="hidden" accept="image/*" onChange={(e) => { const f = e.target.files[0]; if(f) addTokenToLibrary(f); e.target.value = ''; }} />
+                  {/* ALTERADO: Mantido 'multiple' para importação múltipla. */}
+                  <input 
+                      ref={tokenInputRef} 
+                      type="file" 
+                      className="hidden" 
+                      accept="image/*" 
+                      multiple 
+                      onChange={handleMultiTokenUpload}
+                  />
                   {activeAdventure?.tokenLibrary?.map(t => (
                       <div key={t.id} className="relative group">
                           <LibraryThumb token={t} />
@@ -237,6 +300,10 @@ export const VTTLayout = ({ zoomValue, onZoomChange, activeTool, setActiveTool }
   return (
       <div className="absolute inset-0 pointer-events-none z-50">
           
+          {/* O ALERTA INTERNO FOI MANTIDO, mas não será usado na função de upload simplificada,
+              apenas para erros que o GameContext possa gerar ou para uso futuro. */}
+          <InternalAlert message={alertMessage} clearAlert={clearAlert} />
+
           {/* HEADER ALINHADO À DIREITA COM SLIDER INTEGRADO E REF ATRIBUÍDA */}
           <div 
              ref={headerRef}
