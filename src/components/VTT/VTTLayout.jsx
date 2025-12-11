@@ -346,7 +346,7 @@ export const VTTLayout = ({ zoomValue, onZoomChange, activeTool, setActiveTool }
                 <button 
                   onClick={() => setActiveTool('select')}
                   className={`p-2 rounded hover:bg-white/10 transition ${activeTool === 'select' ? 'bg-white/20 text-neon-green' : 'text-text-muted'}`}
-                  title="Modo Seleção (V)"
+                  title="Modo Seleção"
                 >
                   <MousePointer size={18}/>
                 </button>
@@ -354,7 +354,7 @@ export const VTTLayout = ({ zoomValue, onZoomChange, activeTool, setActiveTool }
                 <button 
                   onClick={() => setActiveTool('fogOfWar')}
                   className={`p-2 rounded hover:bg-white/10 transition ${activeTool === 'fogOfWar' ? 'bg-white/20 text-neon-purple' : 'text-text-muted'}`}
-                  title="Fog of War (F)"
+                  title="Fog of War"
                 >
                   <Square size={18}/>
                 </button>

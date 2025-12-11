@@ -55,7 +55,7 @@ const Token = ({ data, isSelected, onMouseDown, onResizeStart }) => {
       }}
       className="group cursor-grab active:cursor-grabbing select-none"
     >
-      <div className={`w-full h-full rounded-full overflow-hidden shadow-black/50 shadow-md transition-all bg-black flex items-center justify-center ${isSelected ? 'ring-2 ring-neon-blue shadow-[0_0_15px_rgba(0,243,255,0.5)]' : ''}`}>
+      <div className={`w-full h-full rounded-full overflow-hidden shadow-black/50 shadow-md transition-all bg-black flex items-center justify-center ${isSelected ? 'ring-2 ring-white shadow-[0_0_15px_rgba(0,243,255,0.5)]' : ''}`}>
          {loading ? (
              <Loader2 className="animate-spin text-neon-blue" size={20} />
          ) : (
@@ -69,7 +69,7 @@ const Token = ({ data, isSelected, onMouseDown, onResizeStart }) => {
 
       <div 
         onMouseDown={(e) => { e.stopPropagation(); onResizeStart(e, data.id); }}
-        className={`absolute -bottom-1 -right-1 w-5 h-5 bg-neon-blue rounded-full flex items-center justify-center cursor-nwse-resize text-black shadow-lg opacity-0 group-hover:opacity-100 transition-opacity z-30 ${isSelected ? 'opacity-100' : ''}`}
+        className={`absolute -bottom-1 -right-1 w-5 h-5 bg-white rounded-full flex items-center justify-center cursor-nwse-resize text-black shadow-lg opacity-0 group-hover:opacity-100 transition-opacity z-30 ${isSelected ? 'opacity-100' : ''}`}
       >
         <Maximize2 size={10} strokeWidth={3} />
       </div>
