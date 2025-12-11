@@ -4,7 +4,7 @@ import JSZip from 'jszip';
 import { saveAs } from 'file-saver'; 
 
 const STORAGE_CHARACTERS_KEY = 'ecos_vtt_chars_v6';
-const STORAGE_ADVENTURES_KEY = 'ecos_vtt_adventures_v3'; // v3 - com fogOfWar
+const STORAGE_ADVENTURES_KEY = 'ecos_vtt_adventures_v3'; 
 const PRESETS_KEY = 'ecos_vtt_presets_v1';
 const ACTIVE_PRESET_KEY = 'ecos_vtt_active_preset_id';
 const ACTIVE_TOOL_KEY = 'ecos_vtt_active_tool';
@@ -12,40 +12,98 @@ const ACTIVE_TOOL_KEY = 'ecos_vtt_active_tool';
 const GameContext = createContext({});
 
 export const GameProvider = ({ children }) => {
-  const [characters, setCharacters] = useState(() => {
-    try { return JSON.parse(localStorage.getItem(STORAGE_CHARACTERS_KEY)) || []; } catch (e) { return []; }
-  });
-
-  const [presets, setPresets] = useState(() => {
-    try { return JSON.parse(localStorage.getItem(PRESETS_KEY)) || []; } catch (e) { return []; }
-  });
-
-  const [activePresetId, setActivePresetId] = useState(() => localStorage.getItem(ACTIVE_PRESET_KEY) || null);
-  const [activeTool, setActiveTool] = useState(() => localStorage.getItem(ACTIVE_TOOL_KEY) || 'select');
-
-  const [adventures, setAdventures] = useState(() => {
-    try { return JSON.parse(localStorage.getItem(STORAGE_ADVENTURES_KEY)) || []; } catch (e) { return []; }
-  });
-
+  // --- ESTADOS (Iniciam vazios para permitir carga assíncrona) ---
+  const [isDataLoaded, setIsDataLoaded] = useState(false);
+  
+  const [characters, setCharacters] = useState([]);
+  const [presets, setPresets] = useState([]);
+  const [adventures, setAdventures] = useState([]);
+  
+  const [activePresetId, setActivePresetId] = useState(null);
+  const [activeTool, setActiveTool] = useState('select');
   const [activeAdventureId, setActiveAdventureId] = useState(null);
 
-  const safeSave = (key, data) => {
-      try { localStorage.setItem(key, JSON.stringify(data)); } 
-      catch (e) { if (e.name === 'QuotaExceededError') console.error("ERRO CRÍTICO: LocalStorage cheio."); }
+  // --- FUNÇÕES DE ARMAZENAMENTO HÍBRIDO ---
+  
+  // Ler dados (Disco ou LocalStorage)
+  const loadData = async (key) => {
+      if (window.electron) {
+          try { return await window.electron.readJson(key); } catch { return null; }
+      } else {
+          try { return JSON.parse(localStorage.getItem(key)); } catch { return null; }
+      }
   };
-  
-  useEffect(() => { safeSave(STORAGE_CHARACTERS_KEY, characters); }, [characters]);
-  useEffect(() => { safeSave(PRESETS_KEY, presets); }, [presets]);
-  useEffect(() => { safeSave(STORAGE_ADVENTURES_KEY, adventures); }, [adventures]);
-  
-  useEffect(() => { 
-      if(activePresetId) localStorage.setItem(ACTIVE_PRESET_KEY, activePresetId);
-      else localStorage.removeItem(ACTIVE_PRESET_KEY);
-  }, [activePresetId]);
 
+  // Salvar dados (Disco ou LocalStorage)
+  const saveData = async (key, data) => {
+      if (!isDataLoaded) return; // PROTEÇÃO CRÍTICA: Não salvar antes de carregar
+
+      if (window.electron) {
+          // Deep clone para garantir pureza dos dados ao passar pela ponte
+          const cleanData = JSON.parse(JSON.stringify(data));
+          await window.electron.writeJson(key, cleanData);
+      } else {
+          try { localStorage.setItem(key, JSON.stringify(data)); } 
+          catch (e) { if (e.name === 'QuotaExceededError') console.error("LocalStorage cheio."); }
+      }
+  };
+
+  // --- CARREGAMENTO INICIAL (MOUNT) ---
   useEffect(() => {
-    localStorage.setItem(ACTIVE_TOOL_KEY, activeTool);
-  }, [activeTool]);
+      const init = async () => {
+          // Carrega as estruturas principais
+          const loadedChars = await loadData(STORAGE_CHARACTERS_KEY) || [];
+          const loadedPresets = await loadData(PRESETS_KEY) || [];
+          const loadedAdventures = await loadData(STORAGE_ADVENTURES_KEY) || [];
+          
+          // Carrega configurações simples
+          let loadedTool = 'select';
+          let loadedActivePreset = null;
+
+          if (window.electron) {
+              const settings = await window.electron.readJson('ecos_settings') || {};
+              loadedTool = settings.activeTool || 'select';
+              loadedActivePreset = settings.activePresetId || null;
+          } else {
+              loadedTool = localStorage.getItem(ACTIVE_TOOL_KEY) || 'select';
+              loadedActivePreset = localStorage.getItem(ACTIVE_PRESET_KEY) || null;
+          }
+
+          // Atualiza Estado
+          setCharacters(loadedChars);
+          setPresets(loadedPresets);
+          setAdventures(loadedAdventures);
+          setActiveTool(loadedTool);
+          setActivePresetId(loadedActivePreset);
+
+          // Libera o salvamento automático
+          setIsDataLoaded(true);
+      };
+
+      init();
+  }, []);
+
+  // --- EFEITOS DE SALVAMENTO AUTOMÁTICO ---
+  // Só executam se isDataLoaded for true
+  
+  useEffect(() => { saveData(STORAGE_CHARACTERS_KEY, characters); }, [characters, isDataLoaded]);
+  useEffect(() => { saveData(PRESETS_KEY, presets); }, [presets, isDataLoaded]);
+  useEffect(() => { saveData(STORAGE_ADVENTURES_KEY, adventures); }, [adventures, isDataLoaded]);
+
+  // Persistência de Configurações
+  useEffect(() => {
+      if (!isDataLoaded) return;
+      if (window.electron) {
+          window.electron.writeJson('ecos_settings', { activeTool, activePresetId });
+      } else {
+          if (activePresetId) localStorage.setItem(ACTIVE_PRESET_KEY, activePresetId);
+          else localStorage.removeItem(ACTIVE_PRESET_KEY);
+          localStorage.setItem(ACTIVE_TOOL_KEY, activeTool);
+      }
+  }, [activePresetId, activeTool, isDataLoaded]);
+
+
+  // --- LÓGICA DO JOGO (PRESERVADA INTEGRALMENTE) ---
 
   const generateUUID = () => crypto.randomUUID();
   const activeAdventure = adventures.find(a => a.id === activeAdventureId);
@@ -57,7 +115,6 @@ export const GameProvider = ({ children }) => {
   };
 
   // --- ADVENTURE CRUD ---
-
   const createAdventure = useCallback((name) => {
     const newSceneId = generateUUID();
     const newAdventure = {
@@ -65,7 +122,6 @@ export const GameProvider = ({ children }) => {
         scenes: [{ id: newSceneId, name: "Cena 1", mapImageId: null, mapScale: 1.0, tokens: [], fogOfWar: [] }]
     };
     setAdventures(prev => [...prev, newAdventure]);
-    //setActiveAdventureId(newAdventure.id);
   }, []);
 
   const deleteAdventure = useCallback((id) => {
@@ -80,16 +136,13 @@ export const GameProvider = ({ children }) => {
   const duplicateAdventure = useCallback((id) => {
       const original = adventures.find(a => a.id === id);
       if (!original) return;
-      
       const copy = JSON.parse(JSON.stringify(original));
       copy.id = generateUUID();
       copy.name = `${copy.name} (Cópia)`;
-      
       setAdventures(prev => [...prev, copy]);
   }, [adventures]);
 
   // --- EXPORT / IMPORT ---
-
   const exportAdventure = useCallback(async (advId) => {
       const adv = adventures.find(a => a.id === advId);
       if (!adv) return;
@@ -124,14 +177,12 @@ export const GameProvider = ({ children }) => {
           if (!jsonFile) throw new Error("Arquivo inválido");
           
           const advData = JSON.parse(await jsonFile.async("string"));
-          // Garante que cenas antigas tenham fogOfWar
           advData.scenes = advData.scenes.map(scene => ({
               ...scene,
               fogOfWar: scene.fogOfWar || []
           }));
           
           const imgFolder = zip.folder("images");
-          
           if (imgFolder) {
               const images = [];
               imgFolder.forEach((relativePath, file) => images.push({ id: relativePath, file }));
@@ -416,8 +467,12 @@ export const GameProvider = ({ children }) => {
     }, []);
   
   const resetAllData = async () => { 
-      localStorage.clear(); 
-      await imageDB.clearAll(); 
+      if (window.electron) {
+          // No futuro: Chamar comando do electron para limpar pasta de dados
+      } else {
+          localStorage.clear(); 
+          await imageDB.clearAll(); 
+      }
       window.location.reload(); 
   };
 

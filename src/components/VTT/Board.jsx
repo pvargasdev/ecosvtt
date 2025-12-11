@@ -3,7 +3,7 @@ import { useGame } from '../../context/GameContext';
 import Token from './Token';
 import { VTTLayout } from './VTTLayout';
 import { imageDB } from '../../context/db';
-import { Plus, Trash2, AlertTriangle, Download, Upload, Copy, Edit2, X, Check, Search } from 'lucide-react';
+import { Plus, Trash2, Download, Upload, Copy, Edit2, X, Check, Search } from 'lucide-react';
 
 const MIN_SCALE = 0.3;   // 30%
 const MAX_SCALE = 3;    // 300%
@@ -583,8 +583,6 @@ const Board = () => {
                   const imageId = await importCharacterAsToken(json.characterId);
                   if (imageId) {
                       addTokenInstance(activeScene.id, { x: wX - 35, y: wY - 35, imageId: imageId });
-                  } else {
-                      alert("Este personagem não tem imagem para criar um token.");
                   }
               }
           }
