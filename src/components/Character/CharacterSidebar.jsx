@@ -464,6 +464,7 @@ const CharacterSidebar = ({ isCollapsed, setIsCollapsed }) => {
                                 <div className="flex items-center gap-2 w-full animate-in fade-in duration-200" onClick={e => e.stopPropagation()}>
                                     <input 
                                         autoFocus
+                                        onFocus={(e) => e.target.select()}
                                         className="flex-1 bg-black/50 border border-white/50 rounded px-2 py-1 text-white text-sm outline-none"
                                         value={renamePresetValue}
                                         onChange={e => setRenamePresetValue(e.target.value)}
@@ -472,8 +473,8 @@ const CharacterSidebar = ({ isCollapsed, setIsCollapsed }) => {
                                             if(e.key === 'Escape') setRenamingPresetId(null);
                                         }}
                                     />
-                                    <button onClick={() => handleRenamePreset(p.id)} className="text-neon-green hover:text-white p-1 rounded hover:bg-white/10"><Check size={16}/></button>
-                                    <button onClick={() => setRenamingPresetId(null)} className="text-red-400 hover:text-white p-1 rounded hover:bg-white/10"><X size={16}/></button>
+                                    <button onClick={() => setRenamingPresetId(null)} className="p-1 rounded bg-black/40 hover:bg-white/20 text-text-muted hover:text-white transition"><ArrowLeft size={16}/></button>
+                                    <button onClick={() => handleRenamePreset(p.id)} className="p-1 rounded bg-neon-green hover:bg-white text-black transition"><Check size={16}/></button>           
                                 </div>
                             ) : (
                                 // MODO DE VISUALIZAÇÃO
