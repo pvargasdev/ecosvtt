@@ -4,6 +4,14 @@ import { ArrowLeft, Menu, Edit2, Plus, X, Upload, Download, Trash2, LogOut } fro
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
 
+// --- CONFIGURAÇÃO DE CORES ---
+// Roxo mais claro (Light Neon Purple)
+const THEME_PURPLE = "text-[#d084ff]";
+const THEME_BORDER_PURPLE = "border-[#d084ff]";
+const THEME_BG_PURPLE = "bg-[#d084ff]";
+const THEME_GLOW = "shadow-[0_0_15px_rgba(208,132,255,0.4)]";
+const THEME_GLOW_HOVER = "hover:shadow-[0_0_25px_rgba(208,132,255,0.6)]";
+
 // Utilitário para redimensionar arrays de dano
 const resizeDamageArray = (currentArray, newSize) => {
     const arr = [...(currentArray || [])];
@@ -47,21 +55,21 @@ const CharacterForm = ({ formData, setFormData, handlePhotoUpload }) => {
             <div className="flex gap-2">
                 <div className="flex-1">
                     <label className="text-xs text-text-muted mb-1 block">Nome</label>
-                    <input className="w-full bg-black/50 border border-glass-border rounded p-2 text-white outline-none focus:border-neon-purple transition-colors" 
+                    <input className={`w-full bg-black/50 border border-glass-border rounded p-2 text-white outline-none focus:${THEME_BORDER_PURPLE} transition-colors`}
                            value={formData.name||''} 
                            onChange={e=>setFormData({...formData, name:e.target.value})}/>
                 </div>
                 <div className="w-20">
                     <label className="text-xs text-text-muted mb-1 block">Karma</label>
                     <input type="number" 
-                           className="w-full bg-black/50 border border-glass-border rounded p-2 text-white text-center focus:border-neon-purple transition-colors [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" 
+                           className={`w-full bg-black/50 border border-glass-border rounded p-2 text-white text-center focus:${THEME_BORDER_PURPLE} transition-colors [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none`} 
                            value={formData.karmaMax||0} 
                            onChange={e=>setFormData({...formData, karmaMax:parseInt(e.target.value)})}/>
                 </div>
             </div>
             <div>
                 <label className="text-xs text-text-muted mb-1 block">Descrição</label>
-                <input className="w-full bg-black/50 border border-glass-border rounded p-2 text-white focus:border-neon-purple transition-colors" 
+                <input className={`w-full bg-black/50 border border-glass-border rounded p-2 text-white focus:${THEME_BORDER_PURPLE} transition-colors`}
                        value={formData.description||''} 
                        onChange={e=>setFormData({...formData, description:e.target.value})}/>
             </div>
@@ -72,7 +80,7 @@ const CharacterForm = ({ formData, setFormData, handlePhotoUpload }) => {
                         <div key={a}>
                             <label className="text-[9px] text-text-muted block text-center uppercase">{a.substr(0,3)}</label>
                             <input type="number" 
-                                   className="w-full bg-black/50 border border-glass-border rounded p-1 text-white text-center font-bold focus:border-neon-purple transition-colors [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" 
+                                   className={`w-full bg-black/50 border border-glass-border rounded p-1 text-white text-center font-bold focus:${THEME_BORDER_PURPLE} transition-colors [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none`}
                                    value={formData.attributes?.[a.toLowerCase()]||0} 
                                    onChange={e=>setFormData({...formData, attributes:{...formData.attributes, [a.toLowerCase()]:parseInt(e.target.value)}})}/>
                         </div>
@@ -83,7 +91,7 @@ const CharacterForm = ({ formData, setFormData, handlePhotoUpload }) => {
             {/* PERICIAS */}
             <div>
                 <label className="text-xs text-text-muted mb-1 block">Perícias</label>
-                <textarea className="w-full bg-black/50 border border-glass-border rounded p-2 text-white h-20 text-sm focus:border-neon-purple transition-colors" 
+                <textarea className={`w-full bg-black/50 border border-glass-border rounded p-2 text-white h-20 text-sm focus:${THEME_BORDER_PURPLE} transition-colors`}
                           value={formData.skills||''} 
                           onChange={e=>setFormData({...formData, skills:e.target.value})}/>
             </div>
@@ -269,7 +277,7 @@ const CharacterSidebar = ({ isCollapsed, setIsCollapsed }) => {
                       {confirmModal.onConfirm ? (
                           <>
                             <button onClick={closeModal} className="px-4 py-2 rounded border border-glass-border text-text-muted hover:bg-white/10 transition text-sm">Cancelar</button>
-                            <button onClick={() => { confirmModal.onConfirm(); closeModal(); }} className="px-4 py-2 rounded bg-neon-purple text-black font-bold hover:bg-white transition text-sm">Confirmar</button>
+                            <button onClick={() => { confirmModal.onConfirm(); closeModal(); }} className={`px-4 py-2 rounded ${THEME_BG_PURPLE} text-black font-bold hover:bg-white transition text-sm`}>Confirmar</button>
                           </>
                       ) : (
                           <button onClick={closeModal} className="px-6 py-2 rounded bg-glass border border-glass-border text-white hover:bg-white/10 transition text-sm">OK</button>
@@ -297,7 +305,7 @@ const CharacterSidebar = ({ isCollapsed, setIsCollapsed }) => {
 
              {/* Placeholder Vertical */}
              <div className="flex-1 flex items-center justify-center">
-                <span className="text-neon-purple font-rajdhani font-bold tracking-[0.3em] text-xl rotate-90 whitespace-nowrap opacity-50 select-none">
+                <span className={`font-rajdhani font-bold tracking-[0.3em] text-xl rotate-90 whitespace-nowrap opacity-50 select-none ${THEME_PURPLE}`}>
                     PERSONAGENS
                 </span>
              </div>
@@ -322,20 +330,25 @@ const CharacterSidebar = ({ isCollapsed, setIsCollapsed }) => {
                 <Menu size={20} />
             </button>
 
-            <h1 className="text-3xl font-rajdhani font-bold text-neon-purple mb-2 tracking-widest mt-10">PERSONAGENS</h1>
+            <h1 className={`text-3xl font-rajdhani font-bold ${THEME_PURPLE} mb-2 tracking-widest mt-10`}>PERSONAGENS</h1>
             <p className="text-text-muted text-sm text-center mb-8">Selecione um grupo para começar.</p>
             <div className="w-full max-w-xs space-y-4 flex-1 overflow-y-auto scrollbar-none pb-20">
                 {/* Alterado bg-glass para bg-black/20 para ser mais escuro */}
                 <div className="bg-glass border border-glass-border rounded-lg p-0">
                     {!isCreatingPreset ? (
-                        // Botão alterado de Sólido para Outline (Mais dark/sci-fi)
-                        <button onClick={() => setIsCreatingPreset(true)} className="w-full py-3 bg-neon-purple/10 border border-neon-purple text-neon-purple font-bold rounded hover:bg-neon-purple hover:text-black transition flex items-center justify-center gap-2"><Plus size={18}/> NOVO GRUPO</button>
+                        // Botão alterado: Roxo Claro + Glow
+                        <button 
+                            onClick={() => setIsCreatingPreset(true)} 
+                            className={`w-full py-3 bg-[#d084ff]/10 border border-[#d084ff] text-[#d084ff] font-bold rounded hover:bg-[#d084ff] hover:text-black transition-all flex items-center justify-center gap-2 ${THEME_GLOW} ${THEME_GLOW_HOVER}`}
+                        >
+                            <Plus size={18}/> NOVO GRUPO
+                        </button>
                     ) : (
                         <div className="flex flex-col gap-3" style={{ animation: 'fadeInUp 0.2s ease-out' }}>
                             <input autoFocus placeholder="Nome..." className="w-full bg-black/50 border border-glass-border rounded p-2 text-white" value={newPresetName} onChange={e=>setNewPresetName(e.target.value)} />
                             <div className="flex gap-2">
                                 <button onClick={() => setIsCreatingPreset(false)} className="flex-1 py-1 text-text-muted text-xs">Cancelar</button>
-                                <button onClick={handleCreateNewPreset} className="flex-1 py-1 bg-neon-purple text-black font-bold rounded text-xs">OK</button>
+                                <button onClick={handleCreateNewPreset} className={`flex-1 py-1 ${THEME_BG_PURPLE} text-black font-bold rounded text-xs`}>OK</button>
                             </div>
                         </div>
                     )}
@@ -389,7 +402,7 @@ const CharacterSidebar = ({ isCollapsed, setIsCollapsed }) => {
                     onDrop={(e) => handleDragSortDrop(e, index)}
                     onClick={() => navToChar(char.id)}
                     // Alterado bg-glass para bg-black/20
-                    className={`bg-black/20 border border-glass-border rounded-lg p-3 flex flex-col items-center cursor-pointer hover:bg-white/5 transition relative group min-h-[110px] ${draggedIndex === index ? 'opacity-30 border-dashed border-neon-purple' : ''}`}
+                    className={`bg-black/20 border border-glass-border rounded-lg p-3 flex flex-col items-center cursor-pointer hover:bg-white/5 transition relative group min-h-[110px] ${draggedIndex === index ? `opacity-30 border-dashed ${THEME_BORDER_PURPLE}` : ''}`}
                 >
                     <button onClick={(e) => { e.stopPropagation(); handleDeleteChar(char.id); }} className="absolute top-1 right-1 w-5 h-5 bg-red-600 rounded-full flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity z-10 text-[10px] hover:scale-110"><X size={10}/></button>
                     <img src={char.photo || 'https://via.placeholder.com/120'} className="w-16 h-16 rounded-full object-cover border border-glass-border mb-2 bg-[#222] pointer-events-none" alt={char.name} />
@@ -401,10 +414,15 @@ const CharacterSidebar = ({ isCollapsed, setIsCollapsed }) => {
 
         {isEditing && (
              <div className="absolute inset-0 bg-ecos-bg z-50 p-4 flex flex-col overflow-hidden" style={{ animation: 'fadeInUp 0.3s ease-out' }}>
-                <div className="flex justify-between items-center mb-4"><h2 className="text-lg font-rajdhani font-bold text-neon-purple">Novo Personagem</h2><button onClick={() => setIsEditing(false)}><X size={20}/></button></div>
+                <div className="flex justify-between items-center mb-4"><h2 className={`text-lg font-rajdhani font-bold ${THEME_PURPLE}`}>Novo Personagem</h2><button onClick={() => setIsEditing(false)}><X size={20}/></button></div>
                 <div className="flex-1 overflow-y-auto scrollbar-thin pr-2"><CharacterForm formData={formData} setFormData={setFormData} handlePhotoUpload={handlePhotoUpload} /></div>
-                {/* Botão consistente com o "Novo Grupo" (Outline) */}
-                <button onClick={handleSaveChar} className="mt-4 w-full py-3 bg-neon-purple/10 border border-neon-purple text-neon-purple font-bold rounded hover:bg-neon-purple hover:text-black transition">ADICIONAR À MESA</button>
+                {/* Botão consistente com o "Novo Grupo" (Outline + Glow) */}
+                <button 
+                    onClick={handleSaveChar} 
+                    className={`mt-4 w-full py-3 bg-[#d084ff]/10 border border-[#d084ff] text-[#d084ff] font-bold rounded hover:bg-[#d084ff] hover:text-black transition-all ${THEME_GLOW} ${THEME_GLOW_HOVER}`}
+                >
+                    ADICIONAR À MESA
+                </button>
              </div>
         )}
       </FadeInView>
@@ -425,7 +443,7 @@ const CharacterSidebar = ({ isCollapsed, setIsCollapsed }) => {
                 <div className="flex justify-between items-center p-4 border-b border-glass-border bg-black/40 shrink-0">
                     <button onClick={navToHub} className="p-2 rounded-full bg-glass hover:bg-white/10 transition"><ArrowLeft size={20} /></button>
                     <div className="flex gap-2">
-                        <button onClick={() => openEdit(false)} className="p-2 rounded-full bg-glass hover:bg-white/10 transition text-neon-purple"><Edit2 size={20} /></button>
+                        <button onClick={() => openEdit(false)} className={`p-2 rounded-full bg-glass hover:bg-white/10 transition ${THEME_PURPLE}`}><Edit2 size={20} /></button>
                         <button onClick={() => setIsCollapsed(true)} className="p-2 rounded-full bg-glass hover:bg-white/10 transition text-text-muted hover:text-white"><Menu size={20} /></button>
                     </div>
                 </div>
@@ -435,10 +453,24 @@ const CharacterSidebar = ({ isCollapsed, setIsCollapsed }) => {
                         <img draggable onDragStart={(e) => handleDragSortStart(e, -1, activeChar)} onDragEnd={handleDragEnd} src={activeChar.photo || 'https://via.placeholder.com/120'} className="w-[100px] h-[100px] rounded-2xl object-cover shadow-lg cursor-grab active:cursor-grabbing hover:scale-105 transition-transform" alt="Avatar"/>
                         <div className="flex-1 flex flex-col justify-center gap-2">
                             <h2 className="text-2xl font-bold leading-tight font-rajdhani">{activeChar.name}</h2>
-                            <div className="flex items-center justify-between bg-neon-purple/15 border border-neon-purple rounded-xl p-2 h-[60px] shadow-[0_0_15px_rgba(188,19,254,0.2)]">
-                                <button onClick={() => updateCharacter(activeChar.id, { karma: Math.max(0, activeChar.karma - 1) })} className="w-10 h-full flex items-center justify-center text-xl bg-neon-purple/20 rounded hover:bg-neon-purple hover:text-black transition">-</button>
-                                <div className="flex flex-col items-center"><span className="text-[10px] text-neon-purple font-bold tracking-widest uppercase">KARMA</span><span className="text-2xl font-rajdhani font-bold text-white drop-shadow-[0_0_10px_#bc13fe]">{activeChar.karma}</span></div>
-                                <button onClick={() => updateCharacter(activeChar.id, { karma: Math.min(activeChar.karmaMax, activeChar.karma + 1) })} className="w-10 h-full flex items-center justify-center text-xl bg-neon-purple/20 rounded hover:bg-neon-purple hover:text-black transition">+</button>
+                            {/* KARMA ATUALIZADO: Cor Clara + Glow */}
+                            <div className={`flex items-center justify-between bg-[#d084ff]/15 border border-[#d084ff] rounded-xl p-2 h-[60px] ${THEME_GLOW}`}>
+                                <button 
+                                    onClick={() => updateCharacter(activeChar.id, { karma: Math.max(0, activeChar.karma - 1) })} 
+                                    className="w-10 h-full flex items-center justify-center text-xl bg-[#d084ff]/20 rounded hover:bg-[#d084ff] hover:text-black hover:shadow-[0_0_10px_#d084ff] transition-all"
+                                >
+                                    -
+                                </button>
+                                <div className="flex flex-col items-center">
+                                    <span className={`text-[10px] ${THEME_PURPLE} font-bold tracking-widest uppercase`}>KARMA</span>
+                                    <span className="text-2xl font-rajdhani font-bold text-white drop-shadow-[0_0_10px_#d084ff]">{activeChar.karma}</span>
+                                </div>
+                                <button 
+                                    onClick={() => updateCharacter(activeChar.id, { karma: Math.min(activeChar.karmaMax, activeChar.karma + 1) })} 
+                                    className="w-10 h-full flex items-center justify-center text-xl bg-[#d084ff]/20 rounded hover:bg-[#d084ff] hover:text-black hover:shadow-[0_0_10px_#d084ff] transition-all"
+                                >
+                                    +
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -502,7 +534,7 @@ const CharacterSidebar = ({ isCollapsed, setIsCollapsed }) => {
                     src={c.photo || 'https://via.placeholder.com/50'}
                     onClick={() => navToChar(c.id)}
                     style={{ width: footerIconSize, height: footerIconSize }}
-                    className={`rounded-full border-2 object-cover cursor-pointer hover:scale-110 transition-transform shrink-0 ${c.id === activeChar.id ? 'border-neon-purple opacity-100 shadow-[0_0_10px_rgba(188,19,254,0.4)]' : 'border-transparent opacity-50 hover:opacity-100'}`} 
+                    className={`rounded-full border-2 object-cover cursor-pointer hover:scale-110 transition-transform shrink-0 ${c.id === activeChar.id ? `border-[#d084ff] opacity-100 shadow-[0_0_15px_rgba(208,132,255,0.5)]` : 'border-transparent opacity-50 hover:opacity-100'}`} 
                     alt={c.name}
                  />
              ))}
@@ -510,11 +542,16 @@ const CharacterSidebar = ({ isCollapsed, setIsCollapsed }) => {
 
         {isEditing && (
              <div className="absolute inset-0 bg-black/90 backdrop-blur-md z-50 p-4 flex flex-col overflow-y-auto" style={{ animation: 'fadeInUp 0.3s ease-out' }}>
-                <div className="flex justify-between items-center mb-4"><h2 className="text-xl font-rajdhani font-bold text-neon-purple">Editar Personagem</h2><button onClick={() => setIsEditing(false)}><X size={24}/></button></div>
+                <div className="flex justify-between items-center mb-4"><h2 className={`text-xl font-rajdhani font-bold ${THEME_PURPLE}`}>Editar Personagem</h2><button onClick={() => setIsEditing(false)}><X size={24}/></button></div>
                 <div className="flex-1 overflow-y-auto scrollbar-thin pr-2">
                     <CharacterForm formData={formData} setFormData={setFormData} handlePhotoUpload={handlePhotoUpload} />
                 </div>
-                <button onClick={handleSaveChar} className="mt-4 w-full py-3 bg-neon-purple/10 border border-neon-purple text-neon-purple font-bold rounded hover:bg-neon-purple hover:text-black transition">SALVAR ALTERAÇÕES</button>
+                <button 
+                    onClick={handleSaveChar} 
+                    className={`mt-4 w-full py-3 bg-[#d084ff]/10 border border-[#d084ff] text-[#d084ff] font-bold rounded hover:bg-[#d084ff] hover:text-black transition-all ${THEME_GLOW} ${THEME_GLOW_HOVER}`}
+                >
+                    SALVAR ALTERAÇÕES
+                </button>
              </div>
         )}
     </div>
