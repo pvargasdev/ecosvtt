@@ -39,6 +39,9 @@ const CharacterForm = ({ formData, setFormData, handlePhotoUpload }) => {
         return clean === '' ? 0 : parseInt(clean);
     };
 
+    // Helper para auto-selecionar o conteúdo ao focar (facilita edição rápida)
+    const handleFocus = (e) => e.target.select();
+
     return (
         <div className="space-y-4 pb-4">
             <div className="flex justify-center mb-4">
@@ -69,6 +72,7 @@ const CharacterForm = ({ formData, setFormData, handlePhotoUpload }) => {
                     <label className="text-xs text-text-muted mb-1 block">Karma</label>
                     <input type="text"
                            maxLength={1}
+                           onFocus={handleFocus} // Auto-selecionar
                            className={`w-full bg-black/50 border border-glass-border rounded p-2 text-white text-center outline-none focus:border-white transition-colors`} 
                            value={formData.karmaMax||0} 
                            onChange={e=>setFormData({...formData, karmaMax: handleSingleDigit(e.target.value)})}/>
@@ -91,7 +95,8 @@ const CharacterForm = ({ formData, setFormData, handlePhotoUpload }) => {
                             <div key={a}>
                                 <label className="text-[9px] text-text-muted block text-center uppercase">{a.substr(0,3)}</label>
                                 <input type="text"
-                                    maxLength={1} 
+                                    maxLength={1}
+                                    onFocus={handleFocus} // Auto-selecionar
                                     className={`w-full bg-black/50 border border-glass-border rounded p-1 text-white text-center font-bold outline-none focus:border-white transition-colors`}
                                     value={formData.attributes?.[a.toLowerCase()]||0} 
                                     onChange={e=>setFormData({...formData, attributes:{...formData.attributes, [a.toLowerCase()]: handleSingleDigit(e.target.value)}})}/>
@@ -130,7 +135,8 @@ const CharacterForm = ({ formData, setFormData, handlePhotoUpload }) => {
                             <div key={k} className="flex-1">
                                 <label className="text-[9px] text-text-muted block text-center uppercase">{l}</label>
                                 <input type="text"
-                                    maxLength={1} 
+                                    maxLength={1}
+                                    onFocus={handleFocus} // Auto-selecionar
                                     className="w-full bg-black/50 border border-glass-border rounded p-1 text-white text-center outline-none focus:border-white transition-colors" 
                                     value={formData.damage?.[k]?.length||0} 
                                     onChange={e=>{
@@ -259,6 +265,15 @@ const CharacterSidebar = ({ isCollapsed, setIsCollapsed }) => {
     }
     setIsEditing(false);
     activeCharId === 'NEW' ? setView('hub') : setView('details');
+  };
+
+  // Função de segurança ao cancelar edição
+  const handleCancelEdit = () => {
+    showConfirm(
+        "Descartar Alterações?",
+        "Se sair agora, as alterações não salvas serão perdidas.",
+        () => setIsEditing(false)
+    );
   };
 
   const handleDeleteChar = (id) => {
@@ -440,7 +455,17 @@ const CharacterSidebar = ({ isCollapsed, setIsCollapsed }) => {
 
         {isEditing && (
              <div className="absolute inset-0 bg-ecos-bg z-50 p-4 flex flex-col overflow-hidden" style={{ animation: 'fadeInUp 0.3s ease-out' }}>
-                <div className="flex justify-between items-center mb-4"><h2 className={`text-lg font-rajdhani font-bold ${THEME_PURPLE}`}>Novo Personagem</h2><button onClick={() => setIsEditing(false)}><X size={20}/></button></div>
+                <div className="flex items-center gap-4 mb-4 p-4 border-b border-glass-border bg-black/40 -mx-4 -mt-4">
+                    <button 
+                        onClick={handleCancelEdit} 
+                        className="p-2 rounded-full bg-glass hover:bg-white/10 transition text-text-muted hover:text-white"
+                        title="Voltar (Descarta alterações)"
+                    >
+                        <ArrowLeft size={20}/>
+                    </button>
+                    <h2 className={`text-lg font-rajdhani font-bold ${THEME_PURPLE} uppercase tracking-wider`}>Novo Personagem</h2>
+                </div>
+                
                 <div className="flex-1 overflow-y-auto scrollbar-thin pr-2"><CharacterForm formData={formData} setFormData={setFormData} handlePhotoUpload={handlePhotoUpload} /></div>
                 <button 
                     onClick={handleSaveChar} 
@@ -604,7 +629,17 @@ const CharacterSidebar = ({ isCollapsed, setIsCollapsed }) => {
 
         {isEditing && (
              <div className="absolute inset-0 bg-black/90 backdrop-blur-md z-50 p-4 flex flex-col overflow-y-auto" style={{ animation: 'fadeInUp 0.3s ease-out' }}>
-                <div className="flex justify-between items-center mb-4"><h2 className={`text-xl font-rajdhani font-bold ${THEME_PURPLE}`}>Editar Personagem</h2><button onClick={() => setIsEditing(false)}><X size={24}/></button></div>
+                <div className="flex items-center gap-4 mb-4 p-4 border-b border-glass-border bg-black/40 -mx-4 -mt-4">
+                    <button 
+                        onClick={handleCancelEdit} 
+                        className="p-2 rounded-full bg-glass hover:bg-white/10 transition text-text-muted hover:text-white"
+                        title="Voltar (Descarta alterações)"
+                    >
+                        <ArrowLeft size={20}/>
+                    </button>
+                    <h2 className={`text-xl font-rajdhani font-bold ${THEME_PURPLE} uppercase tracking-wider`}>Editar Personagem</h2>
+                </div>
+                
                 <div className="flex-1 overflow-y-auto scrollbar-thin pr-2">
                     <CharacterForm formData={formData} setFormData={setFormData} handlePhotoUpload={handlePhotoUpload} />
                 </div>
