@@ -20,7 +20,7 @@ const LibraryThumb = ({ token }) => {
 
     return (
         <div draggable onDragStart={(e) => { e.dataTransfer.setData('application/json', JSON.stringify({ type: 'library_token', imageId: token.imageId, imageSrc: token.imageSrc })); }}
-             className="aspect-square bg-black rounded border border-glass-border overflow-hidden cursor-grab active:cursor-grabbing hover:border-neon-blue relative group">
+             className="aspect-square bg-black rounded-full border-2 border-glass-border overflow-hidden cursor-grab active:cursor-grabbing hover:border-white transition-all group-hover:scale-110 relative group">
             {src && <img src={src} className="w-full h-full object-cover pointer-events-none" alt="token"/>}
         </div>
     );
@@ -216,12 +216,12 @@ export const VTTLayout = ({ zoomValue, onZoomChange, activeTool, setActiveTool }
       return (
           <WindowWrapper containerRef={libraryRef} className="absolute top-24 right-4 w-[288px] bg-black/90 border border-glass-border backdrop-blur-sm rounded-xl flex flex-col max-h-[60vh] z-40 shadow-2xl scale-90 origin-top-right">
               <div className="p-3 border-b border-glass-border flex justify-between items-center bg-white/5 rounded-t-xl">
-                  <h3 className="font-bold text-white flex gap-2 items-center text-sm"><Box size={16} className="text-neon-blue"/> Biblioteca</h3>
+                  <h3 className="font-bold text-white flex gap-2 items-center text-sm">Biblioteca de Tokens</h3>
                   <button onClick={(e) => toggle('libraryOpen', e)}><X size={16} className="text-text-muted hover:text-white"/></button>
               </div>
               <div className="p-3 grid grid-cols-4 gap-3 overflow-y-auto scrollbar-thin flex-1 min-h-[150px]">
-                  <div onClick={() => tokenInputRef.current?.click()} className="aspect-square border border-dashed border-glass-border rounded hover:bg-white/10 flex flex-col items-center justify-center cursor-pointer text-text-muted hover:text-neon-blue transition">
-                      <Plus size={24}/><span className="text-[10px] mt-1">Add</span>
+                  <div onClick={() => tokenInputRef.current?.click()} className="aspect-square border border-dashed border-glass-border rounded-full hover:bg-white/10 flex flex-col items-center justify-center cursor-pointer text-text-muted hover:text-neon-blue transition">
+                      <Plus size={24}/>
                   </div>
                   {/* ALTERADO: Mantido 'multiple' para importação múltipla. */}
                   <input 
