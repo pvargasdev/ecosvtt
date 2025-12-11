@@ -680,7 +680,7 @@ const CharacterSidebar = ({ isCollapsed, setIsCollapsed }) => {
                         </div>
                         <div className="flex-1 bg-glass border border-glass-border rounded-xl p-3 flex flex-col overflow-hidden">
                             <span className="text-xs uppercase text-neon-green font-bold tracking-wider mb-2 block border-b border-glass-border pb-2 shrink-0">Perícias</span>
-                            <div className="text-sm text-gray-300 whitespace-pre-line overflow-y-auto flex-1 max-h-[8rem] scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-transparent pr-2">
+                            <div className="text-sm text-gray-300 whitespace-pre-line overflow-y-auto flex-1 max-h-[6rem] scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-transparent pr-2">
                                 {activeChar.skills || '-'}
                             </div>
                         </div>
@@ -712,7 +712,7 @@ const CharacterSidebar = ({ isCollapsed, setIsCollapsed }) => {
 
                         <div className="flex-1 bg-glass border border-glass-border rounded-xl p-3 flex flex-col overflow-hidden">
                             <span className="text-xs uppercase text-neon-red font-bold tracking-wider mb-2 block border-b border-glass-border pb-2 shrink-0">Traumas</span>
-                            <div className="text-sm text-gray-300 whitespace-pre-line overflow-y-auto flex-1 max-h-[8rem] scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-transparent pr-2">
+                            <div className="text-sm text-gray-300 whitespace-pre-line overflow-y-auto flex-1 max-h-[6rem] scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-transparent pr-2">
                                 {activeChar.traumas || '-'}
                             </div>
                         </div>
