@@ -171,8 +171,23 @@ const CharacterSidebar = ({ isCollapsed, setIsCollapsed }) => {
   const footerRef = useRef(null);
   const [footerIconSize, setFooterIconSize] = useState(48);
 
+  // REFS PARA LISTA E SCROLL
+  const presetsListRef = useRef(null);
+  const prevPresetsLength = useRef(presets.length);
+
   const activeChar = gameState.characters.find(c => c.id === activeCharId);
   const currentPreset = presets.find(p => p.id === activePresetId);
+
+  // EFEITO DE SCROLL INTELIGENTE
+  useEffect(() => {
+    // Só scrolla para o fundo se a quantidade de grupos AUMENTOU (criação)
+    if (presets.length > prevPresetsLength.current) {
+        if (presetsListRef.current) {
+            presetsListRef.current.scrollTop = presetsListRef.current.scrollHeight;
+        }
+    }
+    prevPresetsLength.current = presets.length;
+  }, [presets.length]);
 
   useEffect(() => {
       if (!activePresetId) setView('manager');
@@ -247,9 +262,10 @@ const CharacterSidebar = ({ isCollapsed, setIsCollapsed }) => {
       e.target.value = null;
   };
 
+  // ATUALIZADO: Criação com nome padrão e sem abrir direto
   const handleCreateNewPreset = () => {
-      if (!newPresetName.trim()) return showAlert("Erro", "Dê um nome ao grupo.");
-      createPreset(newPresetName);
+      const nameToUse = newPresetName.trim() || "Novo Grupo";
+      createPreset(nameToUse);
       setNewPresetName("");
       setIsCreatingPreset(false);
   };
@@ -355,7 +371,19 @@ const CharacterSidebar = ({ isCollapsed, setIsCollapsed }) => {
   // ==========================================
   if (!activePresetId || view === 'manager') {
       return (
-        <FadeInView key="manager" className="p-6 bg-black/80 text-text-main overflow-hidden border-r border-glass-border items-center relative">
+        // REMOVIDO overflow-hidden GERAL para permitir que a shadow do botão apareça
+        <FadeInView key="manager" className="p-6 bg-black/80 text-text-main border-r border-glass-border items-center relative">
+            <style>{`
+                @keyframes enter-slide {
+                    0% { opacity: 0; transform: translateY(-15px) scale(0.95); max-height: 0; margin-bottom: 0; }
+                    40% { max-height: 60px; margin-bottom: 0.5rem; }
+                    100% { opacity: 1; transform: translateY(0) scale(1); max-height: 60px; margin-bottom: 0.5rem; }
+                }
+                .animate-enter {
+                    animation: enter-slide 0.45s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+                }
+            `}</style>
+            
             <ConfirmationOverlay />
             <button 
                 onClick={() => setIsCollapsed(true)} 
@@ -367,20 +395,19 @@ const CharacterSidebar = ({ isCollapsed, setIsCollapsed }) => {
             <h1 className={`text-3xl font-rajdhani font-bold ${THEME_PURPLE} mb-2 tracking-widest mt-10`}>PERSONAGENS</h1>
             <p className="text-text-muted text-sm text-center mb-8">Selecione um grupo para começar.</p>
             
-            <div className="w-full max-w-xs space-y-4 flex-1 overflow-y-auto scrollbar-none pb-20">
+            <div className="w-full max-w-xs flex flex-col flex-1 h-full min-h-0">
                 
-                {/* COMPONENTE DE CRIAÇÃO POLIDO - SEM ANIMAÇÕES COMPLEXAS PARA EVITAR BUGS */}
-                <div className="w-full">
+                {/* COMPONENTE DE CRIAÇÃO (Botão e Input) - Adicionado padding container para evitar corte de shadow */}
+                <div className="w-full mb-4 px-1 pt-1">
                     {!isCreatingPreset ? (
                         <button 
                             onClick={() => setIsCreatingPreset(true)} 
-                            className={`w-full py-3 bg-[#d084ff]/10 border border-[#d084ff]/40 text-[#d084ff] font-bold rounded-lg hover:bg-[#d084ff] hover:text-black hover:shadow-[0_0_15px_rgba(208,132,255,0.4)] transition-all flex items-center justify-center gap-2`}
+                            className={`w-full py-3 bg-[#d084ff]/10 border border-[#d084ff]/40 text-[#d084ff] font-bold rounded-lg hover:bg-[#d084ff] hover:text-black hover:shadow-[0_0_15px_rgba(208,132,255,0.4)] transition-all flex items-center justify-center gap-2 group`}
                         >
-                            <Plus size={18} strokeWidth={3}/> NOVO GRUPO
+                            <Plus size={18} strokeWidth={3} className="group-hover:scale-110 transition-transform"/> NOVO GRUPO
                         </button>
                     ) : (
                         <div className="flex flex-col gap-2" style={{ animation: 'fadeInUp 0.2s ease-out' }}>
-                            {/* Input com foco visual claro */}
                             <input 
                                 autoFocus 
                                 placeholder="Nome do Grupo..." 
@@ -393,7 +420,6 @@ const CharacterSidebar = ({ isCollapsed, setIsCollapsed }) => {
                                 }}
                             />
                             
-                            {/* Botões alinhados à direita, fora da caixa do input */}
                             <div className="flex items-center justify-end gap-2 px-1">
                                 <button 
                                     onClick={() => setIsCreatingPreset(false)} 
@@ -403,8 +429,7 @@ const CharacterSidebar = ({ isCollapsed, setIsCollapsed }) => {
                                 </button>
                                 <button 
                                     onClick={handleCreateNewPreset} 
-                                    disabled={!newPresetName.trim()}
-                                    className="flex items-center gap-2 px-4 py-2 bg-[#d084ff] text-black font-bold rounded text-xs hover:bg-white transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                                    className="flex items-center gap-2 px-4 py-2 bg-[#d084ff] text-black font-bold rounded text-xs hover:bg-white transition-all shadow-lg shadow-purple-900/20"
                                 >
                                     <Check size={14} strokeWidth={3}/> CRIAR
                                 </button>
@@ -413,70 +438,80 @@ const CharacterSidebar = ({ isCollapsed, setIsCollapsed }) => {
                     )}
                 </div>
 
-                <div className="flex items-center gap-2 text-text-muted text-xs uppercase my-4">
+                <div className="flex items-center gap-2 text-text-muted text-xs uppercase my-2 shrink-0">
                     <div className="h-px bg-glass-border flex-1"></div>
                     <span>Grupos Salvos</span>
                     <div className="h-px bg-glass-border flex-1"></div>
                 </div>
 
-                {presets.length === 0 ? <div className="text-center text-text-muted italic text-sm">Vazio.</div> : presets.map(p => (
-                    <div 
-                        key={p.id} 
-                        onClick={() => { if(renamingPresetId !== p.id) loadPreset(p.id); }} 
-                        className={`bg-black/20 border border-glass-border rounded-lg p-3 flex justify-between items-center cursor-pointer transition group min-h-[66px] ${renamingPresetId === p.id ? 'bg-white/10' : 'hover:bg-white/5'}`}
-                    >
-                        {renamingPresetId === p.id ? (
-                            // MODO DE EDIÇÃO (INPUT)
-                            <div className="flex items-center gap-2 w-full animate-in fade-in zoom-in duration-200" onClick={e => e.stopPropagation()}>
-                                <input 
-                                    autoFocus
-                                    className="flex-1 bg-black/50 border border-neon-blue rounded px-2 py-1 text-white text-sm outline-none"
-                                    value={renamePresetValue}
-                                    onChange={e => setRenamePresetValue(e.target.value)}
-                                    onKeyDown={e => {
-                                        if(e.key === 'Enter') handleRenamePreset(p.id);
-                                        if(e.key === 'Escape') setRenamingPresetId(null);
-                                    }}
-                                />
-                                <button onClick={() => handleRenamePreset(p.id)} className="text-neon-green hover:text-white p-1 rounded hover:bg-white/10"><Check size={16}/></button>
-                                <button onClick={() => setRenamingPresetId(null)} className="text-red-400 hover:text-white p-1 rounded hover:bg-white/10"><X size={16}/></button>
-                            </div>
-                        ) : (
-                            // MODO DE VISUALIZAÇÃO
-                            <>
-                                <div>
-                                    <h3 className="font-bold text-white font-rajdhani truncate max-w-[180px]">{p.name}</h3>
-                                    <div className="text-xs text-text-muted">{p.characters.length} Personagens</div>
+                {/* LISTA DE PRESETS COM SCROLL E ANIMAÇÃO */}
+                <div ref={presetsListRef} className="flex-1 overflow-y-auto scrollbar-none pb-4 relative min-h-[100px] space-y-2">
+                     {/* Mensagem Vazio Absoluta */}
+                     {presets.length === 0 && (
+                        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                            <p className="text-text-muted italic text-sm opacity-50">Vazio.</p>
+                        </div>
+                    )}
+
+                    {presets.map(p => (
+                        <div 
+                            key={p.id} 
+                            onClick={() => { if(renamingPresetId !== p.id) loadPreset(p.id); }} 
+                            className={`animate-enter bg-black/20 border border-glass-border rounded-lg p-3 flex justify-between items-center cursor-pointer transition group min-h-[66px] ${renamingPresetId === p.id ? 'bg-white/10' : 'hover:bg-white/5'}`}
+                        >
+                            {renamingPresetId === p.id ? (
+                                // MODO DE EDIÇÃO
+                                <div className="flex items-center gap-2 w-full animate-in fade-in duration-200" onClick={e => e.stopPropagation()}>
+                                    <input 
+                                        autoFocus
+                                        className="flex-1 bg-black/50 border border-white/50 rounded px-2 py-1 text-white text-sm outline-none"
+                                        value={renamePresetValue}
+                                        onChange={e => setRenamePresetValue(e.target.value)}
+                                        onKeyDown={e => {
+                                            if(e.key === 'Enter') handleRenamePreset(p.id);
+                                            if(e.key === 'Escape') setRenamingPresetId(null);
+                                        }}
+                                    />
+                                    <button onClick={() => handleRenamePreset(p.id)} className="text-neon-green hover:text-white p-1 rounded hover:bg-white/10"><Check size={16}/></button>
+                                    <button onClick={() => setRenamingPresetId(null)} className="text-red-400 hover:text-white p-1 rounded hover:bg-white/10"><X size={16}/></button>
                                 </div>
-                                <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity gap-1">
-                                    <button 
-                                        onClick={(e) => { 
-                                            e.stopPropagation(); 
-                                            setRenamingPresetId(p.id); 
-                                            setRenamePresetValue(p.name); 
-                                        }} 
-                                        className="p-2 hover:bg-white/10 hover:text-yellow-400 rounded text-text-muted transition" 
-                                        title="Renomear"
-                                    >
-                                        <Edit2 size={16}/>
-                                    </button>
-                                    <button 
-                                        onClick={(e) => { 
-                                            e.stopPropagation(); 
-                                            showConfirm("Apagar Grupo", "Não poderá ser desfeito.", () => deletePreset(p.id)); 
-                                        }} 
-                                        className="p-2 hover:bg-red-900/50 hover:text-red-500 rounded text-text-muted transition" 
-                                        title="Excluir"
-                                    >
-                                        <Trash2 size={16}/>
-                                    </button>
-                                </div>
-                            </>
-                        )}
-                    </div>
-                ))}
+                            ) : (
+                                // MODO DE VISUALIZAÇÃO
+                                <>
+                                    <div>
+                                        <h3 className="font-bold text-white font-rajdhani truncate max-w-[180px]">{p.name}</h3>
+                                        <div className="text-xs text-text-muted">{p.characters.length} Personagens</div>
+                                    </div>
+                                    <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity gap-1">
+                                        <button 
+                                            onClick={(e) => { 
+                                                e.stopPropagation(); 
+                                                setRenamingPresetId(p.id); 
+                                                setRenamePresetValue(p.name); 
+                                            }} 
+                                            className="p-2 hover:bg-white/10 hover:text-yellow-400 rounded text-text-muted transition" 
+                                            title="Renomear"
+                                        >
+                                            <Edit2 size={16}/>
+                                        </button>
+                                        <button 
+                                            onClick={(e) => { 
+                                                e.stopPropagation(); 
+                                                showConfirm("Apagar Grupo", "Não poderá ser desfeito.", () => deletePreset(p.id)); 
+                                            }} 
+                                            className="p-2 hover:bg-red-900/50 hover:text-red-500 rounded text-text-muted transition" 
+                                            title="Excluir"
+                                        >
+                                            <Trash2 size={16}/>
+                                        </button>
+                                    </div>
+                                </>
+                            )}
+                        </div>
+                    ))}
+                </div>
             </div>
-            <div className="w-full border-t border-glass-border pt-4 flex justify-between text-xs text-text-muted">
+            <div className="w-full border-t border-glass-border pt-4 flex justify-between text-xs text-text-muted mt-auto">
                 <button onClick={handleExportPresetsZip} className="flex gap-1 items-center hover:text-white"><Upload size={12}/> Exportar</button>
                 <label className="flex gap-1 items-center hover:text-white cursor-pointer"><Download size={12}/> Importar<input type="file" className="hidden" accept=".zip" onChange={handleImportPresetsZip}/></label>
             </div>

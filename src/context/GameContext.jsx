@@ -376,7 +376,7 @@ export const GameProvider = ({ children }) => {
   // --- PRESETS ---
   const createPreset = useCallback((name) => {
     const newPreset = { id: generateUUID(), name, characters: [] };
-    setCharacters([]); setPresets(prev => [...prev, newPreset]); setActivePresetId(newPreset.id); return newPreset.id;
+    setCharacters([]); setPresets(prev => [...prev, newPreset]); return newPreset.id;
   }, []);
   
   const loadPreset = useCallback((pid) => { 
