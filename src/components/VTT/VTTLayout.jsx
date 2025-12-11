@@ -282,7 +282,7 @@ export const VTTLayout = ({ zoomValue, onZoomChange }) => {
                 
                 <div className="w-px h-6 bg-glass-border mx-1"></div>
                 
-                <button onClick={(e) => toggle('mapConfigOpen', e)} className={`p-2 rounded hover:bg-white/10 transition ${uiState.mapConfigOpen ? 'text-neon-blue' : 'text-text-muted'}`} title="Configurar Mapa"><Settings size={18}/></button>
+                <button onClick={(e) => toggle('mapConfigOpen', e)} className={`p-2 rounded hover:bg-white/10 transition ${uiState.mapConfigOpen ? 'text-neon-blue' : 'text-text-muted'}`} title="Configurar Mapa"><ImageIcon size={18}/></button>
                 <button onClick={(e) => toggle('libraryOpen', e)} className={`p-2 rounded hover:bg-white/10 transition ${uiState.libraryOpen ? 'text-neon-blue' : 'text-text-muted'}`} title="Biblioteca"><Box size={18}/></button>
                 
                 <div className="w-px h-6 bg-glass-border mx-1"></div>

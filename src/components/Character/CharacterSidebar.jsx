@@ -12,7 +12,7 @@ const resizeDamageArray = (currentArray, newSize) => {
     return arr;
 };
 
-// Componente de Animação: FADE IN VERTICAL (Suave)
+// Componente de Animação: FADE IN VERTICAL
 const FadeInView = ({ children, className }) => (
     <div className={`h-full flex flex-col ${className}`} style={{ animation: 'fadeInUp 0.4s cubic-bezier(0.2, 0.8, 0.2, 1) forwards' }}>
         <style>{`
@@ -110,7 +110,7 @@ const CharacterSidebar = () => {
     createPreset, loadPreset, saveToPreset, deletePreset, mergePresets, exitPreset
   } = useGame();
   
-  const [view, setView] = useState('manager'); // manager | hub | details
+  const [view, setView] = useState('manager'); 
   const [activeCharId, setActiveCharId] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({});
@@ -126,20 +126,17 @@ const CharacterSidebar = () => {
   const activeChar = gameState.characters.find(c => c.id === activeCharId);
   const currentPreset = presets.find(p => p.id === activePresetId);
 
-  // Controle de View baseado no Preset Ativo
   useEffect(() => {
       if (!activePresetId) setView('manager');
       else if (view === 'manager') setView('hub');
   }, [activePresetId]);
 
-  // AUTO-SAVE: Salva automaticamente sempre que há mudança nos personagens
   useEffect(() => {
       if (activePresetId && gameState.characters) {
           saveToPreset(activePresetId);
       }
   }, [gameState.characters, activePresetId, saveToPreset]);
 
-  // Cálculo de tamanho de ícones do rodapé
   useEffect(() => {
       if (!footerRef.current || gameState.characters.length === 0) return;
       const calcSize = () => {
@@ -160,7 +157,7 @@ const CharacterSidebar = () => {
   const showConfirm = (title, msg, action) => setConfirmModal({ open: true, title, msg, onConfirm: action });
   const closeModal = () => setConfirmModal({ ...confirmModal, open: false });
 
-  // --- DRAG AND DROP ---
+  // --- ACTIONS ---
   const handleDragSortStart = (e, index, char) => {
       setDraggedIndex(index);
       e.dataTransfer.setData('application/json', JSON.stringify({ type: 'character_drag', characterId: char.id }));
@@ -171,17 +168,15 @@ const CharacterSidebar = () => {
       e.stopPropagation();
       if (draggedIndex === null || draggedIndex === dropIndex) return;
       if (draggedIndex === -1) return; 
-
       const newList = [...gameState.characters];
       const [removed] = newList.splice(draggedIndex, 1);
       newList.splice(dropIndex, 0, removed);
-      setAllCharacters(newList); // Isso disparará o Auto-Save
+      setAllCharacters(newList);
       setDraggedIndex(null);
   };
   const handleDragEnd = () => setDraggedIndex(null);
   const handleDragOver = (e) => e.preventDefault();
 
-  // --- PRESET ACTIONS ---
   const handleExportPresetsZip = async () => {
       const zip = new JSZip();
       zip.file("presets.json", JSON.stringify(presets, null, 2));
@@ -198,10 +193,7 @@ const CharacterSidebar = () => {
           if (jsonFile) {
               const str = await jsonFile.async("string");
               const json = JSON.parse(str);
-              if (Array.isArray(json)) {
-                  mergePresets(json);
-                  showAlert("Sucesso", `${json.length} grupos importados!`);
-              }
+              if (Array.isArray(json)) mergePresets(json);
           }
       } catch (err) { showAlert("Erro", "Arquivo inválido."); }
       e.target.value = null;
@@ -214,11 +206,6 @@ const CharacterSidebar = () => {
       setIsCreatingPreset(false);
   };
 
-  const handleExitGroup = () => {
-      exitPreset(); 
-  };
-
-  // --- CHARACTER ACTIONS ---
   const handleSaveChar = () => {
     if (!formData.name) return showAlert("Erro", "Nome é obrigatório");
     if (activeCharId === 'NEW') {
@@ -267,7 +254,7 @@ const CharacterSidebar = () => {
                       {confirmModal.onConfirm ? (
                           <>
                             <button onClick={closeModal} className="px-4 py-2 rounded border border-glass-border text-text-muted hover:bg-white/10 transition text-sm">Cancelar</button>
-                            <button onClick={() => { confirmModal.onConfirm(); closeModal(); }} className="px-4 py-2 rounded bg-neon-blue text-black font-bold hover:bg-white transition text-sm">Confirmar</button>
+                            <button onClick={() => { confirmModal.onConfirm(); closeModal(); }} className="px-4 py-2 rounded bg-red-600 text-white font-bold hover:bg-red-500 transition text-sm">Confirmar</button>
                           </>
                       ) : (
                           <button onClick={closeModal} className="px-6 py-2 rounded bg-glass border border-glass-border text-white hover:bg-white/10 transition text-sm">OK</button>
@@ -285,8 +272,8 @@ const CharacterSidebar = () => {
       return (
         <FadeInView key="manager" className="p-6 bg-ecos-bg text-text-main overflow-hidden border-r border-glass-border items-center relative">
             <ConfirmationOverlay />
-            <h1 className="text-3xl font-rajdhani font-bold text-neon-blue mb-2 tracking-widest mt-10">ECOS RPG</h1>
-            <p className="text-text-muted text-sm text-center mb-8">Selecione um grupo para começar.</p>
+            <h1 className="text-3xl font-rajdhani font-bold text-neon-blue mb-2 tracking-widest mt-10">PERSONAGENS</h1>
+            <p className="text-text-muted text-sm text-center mb-8">Selecione um grupo de personagens para começar.</p>
             <div className="w-full max-w-xs space-y-4 flex-1 overflow-y-auto scrollbar-none pb-20">
                 <div className="bg-glass border border-glass-border rounded-lg p-4">
                     {!isCreatingPreset ? (
@@ -310,21 +297,20 @@ const CharacterSidebar = () => {
                 ))}
             </div>
             <div className="w-full border-t border-glass-border pt-4 flex justify-between text-xs text-text-muted">
-                <button onClick={handleExportPresetsZip} className="flex gap-1 items-center hover:text-white"><Download size={12}/> Exportar</button>
-                <label className="flex gap-1 items-center hover:text-white cursor-pointer"><Upload size={12}/> Importar<input type="file" className="hidden" accept=".zip" onChange={handleImportPresetsZip}/></label>
+                <button onClick={handleExportPresetsZip} className="flex gap-1 items-center hover:text-white"><Upload size={12}/> Exportar</button>
+                <label className="flex gap-1 items-center hover:text-white cursor-pointer"><Download size={12}/> Importar<input type="file" className="hidden" accept=".zip" onChange={handleImportPresetsZip}/></label>
             </div>
         </FadeInView>
       );
   }
 
   // ==========================================
-  // VIEW: HUB (GRID DE PERSONAGENS)
+  // VIEW: HUB (GRID)
   // ==========================================
   if (view === 'hub') {
     return (
       <FadeInView key="hub" className="bg-ecos-bg text-text-main overflow-hidden relative border-r border-glass-border">
         <ConfirmationOverlay />
-        
         <div className="p-3 bg-neon-purple/10 border-b border-neon-purple/30 flex justify-between items-center shrink-0">
             <div className="flex items-center gap-2 overflow-hidden">
                 <div className="w-2 h-2 rounded-full bg-neon-green shadow-[0_0_5px_#0f0]"></div>
@@ -333,8 +319,7 @@ const CharacterSidebar = () => {
                     <span className="font-rajdhani font-bold text-white truncate max-w-[120px] leading-none">{currentPreset?.name}</span>
                 </div>
             </div>
-            {/* Botão Sair */}
-            <button onClick={handleExitGroup} className="p-1.5 bg-glass border border-glass-border rounded hover:bg-red-900/30 hover:text-red-400 text-text-muted transition flex items-center gap-1" title="Sair do Grupo"><LogOut size={14}/> SAIR</button>
+            <button onClick={() => exitPreset()} className="p-1.5 bg-glass border border-glass-border rounded hover:bg-red-900/30 hover:text-red-400 text-text-muted transition flex items-center gap-1" title="Sair do Grupo"><LogOut size={14}/></button>
         </div>
 
         <div className="flex-1 overflow-y-auto grid grid-cols-2 gap-3 p-3 content-start scrollbar-thin">
@@ -354,19 +339,13 @@ const CharacterSidebar = () => {
                     <span className="font-semibold text-center text-xs leading-tight w-full truncate px-1 pointer-events-none">{char.name}</span>
                 </div>
             ))}
-            
-            <div onClick={() => openEdit(true)} className="border border-dashed border-glass-border rounded-lg p-2 flex flex-col items-center justify-center cursor-pointer hover:bg-white/5 opacity-50 hover:opacity-100 min-h-[110px] transition-all">
-                <Plus size={32} className="text-text-muted"/>
-                <span className="text-xs text-text-muted mt-2">Adicionar</span>
-            </div>
+            <div onClick={() => openEdit(true)} className="border border-dashed border-glass-border rounded-lg p-2 flex flex-col items-center justify-center cursor-pointer hover:bg-white/5 opacity-50 hover:opacity-100 min-h-[110px] transition-all"><Plus size={32} className="text-text-muted"/><span className="text-xs text-text-muted mt-2">Adicionar</span></div>
         </div>
 
         {isEditing && (
              <div className="absolute inset-0 bg-ecos-bg z-50 p-4 flex flex-col overflow-hidden" style={{ animation: 'fadeInUp 0.3s ease-out' }}>
                 <div className="flex justify-between items-center mb-4"><h2 className="text-lg font-rajdhani font-bold text-neon-blue">Novo Personagem</h2><button onClick={() => setIsEditing(false)}><X size={20}/></button></div>
-                <div className="flex-1 overflow-y-auto scrollbar-thin pr-2">
-                    <CharacterForm formData={formData} setFormData={setFormData} handlePhotoUpload={handlePhotoUpload} />
-                </div>
+                <div className="flex-1 overflow-y-auto scrollbar-thin pr-2"><CharacterForm formData={formData} setFormData={setFormData} handlePhotoUpload={handlePhotoUpload} /></div>
                 <button onClick={handleSaveChar} className="mt-4 w-full py-3 bg-neon-blue/10 border border-neon-blue text-neon-blue font-bold rounded hover:bg-neon-blue hover:text-black transition">ADICIONAR À MESA</button>
              </div>
         )}
@@ -375,38 +354,46 @@ const CharacterSidebar = () => {
   }
 
   // ==========================================
-  // VIEW: DETAILS (FICHA DE PERSONAGEM)
+  // VIEW: DETAILS (FICHA COM RODAPÉ ESTATICO)
   // ==========================================
   return (
-    <FadeInView key={activeCharId || 'details'} className="bg-black/80 text-text-main relative overflow-hidden">
+    <div className="h-full flex flex-col bg-black/80 text-text-main relative overflow-hidden">
         <ConfirmationOverlay />
-        <div className="flex justify-between items-center p-4 border-b border-glass-border bg-black/40 shrink-0">
-            <button onClick={navToHub} className="p-2 rounded-full bg-glass hover:bg-white/10 transition"><ArrowLeft size={20} /></button>
-            <button onClick={() => openEdit(false)} className="p-2 rounded-full bg-glass hover:bg-white/10 transition text-neon-purple"><Edit2 size={20} /></button>
-        </div>
+        
+        {/* CONTAINER ANIMADO DO CONTEÚDO */}
+        <div className="flex-1 relative overflow-hidden">
+            <FadeInView key={activeCharId || 'details'} className="absolute inset-0 flex flex-col">
+                {/* Header (Fica dentro do FadeIn para trocar junto com o char) */}
+                <div className="flex justify-between items-center p-4 border-b border-glass-border bg-black/40 shrink-0">
+                    <button onClick={navToHub} className="p-2 rounded-full bg-glass hover:bg-white/10 transition"><ArrowLeft size={20} /></button>
+                    <button onClick={() => openEdit(false)} className="p-2 rounded-full bg-glass hover:bg-white/10 transition text-neon-purple"><Edit2 size={20} /></button>
+                </div>
 
-        <div className="flex-1 overflow-y-auto p-6 scrollbar-thin">
-            <div className="flex items-center gap-5 mb-6">
-                <img draggable onDragStart={(e) => handleDragSortStart(e, -1, activeChar)} onDragEnd={handleDragEnd} src={activeChar.photo || 'https://via.placeholder.com/120'} className="w-[100px] h-[100px] rounded-2xl object-cover shadow-lg cursor-grab active:cursor-grabbing hover:scale-105 transition-transform" alt="Avatar"/>
-                <div className="flex-1 flex flex-col justify-center gap-2">
-                    <h2 className="text-2xl font-bold leading-tight font-rajdhani">{activeChar.name}</h2>
-                    <div className="flex items-center justify-between bg-neon-purple/15 border border-neon-purple rounded-xl p-2 h-[60px] shadow-[0_0_15px_rgba(188,19,254,0.2)]">
-                        <button onClick={() => updateCharacter(activeChar.id, { karma: Math.max(0, activeChar.karma - 1) })} className="w-10 h-full flex items-center justify-center text-xl bg-neon-purple/20 rounded hover:bg-neon-purple hover:text-black transition">-</button>
-                        <div className="flex flex-col items-center"><span className="text-[10px] text-neon-purple font-bold tracking-widest uppercase">KARMA</span><span className="text-2xl font-rajdhani font-bold text-white drop-shadow-[0_0_10px_#bc13fe]">{activeChar.karma}</span></div>
-                        <button onClick={() => updateCharacter(activeChar.id, { karma: Math.min(activeChar.karmaMax, activeChar.karma + 1) })} className="w-10 h-full flex items-center justify-center text-xl bg-neon-purple/20 rounded hover:bg-neon-purple hover:text-black transition">+</button>
+                <div className="flex-1 overflow-y-auto p-6 scrollbar-thin">
+                    <div className="flex items-center gap-5 mb-6">
+                        <img draggable onDragStart={(e) => handleDragSortStart(e, -1, activeChar)} onDragEnd={handleDragEnd} src={activeChar.photo || 'https://via.placeholder.com/120'} className="w-[100px] h-[100px] rounded-2xl object-cover shadow-lg cursor-grab active:cursor-grabbing hover:scale-105 transition-transform" alt="Avatar"/>
+                        <div className="flex-1 flex flex-col justify-center gap-2">
+                            <h2 className="text-2xl font-bold leading-tight font-rajdhani">{activeChar.name}</h2>
+                            <div className="flex items-center justify-between bg-neon-purple/15 border border-neon-purple rounded-xl p-2 h-[60px] shadow-[0_0_15px_rgba(188,19,254,0.2)]">
+                                <button onClick={() => updateCharacter(activeChar.id, { karma: Math.max(0, activeChar.karma - 1) })} className="w-10 h-full flex items-center justify-center text-xl bg-neon-purple/20 rounded hover:bg-neon-purple hover:text-black transition">-</button>
+                                <div className="flex flex-col items-center"><span className="text-[10px] text-neon-purple font-bold tracking-widest uppercase">KARMA</span><span className="text-2xl font-rajdhani font-bold text-white drop-shadow-[0_0_10px_#bc13fe]">{activeChar.karma}</span></div>
+                                <button onClick={() => updateCharacter(activeChar.id, { karma: Math.min(activeChar.karmaMax, activeChar.karma + 1) })} className="w-10 h-full flex items-center justify-center text-xl bg-neon-purple/20 rounded hover:bg-neon-purple hover:text-black transition">+</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div className="bg-glass border border-glass-border rounded-xl p-3 mb-6 text-center min-h-[50px] flex items-center justify-center"><span className="text-lg font-rajdhani font-semibold text-text-main truncate w-full">{activeChar.description || '---'}</span></div>
+                    <div className="flex gap-4 mb-6 min-h-[160px]">
+                        <div className="flex-1 bg-glass border border-glass-border rounded-xl p-3 flex flex-col justify-center"><div className="grid grid-cols-2 gap-3 h-full">{['mente','corpo','destreza','presenca'].map(a=><div key={a} className="bg-black/20 border border-white/5 rounded-lg flex flex-col items-center justify-center p-1"><span className="font-rajdhani font-bold text-2xl text-neon-blue drop-shadow-[0_0_5px_rgba(0,243,255,0.3)] leading-none">{activeChar.attributes[a]}</span><span className="text-[10px] uppercase text-text-muted mt-1 tracking-wider">{a}</span></div>)}</div></div>
+                        <div className="flex-1 bg-glass border border-glass-border rounded-xl p-3 flex flex-col"><span className="text-xs uppercase text-neon-green font-bold tracking-wider mb-2 block">Perícias</span><div className="text-sm text-gray-300 whitespace-pre-line overflow-y-auto flex-1 scrollbar-none">{activeChar.skills || '-'}</div></div>
+                    </div>
+                    <div className="bg-glass p-5 rounded-xl border border-glass-border"><span className="text-xs uppercase text-neon-red font-bold tracking-wider mb-4 block border-b border-glass-border pb-2">Tolerância a Dano</span>
+                        <div className="flex flex-col gap-4">{[['superior','Grave'],['medium','Moderado'],['inferior','Leve']].map(([k,l])=><div key={k} className="flex items-center gap-3"><span className="w-20 text-right text-text-muted text-sm">{l}</span><div className="flex gap-2 flex-1">{activeChar.damage[k].map((f,i)=><button key={i} onClick={()=>{const n=[...activeChar.damage[k]];n[i]=!n[i];updateCharacter(activeChar.id,{damage:{...activeChar.damage,[k]:n}});}} className={`h-8 flex-1 rounded border border-glass-border transition-all ${f?'bg-neon-red shadow-[0_0_10px_#ff2a2a] border-neon-red':'bg-black/30 hover:bg-white/10'}`}/>)}</div></div>)}</div>
                     </div>
                 </div>
-            </div>
-            <div className="bg-glass border border-glass-border rounded-xl p-3 mb-6 text-center min-h-[50px] flex items-center justify-center"><span className="text-lg font-rajdhani font-semibold text-text-main truncate w-full">{activeChar.description || '---'}</span></div>
-            <div className="flex gap-4 mb-6 min-h-[160px]">
-                <div className="flex-1 bg-glass border border-glass-border rounded-xl p-3 flex flex-col justify-center"><div className="grid grid-cols-2 gap-3 h-full">{['mente','corpo','destreza','presenca'].map(a=><div key={a} className="bg-black/20 border border-white/5 rounded-lg flex flex-col items-center justify-center p-1"><span className="font-rajdhani font-bold text-2xl text-neon-blue drop-shadow-[0_0_5px_rgba(0,243,255,0.3)] leading-none">{activeChar.attributes[a]}</span><span className="text-[10px] uppercase text-text-muted mt-1 tracking-wider">{a}</span></div>)}</div></div>
-                <div className="flex-1 bg-glass border border-glass-border rounded-xl p-3 flex flex-col"><span className="text-xs uppercase text-neon-green font-bold tracking-wider mb-2 block">Perícias</span><div className="text-sm text-gray-300 whitespace-pre-line overflow-y-auto flex-1 scrollbar-none">{activeChar.skills || '-'}</div></div>
-            </div>
-            <div className="bg-glass p-5 rounded-xl border border-glass-border"><span className="text-xs uppercase text-neon-red font-bold tracking-wider mb-4 block border-b border-glass-border pb-2">Tolerância a Dano</span>
-                <div className="flex flex-col gap-4">{[['superior','Grave'],['medium','Moderado'],['inferior','Leve']].map(([k,l])=><div key={k} className="flex items-center gap-3"><span className="w-20 text-right text-text-muted text-sm">{l}</span><div className="flex gap-2 flex-1">{activeChar.damage[k].map((f,i)=><button key={i} onClick={()=>{const n=[...activeChar.damage[k]];n[i]=!n[i];updateCharacter(activeChar.id,{damage:{...activeChar.damage,[k]:n}});}} className={`h-8 flex-1 rounded border border-glass-border transition-all ${f?'bg-neon-red shadow-[0_0_10px_#ff2a2a] border-neon-red':'bg-black/30 hover:bg-white/10'}`}/>)}</div></div>)}</div>
-            </div>
+            </FadeInView>
         </div>
 
+        {/* FOOTER ESTATICO (Fora do FadeIn) */}
         <div ref={footerRef} className="bg-black/80 border-t border-glass-border flex items-center justify-center gap-2 px-3 py-2 shrink-0 overflow-hidden" style={{ minHeight: footerIconSize + 20 }}>
              {gameState.characters.map((c, index) => (
                  <img 
@@ -434,7 +421,7 @@ const CharacterSidebar = () => {
                 <button onClick={handleSaveChar} className="mt-4 w-full py-3 bg-neon-blue/10 border border-neon-blue text-neon-blue font-bold rounded hover:bg-neon-blue hover:text-black transition">SALVAR ALTERAÇÕES</button>
              </div>
         )}
-    </FadeInView>
+    </div>
   );
 };
 

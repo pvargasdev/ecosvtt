@@ -305,7 +305,7 @@ const Board = () => {
   if (!activeAdventureId || !activeAdventure) {
       return (
         <div className="w-full h-full bg-ecos-bg flex flex-col items-center justify-center p-6 text-white relative z-50">
-            <h1 className="text-5xl font-rajdhani font-bold text-neon-green mb-8 tracking-widest">ECOS VTT</h1>
+            <h1 className="text-5xl font-rajdhani font-bold text-neon-green mb-8 tracking-widest">O TABULEIRO</h1>
             <div className="bg-glass border border-glass-border rounded-xl p-6 shadow-2xl w-full max-w-lg relative">
                 <h2 className="text-xl font-bold mb-4">Suas Aventuras</h2>
                 <div className="max-h-[300px] overflow-y-auto space-y-2 mb-4 scrollbar-thin pr-2">
@@ -323,7 +323,7 @@ const Board = () => {
                                 <>
                                     <span className="truncate font-medium">{adv.name}</span>
                                     <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                        <button onClick={(e)=>{e.stopPropagation(); exportAdventure(adv.id)}} className="p-1.5 rounded hover:bg-white/20 text-text-muted hover:text-neon-blue transition" title="Exportar"><Download size={14}/></button>
+                                        <button onClick={(e)=>{e.stopPropagation(); exportAdventure(adv.id)}} className="p-1.5 rounded hover:bg-white/20 text-text-muted hover:text-neon-blue transition" title="Exportar"><Upload size={14}/></button>
                                         <button onClick={(e)=>{e.stopPropagation(); duplicateAdventure(adv.id)}} className="p-1.5 rounded hover:bg-white/20 text-text-muted hover:text-white transition" title="Duplicar"><Copy size={14}/></button>
                                         <button onClick={(e)=>{e.stopPropagation(); setRenamingId(adv.id); setRenameValue(adv.name);}} className="p-1.5 rounded hover:bg-white/20 text-text-muted hover:text-yellow-400 transition" title="Renomear"><Edit2 size={14}/></button>
                                         <button onClick={(e)=>{e.stopPropagation(); setDeleteModal(adv.id);}} className="p-1.5 rounded hover:bg-red-500/20 text-text-muted hover:text-red-500 transition" title="Excluir"><Trash2 size={14}/></button>
@@ -338,7 +338,7 @@ const Board = () => {
                     <input className="flex-1 bg-black/50 border border-glass-border rounded p-2 text-white" placeholder="Nova Aventura..." value={newAdvName} onChange={e=>setNewAdvName(e.target.value)}/>
                     <button onClick={()=>{if(newAdvName) { createAdventure(newAdvName); setNewAdvName(""); }}} className="bg-neon-green text-black font-bold px-4 rounded hover:bg-white transition"><Plus/></button>
                     <div className="relative">
-                        <button onClick={() => importInputRef.current?.click()} className="bg-glass border border-glass-border text-white px-3 py-2 rounded h-full hover:bg-white/10 transition" title="Importar"><Upload size={20}/></button>
+                        <button onClick={() => importInputRef.current?.click()} className="bg-glass border border-glass-border text-white px-3 py-2 rounded h-full hover:bg-white/10 transition" title="Importar"><Download size={20}/></button>
                         <input ref={importInputRef} type="file" accept=".zip" className="hidden" onChange={(e) => { const file = e.target.files[0]; if(file) importAdventure(file); e.target.value = null; }}/>
                     </div>
                 </div>
@@ -352,7 +352,7 @@ const Board = () => {
                             <p className="text-text-muted text-sm mb-6">Esta ação não pode ser desfeita.</p>
                             <div className="flex gap-2 justify-center">
                                 <button onClick={() => setDeleteModal(null)} className="px-4 py-2 rounded bg-glass border border-glass-border text-white hover:bg-white/10 text-sm">Cancelar</button>
-                                <button onClick={() => { deleteAdventure(deleteModal); setDeleteModal(null); }} className="px-4 py-2 rounded bg-red-600 text-white font-bold hover:bg-red-500 text-sm">Excluir</button>
+                                <button onClick={() => { deleteAdventure(deleteModal); setDeleteModal(null); }} className="px-4 py-2 rounded bg-red-600 text-white font-bold hover:bg-red-500 text-sm">Confirmar</button>
                             </div>
                         </div>
                     </div>
