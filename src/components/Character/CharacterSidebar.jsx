@@ -72,9 +72,9 @@ const CharacterForm = ({ formData, setFormData, handlePhotoUpload }) => {
                 <input className={`w-full bg-black/50 border border-glass-border rounded p-2 text-white focus:${THEME_BORDER_PURPLE} transition-colors`}
                        value={formData.description||''} 
                        onChange={e=>setFormData({...formData, description:e.target.value})}/>
-            </div>
+            </div>         
             <div className="bg-black/20 p-2 rounded border border-glass-border">
-                <span className="text-xs uppercase text-text-muted mb-2 block text-center">Atributos</span>
+                <span className="text-xs text-text-muted mb-2 block">Atributos</span>
                 <div className="grid grid-cols-4 gap-2">
                     {['Mente','Corpo','Destreza','Presenca'].map(a=>(
                         <div key={a}>
@@ -106,7 +106,7 @@ const CharacterForm = ({ formData, setFormData, handlePhotoUpload }) => {
             
             {/* PAINEL DE DANO */}
             <div className="bg-red-900/10 p-2 rounded border border-red-900/30">
-                <span className="text-xs uppercase text-neon-red mb-2 block">Tolerância a Dano</span>
+                <span className="text-xs text-neon-red mb-2 block">Tolerância a Dano</span>
                 <div className="flex gap-2">
                     {[['superior','Grave'],['medium','Moderado'],['inferior','Leve']].map(([k,l])=>(
                         <div key={k} className="flex-1">
@@ -277,7 +277,7 @@ const CharacterSidebar = ({ isCollapsed, setIsCollapsed }) => {
                       {confirmModal.onConfirm ? (
                           <>
                             <button onClick={closeModal} className="px-4 py-2 rounded border border-glass-border text-text-muted hover:bg-white/10 transition text-sm">Cancelar</button>
-                            <button onClick={() => { confirmModal.onConfirm(); closeModal(); }} className={`px-4 py-2 rounded ${THEME_BG_PURPLE} text-black font-bold hover:bg-white transition text-sm`}>Confirmar</button>
+                            <button onClick={() => { confirmModal.onConfirm(); closeModal(); }} className={`px-4 py-2 rounded bg-red-600 text-white font-bold hover:bg-red-500 transition text-sm`}>Confirmar</button>
                           </>
                       ) : (
                           <button onClick={closeModal} className="px-6 py-2 rounded bg-glass border border-glass-border text-white hover:bg-white/10 transition text-sm">OK</button>
