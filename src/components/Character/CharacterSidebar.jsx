@@ -396,7 +396,7 @@ const CharacterSidebar = () => {
                             </div>
                         </div>
                     </div>
-                    <div className="bg-glass border border-glass-border rounded-xl p-3 mb-4 text-center min-h-[50px] flex items-center justify-center"><span className="text-lg font-rajdhani font-semibold text-text-main truncate w-full">{activeChar.description || '---'}</span></div>
+                    <div className="bg-glass border border-glass-border rounded-xl p-2 mb-4 text-center min-h-[50px] flex items-center justify-center"><span className="text-lg font-rajdhani font-semibold text-text-main truncate w-full">{activeChar.description || '---'}</span></div>
                     <div className="flex gap-4 mb-4 min-h-[160px]">
                         <div className="flex-1 bg-glass border border-glass-border rounded-xl p-3 flex flex-col justify-center"><div className="grid grid-cols-2 gap-3 h-full">{['mente','corpo','destreza','presenca'].map(a=><div key={a} className="bg-black/20 border border-white/5 rounded-lg flex flex-col items-center justify-center p-1"><span className="font-rajdhani font-bold text-2xl text-neon-blue drop-shadow-[0_0_5px_rgba(0,243,255,0.3)] leading-none">{activeChar.attributes[a]}</span><span className="text-[10px] uppercase text-text-muted mt-1 tracking-wider">{a}</span></div>)}</div></div>
                         <div className="flex-1 bg-glass border border-glass-border rounded-xl p-3 flex flex-col">
