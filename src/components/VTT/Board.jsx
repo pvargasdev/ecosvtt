@@ -9,6 +9,9 @@ const MIN_SCALE = 0.3;   // 30%
 const MAX_SCALE = 3;    // 300%
 const PAN_LIMIT = 2000; 
 const CAMERA_SMOOTHING = 0.15; // Suavização unificada (Zoom e Pan)
+const ZOOM_SPEED = 0.01; // Velocidade do zoom por frame
+const ZOOM_ACCELERATION = 1.1; // Aceleração enquanto segura a tecla
+const MAX_ZOOM_SPEED = 0.05; // Velocidade máxima
 
 const Board = () => {
   const { 
@@ -67,6 +70,11 @@ const Board = () => {
   const [deleteModal, setDeleteModal] = useState(null); 
   const [renamingId, setRenamingId] = useState(null);
   const [renameValue, setRenameValue] = useState("");
+
+  // Controle de zoom por teclado
+  const zoomKeyRef = useRef(0); // 0 = parado, 1 = aumentar, -1 = diminuir
+  const zoomSpeedRef = useRef(ZOOM_SPEED); // Velocidade atual do zoom
+  const lastZoomTimeRef = useRef(0); // Timestamp do último zoom
 
   // Sincroniza o Slider com o Zoom Real
   useEffect(() => {
@@ -130,10 +138,31 @@ const Board = () => {
                 setSelectedFogIds(new Set());
             }
         }
+
+        // Teclas para zoom por teclado (W/S e setas)
+        if ((e.key === 'ArrowUp') && !e.repeat) {
+            e.preventDefault();
+            zoomKeyRef.current = 1;
+            zoomSpeedRef.current = ZOOM_SPEED;
+            lastZoomTimeRef.current = Date.now();
+        }
+        
+        if ((e.key === 'ArrowDown') && !e.repeat) {
+            e.preventDefault();
+            zoomKeyRef.current = -1;
+            zoomSpeedRef.current = ZOOM_SPEED;
+            lastZoomTimeRef.current = Date.now();
+        }
     };
     
     const handleKeyUp = (e) => {
         if (e.code === 'Space') setIsSpacePressed(false);
+
+        // Teclas para zoom por teclado
+        if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+            zoomKeyRef.current = 0;
+            zoomSpeedRef.current = ZOOM_SPEED;
+        }
     };
     
     window.addEventListener('keydown', handleKeyDown); 
@@ -179,6 +208,72 @@ const Board = () => {
           animationRef.current = requestAnimationFrame(animateCamera);
       }
   }, [animateCamera]);
+
+  // Função para aplicar zoom por teclado
+  const applyKeyboardZoom = useCallback(() => {
+    if (zoomKeyRef.current === 0) return;
+    
+    const now = Date.now();
+    const deltaTime = now - lastZoomTimeRef.current;
+    
+    // Acelerar o zoom enquanto a tecla está pressionada
+    if (deltaTime > 100) { // Depois de 100ms, começa a acelerar
+        zoomSpeedRef.current = Math.min(
+            zoomSpeedRef.current * ZOOM_ACCELERATION,
+            MAX_ZOOM_SPEED
+        );
+    }
+    
+    const zoomAmount = zoomKeyRef.current * zoomSpeedRef.current;
+    const currentTarget = targetViewRef.current;
+    const rawNewScale = currentTarget.scale * (1 + zoomAmount);
+    
+    const clampedScale = Math.min(Math.max(MIN_SCALE, rawNewScale), MAX_SCALE);
+    
+    if (Math.abs(clampedScale - currentTarget.scale) < 0.001) return;
+    
+    const node = containerRef.current;
+    if (node) {
+        const rect = node.getBoundingClientRect();
+        const centerX = rect.width / 2;
+        const centerY = rect.height / 2;
+        
+        const ratio = clampedScale / currentTarget.scale;
+        
+        let newX = centerX - (centerX - currentTarget.x) * ratio;
+        let newY = centerY - (centerY - currentTarget.y) * ratio;
+        
+        const currentLimit = PAN_LIMIT * clampedScale;
+        newX = Math.min(Math.max(newX, -currentLimit), currentLimit);
+        newY = Math.min(Math.max(newY, -currentLimit), currentLimit);
+        
+        setSliderValue(Math.round(clampedScale * 100));
+        targetViewRef.current = { scale: clampedScale, x: newX, y: newY };
+        startAnimation();
+    }
+    
+    lastZoomTimeRef.current = now;
+  }, [startAnimation]);
+
+  // Efeito para executar o zoom por teclado continuamente
+  useEffect(() => {
+    let animationFrameId;
+    
+    const zoomLoop = () => {
+        if (zoomKeyRef.current !== 0) {
+            applyKeyboardZoom();
+        }
+        animationFrameId = requestAnimationFrame(zoomLoop);
+    };
+    
+    animationFrameId = requestAnimationFrame(zoomLoop);
+    
+    return () => {
+        if (animationFrameId) {
+            cancelAnimationFrame(animationFrameId);
+        }
+    };
+  }, [applyKeyboardZoom]);
 
   const handleSliderZoom = (e) => {
       const val = parseFloat(e.target.value);
