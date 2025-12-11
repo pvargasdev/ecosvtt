@@ -110,18 +110,6 @@ const Board = () => {
   useEffect(() => {
     const handleKeyDown = (e) => {
         if (e.code === 'Space' && !e.repeat) setIsSpacePressed(true);
-        
-        // Atalhos de ferramenta
-        if (e.key === 'v' && !e.ctrlKey && !e.metaKey) {
-            e.preventDefault();
-            setActiveTool('select');
-            setSelectedFogIds(new Set());
-        }
-        if (e.key === 'f' && !e.ctrlKey && !e.metaKey) {
-            e.preventDefault();
-            setActiveTool('fogOfWar');
-            setSelectedIds(new Set());
-        }
 
         if ((e.key === 'Delete' || e.key === 'Backspace')) {
             if (['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) return;

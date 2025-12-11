@@ -60,7 +60,7 @@ const CharacterForm = ({ formData, setFormData, handlePhotoUpload }) => {
             <div className="flex gap-2">
                 <div className="flex-1">
                     <label className="text-xs text-text-muted mb-1 block">Nome</label>
-                    <input className={`w-full bg-black/50 border border-glass-border rounded p-2 text-white outline-none focus:${THEME_BORDER_PURPLE} transition-colors`}
+                    <input className={`w-full bg-black/50 border border-glass-border rounded p-2 text-white outline-none focus:border-white transition-colors`}
                            value={formData.name||''} 
                            maxLength={40} 
                            onChange={e=>setFormData({...formData, name:e.target.value})}/>
@@ -69,14 +69,14 @@ const CharacterForm = ({ formData, setFormData, handlePhotoUpload }) => {
                     <label className="text-xs text-text-muted mb-1 block">Karma</label>
                     <input type="text"
                            maxLength={1}
-                           className={`w-full bg-black/50 border border-glass-border rounded p-2 text-white text-center outline-none focus:${THEME_BORDER_PURPLE} transition-colors`} 
+                           className={`w-full bg-black/50 border border-glass-border rounded p-2 text-white text-center outline-none focus:border-white transition-colors`} 
                            value={formData.karmaMax||0} 
                            onChange={e=>setFormData({...formData, karmaMax: handleSingleDigit(e.target.value)})}/>
                 </div>
             </div>
             <div>
                 <label className="text-xs text-text-muted mb-1 block">Descrição</label>
-                <input className={`w-full bg-black/50 border border-glass-border rounded p-2 text-white outline-none focus:${THEME_BORDER_PURPLE} transition-colors`}
+                <input className={`w-full bg-black/50 border border-glass-border rounded p-2 text-white outline-none focus:border-white transition-colors`}
                        maxLength={100}
                        value={formData.description||''} 
                        onChange={e=>setFormData({...formData, description:e.target.value})}/>
@@ -92,7 +92,7 @@ const CharacterForm = ({ formData, setFormData, handlePhotoUpload }) => {
                                 <label className="text-[9px] text-text-muted block text-center uppercase">{a.substr(0,3)}</label>
                                 <input type="text"
                                     maxLength={1} 
-                                    className={`w-full bg-black/50 border border-glass-border rounded p-1 text-white text-center font-bold outline-none focus:${THEME_BORDER_PURPLE} transition-colors`}
+                                    className={`w-full bg-black/50 border border-glass-border rounded p-1 text-white text-center font-bold outline-none focus:border-white transition-colors`}
                                     value={formData.attributes?.[a.toLowerCase()]||0} 
                                     onChange={e=>setFormData({...formData, attributes:{...formData.attributes, [a.toLowerCase()]: handleSingleDigit(e.target.value)}})}/>
                             </div>
@@ -105,7 +105,7 @@ const CharacterForm = ({ formData, setFormData, handlePhotoUpload }) => {
             <div>
                 <label className="text-xs text-text-muted mb-1 block">Perícias</label>
                 <textarea 
-                    className={`w-full bg-black/50 border border-glass-border rounded p-2 text-white text-sm outline-none focus:${THEME_BORDER_PURPLE} transition-colors resize-none h-32 max-h-32 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-transparent`}
+                    className={`w-full bg-black/50 border border-glass-border rounded p-2 text-white text-sm outline-none focus:border-white transition-colors resize-none h-32 max-h-32 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-transparent`}
                     value={formData.skills||''} 
                     placeholder="Liste as perícias..."
                     onChange={e=>setFormData({...formData, skills:e.target.value})}/>
@@ -115,7 +115,7 @@ const CharacterForm = ({ formData, setFormData, handlePhotoUpload }) => {
             <div>
                 <label className="text-xs text-text-muted mb-1 block">Traumas</label>
                 <textarea 
-                    className="w-full bg-black/50 border border-glass-border rounded p-2 text-white text-sm outline-none focus:border-neon-red transition-colors resize-none h-32 max-h-32 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-transparent" 
+                    className="w-full bg-black/50 border border-glass-border rounded p-2 text-white text-sm outline-none focus:border-white transition-colors resize-none h-32 max-h-32 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-transparent" 
                     value={formData.traumas||''} 
                     placeholder="Liste os traumas..."
                     onChange={e=>setFormData({...formData, traumas:e.target.value})}/>
@@ -123,7 +123,7 @@ const CharacterForm = ({ formData, setFormData, handlePhotoUpload }) => {
             
             {/* PAINEL DE DANO */}
             <div>
-                <label className="text-xs text-neon-red mb-1 block">Tolerância a Dano</label>
+                <label className="text-xs text-text-muted mb-1 block">Tolerância a Dano</label>
                 <div className="bg-red-900/10 p-2 rounded border border-red-900/30">
                     <div className="flex gap-2">
                         {[['superior','Grave'],['medium','Moderado'],['inferior','Leve']].map(([k,l])=>(
@@ -131,7 +131,7 @@ const CharacterForm = ({ formData, setFormData, handlePhotoUpload }) => {
                                 <label className="text-[9px] text-text-muted block text-center uppercase">{l}</label>
                                 <input type="text"
                                     maxLength={1} 
-                                    className="w-full bg-black/50 border border-glass-border rounded p-1 text-white text-center outline-none focus:border-neon-red transition-colors" 
+                                    className="w-full bg-black/50 border border-glass-border rounded p-1 text-white text-center outline-none focus:border-white transition-colors" 
                                     value={formData.damage?.[k]?.length||0} 
                                     onChange={e=>{
                                         const s = handleSingleDigit(e.target.value); 
@@ -297,7 +297,7 @@ const CharacterSidebar = ({ isCollapsed, setIsCollapsed }) => {
                       {confirmModal.onConfirm ? (
                           <>
                             <button onClick={closeModal} className="px-4 py-2 rounded border border-glass-border text-text-muted hover:bg-white/10 transition text-sm">Cancelar</button>
-                            <button onClick={() => { confirmModal.onConfirm(); closeModal(); }} className={`px-4 py-2 rounded ${THEME_BG_PURPLE} text-black font-bold hover:bg-white transition text-sm`}>Confirmar</button>
+                            <button onClick={() => { confirmModal.onConfirm(); closeModal(); }} className={`px-4 py-2 rounded bg-red-600 text-white font-bold hover:bg-red-500 text-sm`}>Confirmar</button>
                           </>
                       ) : (
                           <button onClick={closeModal} className="px-6 py-2 rounded bg-glass border border-glass-border text-white hover:bg-white/10 transition text-sm">OK</button>
@@ -415,7 +415,7 @@ const CharacterSidebar = ({ isCollapsed, setIsCollapsed }) => {
                 >
                     <button onClick={(e) => { e.stopPropagation(); handleDeleteChar(char.id); }} className="absolute top-2 right-2 w-6 h-6 bg-red-600 rounded-full flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity z-10 text-xs hover:scale-110 shadow-md"><X size={12}/></button>
                     
-                    <img src={char.photo || 'https://via.placeholder.com/150'} className="w-24 h-24 rounded-full object-cover border-2 border-glass-border bg-[#222] pointer-events-none shadow-lg" alt={char.name} />
+                    <img src={char.photo || 'https://via.placeholder.com/150'} className="w-24 h-24 rounded-full object-cover pointer-events-none shadow-lg transition-all group-hover:scale-105" alt={char.name} />
                     
                     <div className="w-full flex flex-col items-center gap-1">
                         <span className="font-semibold text-center text-lg leading-tight w-full line-clamp-2 px-1 text-white pointer-events-none break-words">
