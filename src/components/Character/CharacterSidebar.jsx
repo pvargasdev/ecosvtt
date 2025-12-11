@@ -53,7 +53,8 @@ const CharacterForm = ({ formData, setFormData, handlePhotoUpload }) => {
                 </div>
                 <div className="w-20">
                     <label className="text-xs text-text-muted mb-1 block">Karma</label>
-                    <input type="number" className="w-full bg-black/50 border border-glass-border rounded p-2 text-white text-center focus:border-neon-blue transition-colors" 
+                    <input type="number" 
+                           className="w-full bg-black/50 border border-glass-border rounded p-2 text-white text-center focus:border-neon-blue transition-colors [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" 
                            value={formData.karmaMax||0} 
                            onChange={e=>setFormData({...formData, karmaMax:parseInt(e.target.value)})}/>
                 </div>
@@ -70,20 +71,40 @@ const CharacterForm = ({ formData, setFormData, handlePhotoUpload }) => {
                     {['Mente','Corpo','Destreza','Presenca'].map(a=>(
                         <div key={a}>
                             <label className="text-[9px] text-text-muted block text-center uppercase">{a.substr(0,3)}</label>
-                            <input type="number" className="w-full bg-black/50 border border-glass-border rounded p-1 text-white text-center font-bold focus:border-neon-blue transition-colors" 
+                            <input type="number" 
+                                   className="w-full bg-black/50 border border-glass-border rounded p-1 text-white text-center font-bold focus:border-neon-blue transition-colors [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" 
                                    value={formData.attributes?.[a.toLowerCase()]||0} 
                                    onChange={e=>setFormData({...formData, attributes:{...formData.attributes, [a.toLowerCase()]:parseInt(e.target.value)}})}/>
                         </div>
                     ))}
                 </div>
             </div>
+
+            {/* PERICIAS (Acima) */}
+            <div>
+                <label className="text-xs text-text-muted mb-1 block">Perícias</label>
+                <textarea className="w-full bg-black/50 border border-glass-border rounded p-2 text-white h-20 text-sm focus:border-neon-blue transition-colors" 
+                          value={formData.skills||''} 
+                          onChange={e=>setFormData({...formData, skills:e.target.value})}/>
+            </div>
+
+            {/* TRAUMAS (Acima dos slots) */}
+            <div>
+                <label className="text-xs text-text-muted mb-1 block">Traumas</label>
+                <textarea className="w-full bg-black/50 border border-glass-border rounded p-2 text-white h-20 text-sm focus:border-neon-red transition-colors" 
+                          value={formData.traumas||''} 
+                          onChange={e=>setFormData({...formData, traumas:e.target.value})}/>
+            </div>
+            
+            {/* PAINEL DE DANO (Por último) */}
             <div className="bg-red-900/10 p-2 rounded border border-red-900/30">
-                <span className="text-xs uppercase text-neon-red mb-2 block">Slots Dano</span>
+                <span className="text-xs uppercase text-neon-red mb-2 block">Tolerância a Dano</span>
                 <div className="flex gap-2">
                     {[['superior','G'],['medium','M'],['inferior','L']].map(([k,l])=>(
                         <div key={k} className="flex-1">
                             <label className="text-[9px] text-text-muted block text-center uppercase">{l}</label>
-                            <input type="number" className="w-full bg-black/50 border border-glass-border rounded p-1 text-white text-center focus:border-neon-red transition-colors" 
+                            <input type="number" 
+                                   className="w-full bg-black/50 border border-glass-border rounded p-1 text-white text-center focus:border-neon-red transition-colors [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" 
                                    value={formData.damage?.[k]?.length||0} 
                                    onChange={e=>{
                                        const s = parseInt(e.target.value)||0; 
@@ -92,12 +113,6 @@ const CharacterForm = ({ formData, setFormData, handlePhotoUpload }) => {
                         </div>
                     ))}
                 </div>
-            </div>
-            <div>
-                <label className="text-xs text-text-muted mb-1 block">Perícias</label>
-                <textarea className="w-full bg-black/50 border border-glass-border rounded p-2 text-white h-20 text-sm focus:border-neon-blue transition-colors" 
-                          value={formData.skills||''} 
-                          onChange={e=>setFormData({...formData, skills:e.target.value})}/>
             </div>
         </div>
     );
@@ -227,7 +242,7 @@ const CharacterSidebar = () => {
 
   const openEdit = (isNew = false) => {
     if (isNew) {
-      setFormData({ name: "", description: "", karmaMax: 3, attributes: { mente:0, corpo:0, destreza:0, presenca:0 }, skills: "", damage: { superior: [false], medium: [false,false], inferior: [false,false] }, photo: null });
+      setFormData({ name: "", description: "", karmaMax: 3, attributes: { mente:0, corpo:0, destreza:0, presenca:0 }, skills: "", traumas: "", damage: { superior: [false], medium: [false,false], inferior: [false,false] }, photo: null });
       setActiveCharId('NEW');
     } else {
       setFormData(JSON.parse(JSON.stringify(activeChar)));
@@ -254,7 +269,7 @@ const CharacterSidebar = () => {
                       {confirmModal.onConfirm ? (
                           <>
                             <button onClick={closeModal} className="px-4 py-2 rounded border border-glass-border text-text-muted hover:bg-white/10 transition text-sm">Cancelar</button>
-                            <button onClick={() => { confirmModal.onConfirm(); closeModal(); }} className="px-4 py-2 rounded bg-red-600 text-white font-bold hover:bg-red-500 transition text-sm">Confirmar</button>
+                            <button onClick={() => { confirmModal.onConfirm(); closeModal(); }} className="px-4 py-2 rounded bg-neon-blue text-black font-bold hover:bg-white transition text-sm">Confirmar</button>
                           </>
                       ) : (
                           <button onClick={closeModal} className="px-6 py-2 rounded bg-glass border border-glass-border text-white hover:bg-white/10 transition text-sm">OK</button>
@@ -272,8 +287,8 @@ const CharacterSidebar = () => {
       return (
         <FadeInView key="manager" className="p-6 bg-ecos-bg text-text-main overflow-hidden border-r border-glass-border items-center relative">
             <ConfirmationOverlay />
-            <h1 className="text-3xl font-rajdhani font-bold text-neon-blue mb-2 tracking-widest mt-10">PERSONAGENS</h1>
-            <p className="text-text-muted text-sm text-center mb-8">Selecione um grupo de personagens para começar.</p>
+            <h1 className="text-3xl font-rajdhani font-bold text-neon-blue mb-2 tracking-widest mt-10">ECOS RPG</h1>
+            <p className="text-text-muted text-sm text-center mb-8">Selecione um grupo para começar.</p>
             <div className="w-full max-w-xs space-y-4 flex-1 overflow-y-auto scrollbar-none pb-20">
                 <div className="bg-glass border border-glass-border rounded-lg p-4">
                     {!isCreatingPreset ? (
@@ -297,8 +312,8 @@ const CharacterSidebar = () => {
                 ))}
             </div>
             <div className="w-full border-t border-glass-border pt-4 flex justify-between text-xs text-text-muted">
-                <button onClick={handleExportPresetsZip} className="flex gap-1 items-center hover:text-white"><Upload size={12}/> Exportar</button>
-                <label className="flex gap-1 items-center hover:text-white cursor-pointer"><Download size={12}/> Importar<input type="file" className="hidden" accept=".zip" onChange={handleImportPresetsZip}/></label>
+                <button onClick={handleExportPresetsZip} className="flex gap-1 items-center hover:text-white"><Download size={12}/> Exportar</button>
+                <label className="flex gap-1 items-center hover:text-white cursor-pointer"><Upload size={12}/> Importar<input type="file" className="hidden" accept=".zip" onChange={handleImportPresetsZip}/></label>
             </div>
         </FadeInView>
       );
@@ -370,7 +385,7 @@ const CharacterSidebar = () => {
                 </div>
 
                 <div className="flex-1 overflow-y-auto p-6 scrollbar-thin">
-                    <div className="flex items-center gap-5 mb-6">
+                    <div className="flex items-center gap-5 mb-4">
                         <img draggable onDragStart={(e) => handleDragSortStart(e, -1, activeChar)} onDragEnd={handleDragEnd} src={activeChar.photo || 'https://via.placeholder.com/120'} className="w-[100px] h-[100px] rounded-2xl object-cover shadow-lg cursor-grab active:cursor-grabbing hover:scale-105 transition-transform" alt="Avatar"/>
                         <div className="flex-1 flex flex-col justify-center gap-2">
                             <h2 className="text-2xl font-bold leading-tight font-rajdhani">{activeChar.name}</h2>
@@ -381,13 +396,48 @@ const CharacterSidebar = () => {
                             </div>
                         </div>
                     </div>
-                    <div className="bg-glass border border-glass-border rounded-xl p-3 mb-6 text-center min-h-[50px] flex items-center justify-center"><span className="text-lg font-rajdhani font-semibold text-text-main truncate w-full">{activeChar.description || '---'}</span></div>
-                    <div className="flex gap-4 mb-6 min-h-[160px]">
+                    <div className="bg-glass border border-glass-border rounded-xl p-3 mb-4 text-center min-h-[50px] flex items-center justify-center"><span className="text-lg font-rajdhani font-semibold text-text-main truncate w-full">{activeChar.description || '---'}</span></div>
+                    <div className="flex gap-4 mb-4 min-h-[160px]">
                         <div className="flex-1 bg-glass border border-glass-border rounded-xl p-3 flex flex-col justify-center"><div className="grid grid-cols-2 gap-3 h-full">{['mente','corpo','destreza','presenca'].map(a=><div key={a} className="bg-black/20 border border-white/5 rounded-lg flex flex-col items-center justify-center p-1"><span className="font-rajdhani font-bold text-2xl text-neon-blue drop-shadow-[0_0_5px_rgba(0,243,255,0.3)] leading-none">{activeChar.attributes[a]}</span><span className="text-[10px] uppercase text-text-muted mt-1 tracking-wider">{a}</span></div>)}</div></div>
-                        <div className="flex-1 bg-glass border border-glass-border rounded-xl p-3 flex flex-col"><span className="text-xs uppercase text-neon-green font-bold tracking-wider mb-2 block">Perícias</span><div className="text-sm text-gray-300 whitespace-pre-line overflow-y-auto flex-1 scrollbar-none">{activeChar.skills || '-'}</div></div>
+                        <div className="flex-1 bg-glass border border-glass-border rounded-xl p-3 flex flex-col">
+                            <span className="text-xs uppercase text-neon-green font-bold tracking-wider mb-2 block border-b border-glass-border pb-2">Perícias</span>
+                            <div className="text-sm text-gray-300 whitespace-pre-line overflow-y-auto flex-1 scrollbar-none">{activeChar.skills || '-'}</div>
+                        </div>
                     </div>
-                    <div className="bg-glass p-5 rounded-xl border border-glass-border"><span className="text-xs uppercase text-neon-red font-bold tracking-wider mb-4 block border-b border-glass-border pb-2">Tolerância a Dano</span>
-                        <div className="flex flex-col gap-4">{[['superior','Grave'],['medium','Moderado'],['inferior','Leve']].map(([k,l])=><div key={k} className="flex items-center gap-3"><span className="w-20 text-right text-text-muted text-sm">{l}</span><div className="flex gap-2 flex-1">{activeChar.damage[k].map((f,i)=><button key={i} onClick={()=>{const n=[...activeChar.damage[k]];n[i]=!n[i];updateCharacter(activeChar.id,{damage:{...activeChar.damage,[k]:n}});}} className={`h-8 flex-1 rounded border border-glass-border transition-all ${f?'bg-neon-red shadow-[0_0_10px_#ff2a2a] border-neon-red':'bg-black/30 hover:bg-white/10'}`}/>)}</div></div>)}</div>
+                    
+                    {/* LINHA DE DANO E TRAUMAS (LADO A LADO - CORRIGIDO) */}
+                    <div className="flex gap-4 mb-4 min-h-[160px]">
+                        {/* Dano */}
+                        <div className="flex-1 bg-glass border border-glass-border rounded-xl p-3 flex flex-col">
+                            <span className="text-xs uppercase text-neon-red font-bold tracking-wider mb-2 block border-b border-glass-border pb-2">Dano</span>
+                            <div className="flex flex-col gap-2 h-full justify-between">
+                                {['superior', 'medium', 'inferior'].map((k) => (
+                                    <div key={k} className="flex gap-2 flex-1 w-full">
+                                        {activeChar.damage[k].map((f, i) => (
+                                            <button
+                                                key={i}
+                                                onClick={() => {
+                                                    const n = [...activeChar.damage[k]];
+                                                    n[i] = !n[i];
+                                                    updateCharacter(activeChar.id, { damage: { ...activeChar.damage, [k]: n } });
+                                                }}
+                                                className={`h-full flex-1 rounded border border-glass-border transition-all ${
+                                                    f ? 'bg-neon-red shadow-[0_0_10px_#ff2a2a] border-neon-red' : 'bg-black/30 hover:bg-white/10'
+                                                }`}
+                                            />
+                                        ))}
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Traumas */}
+                        <div className="flex-1 bg-glass border border-glass-border rounded-xl p-3 flex flex-col">
+                            <span className="text-xs uppercase text-neon-red font-bold tracking-wider mb-2 block border-b border-glass-border pb-2">Traumas</span>
+                            <div className="text-sm text-gray-300 whitespace-pre-line overflow-y-auto flex-1 scrollbar-none">
+                                {activeChar.traumas || '-'}
+                            </div>
+                        </div>
                     </div>
                 </div>
             </FadeInView>

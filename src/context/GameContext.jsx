@@ -75,14 +75,9 @@ export const GameProvider = ({ children }) => {
       const original = adventures.find(a => a.id === id);
       if (!original) return;
       
-      // Deep copy simples via JSON
       const copy = JSON.parse(JSON.stringify(original));
       copy.id = generateUUID();
       copy.name = `${copy.name} (Cópia)`;
-      
-      // Nota: Mantemos os IDs das Cenas e Tokens iguais para simplicidade, 
-      // pois eles são escopados dentro do objeto da aventura e não globais.
-      // Se houvesse referência cruzada global, precisaríamos regenerar IDs internos.
       
       setAdventures(prev => [...prev, copy]);
   }, [adventures]);
@@ -139,7 +134,6 @@ export const GameProvider = ({ children }) => {
   }, []);
 
   // --- SCENE / TOKEN CRUD ---
-  // (Mantido igual ao original, apenas condensado aqui para o contexto)
   const addScene = useCallback((name) => {
       if (!activeAdventureId) return;
       const newId = generateUUID();
@@ -243,7 +237,9 @@ export const GameProvider = ({ children }) => {
   const addCharacter = useCallback((charData) => {
     const newChar = {
       id: generateUUID(), name: "Novo Personagem", description: "", photo: null, karma: 0, karmaMax: 3,
-      attributes: { mente: 0, corpo: 0, destreza: 0, presenca: 0 }, skills: "",
+      attributes: { mente: 0, corpo: 0, destreza: 0, presenca: 0 }, 
+      skills: "", 
+      traumas: "", // CAMPO NOVO ADICIONADO AQUI
       damage: { superior: [false], medium: [false, false], inferior: [false, false] }, ...charData
     };
     setCharacters(prev => [...prev, newChar]);
@@ -266,7 +262,7 @@ export const GameProvider = ({ children }) => {
 
   const value = {
     adventures, activeAdventureId, activeAdventure, activeScene,
-    createAdventure, deleteAdventure, updateAdventure, duplicateAdventure, setActiveAdventureId, // NOVOS EXPORTS
+    createAdventure, deleteAdventure, updateAdventure, duplicateAdventure, setActiveAdventureId,
     exportAdventure, importAdventure,
     addScene, updateScene, updateSceneMap, setActiveScene, deleteScene,
     addTokenToLibrary, removeTokenFromLibrary, addTokenInstance, updateTokenInstance, deleteTokenInstance, deleteMultipleTokenInstances,
