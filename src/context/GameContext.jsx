@@ -410,6 +410,10 @@ export const GameProvider = ({ children }) => {
           return [...prev, ...list.filter(p => !ids.has(p.id))]; 
       }); 
   }, []);
+
+  const updatePreset = useCallback((id, updates) => {
+    setPresets(prev => prev.map(p => p.id === id ? { ...p, ...updates } : p));
+    }, []);
   
   const resetAllData = async () => { 
       localStorage.clear(); 
@@ -440,7 +444,7 @@ export const GameProvider = ({ children }) => {
     
     // Presets
     presets, activePresetId,
-    createPreset, loadPreset, saveToPreset, deletePreset, mergePresets, exitPreset,
+    createPreset, loadPreset, saveToPreset, deletePreset, mergePresets, exitPreset, updatePreset,
     
     // Utilitários
     resetAllData

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useGame } from '../../context/GameContext';
-import { ArrowLeft, Menu, Edit2, Plus, X, Upload, Download, Trash2 } from 'lucide-react';
+import { ArrowLeft, Menu, Edit2, Plus, X, Upload, Download, Trash2, Check } from 'lucide-react';
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
 
@@ -33,13 +33,11 @@ const FadeInView = ({ children, className }) => (
 );
 
 const CharacterForm = ({ formData, setFormData, handlePhotoUpload }) => {
-    // Helper para inputs de 1 digito apenas
     const handleSingleDigit = (value) => {
         const clean = value.replace(/\D/g, '').slice(0, 1);
         return clean === '' ? 0 : parseInt(clean);
     };
 
-    // Helper para auto-selecionar o conteúdo ao focar (facilita edição rápida)
     const handleFocus = (e) => e.target.select();
 
     return (
@@ -72,7 +70,7 @@ const CharacterForm = ({ formData, setFormData, handlePhotoUpload }) => {
                     <label className="text-xs text-text-muted mb-1 block">Karma</label>
                     <input type="text"
                            maxLength={1}
-                           onFocus={handleFocus} // Auto-selecionar
+                           onFocus={handleFocus}
                            className={`w-full bg-black/50 border border-glass-border rounded p-2 text-white text-center outline-none focus:border-white transition-colors`} 
                            value={formData.karmaMax||0} 
                            onChange={e=>setFormData({...formData, karmaMax: handleSingleDigit(e.target.value)})}/>
@@ -86,7 +84,6 @@ const CharacterForm = ({ formData, setFormData, handlePhotoUpload }) => {
                        onChange={e=>setFormData({...formData, description:e.target.value})}/>
             </div>
             
-            {/* ATRIBUTOS */}
             <div>
                 <label className="text-xs text-text-muted mb-1 block">Atributos</label>
                 <div className="bg-black/20 p-2 rounded border border-glass-border">
@@ -96,7 +93,7 @@ const CharacterForm = ({ formData, setFormData, handlePhotoUpload }) => {
                                 <label className="text-[9px] text-text-muted block text-center uppercase">{a.substr(0,3)}</label>
                                 <input type="text"
                                     maxLength={1}
-                                    onFocus={handleFocus} // Auto-selecionar
+                                    onFocus={handleFocus}
                                     className={`w-full bg-black/50 border border-glass-border rounded p-1 text-white text-center font-bold outline-none focus:border-white transition-colors`}
                                     value={formData.attributes?.[a.toLowerCase()]||0} 
                                     onChange={e=>setFormData({...formData, attributes:{...formData.attributes, [a.toLowerCase()]: handleSingleDigit(e.target.value)}})}/>
@@ -106,7 +103,6 @@ const CharacterForm = ({ formData, setFormData, handlePhotoUpload }) => {
                 </div>
             </div>
 
-            {/* PERICIAS - Com Scroll no Form */}
             <div>
                 <label className="text-xs text-text-muted mb-1 block">Perícias</label>
                 <textarea 
@@ -116,7 +112,6 @@ const CharacterForm = ({ formData, setFormData, handlePhotoUpload }) => {
                     onChange={e=>setFormData({...formData, skills:e.target.value})}/>
             </div>
 
-            {/* TRAUMAS - Com Scroll no Form */}
             <div>
                 <label className="text-xs text-text-muted mb-1 block">Traumas</label>
                 <textarea 
@@ -126,7 +121,6 @@ const CharacterForm = ({ formData, setFormData, handlePhotoUpload }) => {
                     onChange={e=>setFormData({...formData, traumas:e.target.value})}/>
             </div>
             
-            {/* PAINEL DE DANO */}
             <div>
                 <label className="text-xs text-text-muted mb-1 block">Tolerância a Dano</label>
                 <div className="bg-red-900/10 p-2 rounded border border-red-900/30">
@@ -136,7 +130,7 @@ const CharacterForm = ({ formData, setFormData, handlePhotoUpload }) => {
                                 <label className="text-[9px] text-text-muted block text-center uppercase">{l}</label>
                                 <input type="text"
                                     maxLength={1}
-                                    onFocus={handleFocus} // Auto-selecionar
+                                    onFocus={handleFocus}
                                     className="w-full bg-black/50 border border-glass-border rounded p-1 text-white text-center outline-none focus:border-white transition-colors" 
                                     value={formData.damage?.[k]?.length||0} 
                                     onChange={e=>{
@@ -156,7 +150,7 @@ const CharacterSidebar = ({ isCollapsed, setIsCollapsed }) => {
   const { 
     gameState, presets, activePresetId,
     addCharacter, updateCharacter, deleteCharacter, setAllCharacters,
-    createPreset, loadPreset, saveToPreset, deletePreset, mergePresets, exitPreset
+    createPreset, loadPreset, saveToPreset, deletePreset, mergePresets, exitPreset, updatePreset 
   } = useGame();
   
   const [view, setView] = useState('manager'); 
@@ -166,6 +160,11 @@ const CharacterSidebar = ({ isCollapsed, setIsCollapsed }) => {
 
   const [newPresetName, setNewPresetName] = useState("");
   const [isCreatingPreset, setIsCreatingPreset] = useState(false);
+  
+  // ESTADOS PARA RENOMEAR
+  const [renamingPresetId, setRenamingPresetId] = useState(null);
+  const [renamePresetValue, setRenamePresetValue] = useState("");
+
   const [confirmModal, setConfirmModal] = useState({ open: false, title: '', msg: '', onConfirm: null });
   
   const [draggedIndex, setDraggedIndex] = useState(null);
@@ -255,6 +254,13 @@ const CharacterSidebar = ({ isCollapsed, setIsCollapsed }) => {
       setIsCreatingPreset(false);
   };
 
+  // Função para Renomear
+  const handleRenamePreset = (id) => {
+    if (!renamePresetValue.trim()) return setRenamingPresetId(null);
+    updatePreset(id, { name: renamePresetValue });
+    setRenamingPresetId(null);
+  };
+
   const handleSaveChar = () => {
     if (!formData.name) return showAlert("Erro", "Nome é obrigatório");
     if (activeCharId === 'NEW') {
@@ -267,7 +273,6 @@ const CharacterSidebar = ({ isCollapsed, setIsCollapsed }) => {
     activeCharId === 'NEW' ? setView('hub') : setView('details');
   };
 
-  // Função de segurança ao cancelar edição
   const handleCancelEdit = () => {
     showConfirm(
         "Descartar Alterações?",
@@ -361,30 +366,113 @@ const CharacterSidebar = ({ isCollapsed, setIsCollapsed }) => {
             </button>
             <h1 className={`text-3xl font-rajdhani font-bold ${THEME_PURPLE} mb-2 tracking-widest mt-10`}>PERSONAGENS</h1>
             <p className="text-text-muted text-sm text-center mb-8">Selecione um grupo para começar.</p>
+            
             <div className="w-full max-w-xs space-y-4 flex-1 overflow-y-auto scrollbar-none pb-20">
-                <div className="bg-glass border border-glass-border rounded-lg p-0">
+                
+                {/* COMPONENTE DE CRIAÇÃO POLIDO - SEM ANIMAÇÕES COMPLEXAS PARA EVITAR BUGS */}
+                <div className="w-full">
                     {!isCreatingPreset ? (
                         <button 
                             onClick={() => setIsCreatingPreset(true)} 
-                            className={`w-full py-3 bg-[#d084ff]/10 border border-[#d084ff] text-[#d084ff] font-bold rounded hover:bg-[#d084ff] hover:text-black transition-all flex items-center justify-center gap-2 ${THEME_GLOW} ${THEME_GLOW_HOVER}`}
+                            className={`w-full py-3 bg-[#d084ff]/10 border border-[#d084ff]/40 text-[#d084ff] font-bold rounded-lg hover:bg-[#d084ff] hover:text-black hover:shadow-[0_0_15px_rgba(208,132,255,0.4)] transition-all flex items-center justify-center gap-2`}
                         >
-                            <Plus size={18}/> NOVO GRUPO
+                            <Plus size={18} strokeWidth={3}/> NOVO GRUPO
                         </button>
                     ) : (
-                        <div className="flex flex-col gap-3" style={{ animation: 'fadeInUp 0.2s ease-out' }}>
-                            <input autoFocus placeholder="Nome..." className="w-full bg-black/50 border border-glass-border rounded p-2 text-white" value={newPresetName} onChange={e=>setNewPresetName(e.target.value)} />
-                            <div className="flex gap-2">
-                                <button onClick={() => setIsCreatingPreset(false)} className="flex-1 py-1 text-text-muted text-xs">Cancelar</button>
-                                <button onClick={handleCreateNewPreset} className={`flex-1 py-1 ${THEME_BG_PURPLE} text-black font-bold rounded text-xs`}>OK</button>
+                        <div className="flex flex-col gap-2" style={{ animation: 'fadeInUp 0.2s ease-out' }}>
+                            {/* Input com foco visual claro */}
+                            <input 
+                                autoFocus 
+                                placeholder="Nome do Grupo..." 
+                                className="w-full bg-[#15151a] border border-[#d084ff] text-white placeholder-white/20 rounded-lg p-3 outline-none shadow-[0_0_10px_rgba(208,132,255,0.15)] focus:shadow-[0_0_15px_rgba(208,132,255,0.3)] transition-all" 
+                                value={newPresetName} 
+                                onChange={e => setNewPresetName(e.target.value)} 
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter') handleCreateNewPreset();
+                                    if (e.key === 'Escape') setIsCreatingPreset(false);
+                                }}
+                            />
+                            
+                            {/* Botões alinhados à direita, fora da caixa do input */}
+                            <div className="flex items-center justify-end gap-2 px-1">
+                                <button 
+                                    onClick={() => setIsCreatingPreset(false)} 
+                                    className="text-xs font-medium text-zinc-500 hover:text-white transition-colors px-3 py-2"
+                                >
+                                    CANCELAR
+                                </button>
+                                <button 
+                                    onClick={handleCreateNewPreset} 
+                                    disabled={!newPresetName.trim()}
+                                    className="flex items-center gap-2 px-4 py-2 bg-[#d084ff] text-black font-bold rounded text-xs hover:bg-white transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    <Check size={14} strokeWidth={3}/> CRIAR
+                                </button>
                             </div>
                         </div>
                     )}
                 </div>
-                <div className="flex items-center gap-2 text-text-muted text-xs uppercase my-4"><div className="h-px bg-glass-border flex-1"></div><span>Grupos Salvos</span><div className="h-px bg-glass-border flex-1"></div></div>
+
+                <div className="flex items-center gap-2 text-text-muted text-xs uppercase my-4">
+                    <div className="h-px bg-glass-border flex-1"></div>
+                    <span>Grupos Salvos</span>
+                    <div className="h-px bg-glass-border flex-1"></div>
+                </div>
+
                 {presets.length === 0 ? <div className="text-center text-text-muted italic text-sm">Vazio.</div> : presets.map(p => (
-                    <div key={p.id} onClick={() => loadPreset(p.id)} className="bg-black/20 border border-glass-border rounded-lg p-3 flex justify-between items-center cursor-pointer hover:bg-white/5 transition group">
-                        <div><h3 className="font-bold text-white font-rajdhani truncate max-w-[255px]">{p.name}</h3><div className="text-xs text-text-muted">{p.characters.length} Personagens</div></div>
-                        <button onClick={(e) => { e.stopPropagation(); showConfirm("Apagar Grupo", "Não poderá ser desfeito.", () => deletePreset(p.id)); }} className="p-2 hover:bg-red-900/50 hover:text-red-500 rounded text-text-muted transition opacity-0 group-hover:opacity-100"><Trash2 size={16}/></button>
+                    <div 
+                        key={p.id} 
+                        onClick={() => { if(renamingPresetId !== p.id) loadPreset(p.id); }} 
+                        className={`bg-black/20 border border-glass-border rounded-lg p-3 flex justify-between items-center cursor-pointer transition group min-h-[66px] ${renamingPresetId === p.id ? 'bg-white/10' : 'hover:bg-white/5'}`}
+                    >
+                        {renamingPresetId === p.id ? (
+                            // MODO DE EDIÇÃO (INPUT)
+                            <div className="flex items-center gap-2 w-full animate-in fade-in zoom-in duration-200" onClick={e => e.stopPropagation()}>
+                                <input 
+                                    autoFocus
+                                    className="flex-1 bg-black/50 border border-neon-blue rounded px-2 py-1 text-white text-sm outline-none"
+                                    value={renamePresetValue}
+                                    onChange={e => setRenamePresetValue(e.target.value)}
+                                    onKeyDown={e => {
+                                        if(e.key === 'Enter') handleRenamePreset(p.id);
+                                        if(e.key === 'Escape') setRenamingPresetId(null);
+                                    }}
+                                />
+                                <button onClick={() => handleRenamePreset(p.id)} className="text-neon-green hover:text-white p-1 rounded hover:bg-white/10"><Check size={16}/></button>
+                                <button onClick={() => setRenamingPresetId(null)} className="text-red-400 hover:text-white p-1 rounded hover:bg-white/10"><X size={16}/></button>
+                            </div>
+                        ) : (
+                            // MODO DE VISUALIZAÇÃO
+                            <>
+                                <div>
+                                    <h3 className="font-bold text-white font-rajdhani truncate max-w-[180px]">{p.name}</h3>
+                                    <div className="text-xs text-text-muted">{p.characters.length} Personagens</div>
+                                </div>
+                                <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity gap-1">
+                                    <button 
+                                        onClick={(e) => { 
+                                            e.stopPropagation(); 
+                                            setRenamingPresetId(p.id); 
+                                            setRenamePresetValue(p.name); 
+                                        }} 
+                                        className="p-2 hover:bg-white/10 hover:text-yellow-400 rounded text-text-muted transition" 
+                                        title="Renomear"
+                                    >
+                                        <Edit2 size={16}/>
+                                    </button>
+                                    <button 
+                                        onClick={(e) => { 
+                                            e.stopPropagation(); 
+                                            showConfirm("Apagar Grupo", "Não poderá ser desfeito.", () => deletePreset(p.id)); 
+                                        }} 
+                                        className="p-2 hover:bg-red-900/50 hover:text-red-500 rounded text-text-muted transition" 
+                                        title="Excluir"
+                                    >
+                                        <Trash2 size={16}/>
+                                    </button>
+                                </div>
+                            </>
+                        )}
                     </div>
                 ))}
             </div>
@@ -437,7 +525,6 @@ const CharacterSidebar = ({ isCollapsed, setIsCollapsed }) => {
                             {char.name}
                         </span>
                         
-                        {/* AQUI NO HUB: MANTÉM A LINHA DIVISÓRIA (se nome curto) */}
                         {char.name.length <= 12 && (
                              <div className="w-10 h-[2px] bg-white/20 rounded-full mt-1"></div>
                         )}
@@ -498,7 +585,6 @@ const CharacterSidebar = ({ isCollapsed, setIsCollapsed }) => {
 
                 <div className="flex-1 overflow-y-auto p-6 scrollbar-thin">
                     
-                    {/* CABEÇALHO ATUALIZADO (Avatar + Nome/Karma alinhados) */}
                     <div className="flex items-center gap-4 mb-4">
                         <img 
                             draggable 
@@ -509,9 +595,7 @@ const CharacterSidebar = ({ isCollapsed, setIsCollapsed }) => {
                             alt="Avatar"
                         />
                         
-                        {/* Agrupamento Nome e Karma - Centralizado verticalmente com h-full do container flex */}
                         <div className="flex-1 flex flex-col justify-center gap-2 h-[100px] min-w-0">
-                            {/* Nome: 1 Linha, Truncate, Sem espaço extra */}
                             <h2 
                                 className="text-2xl font-bold leading-none font-rajdhani truncate w-full text-white" 
                                 title={activeChar.name}
@@ -519,7 +603,6 @@ const CharacterSidebar = ({ isCollapsed, setIsCollapsed }) => {
                                 {activeChar.name}
                             </h2>
 
-                            {/* Caixa de Karma */}
                             <div className={`flex items-center justify-between bg-[#d084ff]/15 border border-[#d084ff] rounded-xl p-2 h-[60px] w-full ${THEME_GLOW}`}>
                                 <button 
                                     onClick={() => updateCharacter(activeChar.id, { karma: Math.max(0, activeChar.karma - 1) })} 
@@ -541,14 +624,12 @@ const CharacterSidebar = ({ isCollapsed, setIsCollapsed }) => {
                         </div>
                     </div>
 
-                    {/* DESCRIÇÃO */}
                     <div className="bg-glass border border-glass-border rounded-xl p-1.5 mb-4 min-h-[30px] flex items-center relative overflow-hidden">
                          <span className="text-lg font-rajdhani font-semibold text-text-main line-clamp-2 text-center text-ellipsis w-full leading-tight">
                             {activeChar.description || '---'}
                          </span>
                     </div>
 
-                    {/* ATRIBUTOS E PERÍCIAS */}
                     <div className="flex gap-4 mb-4 min-h-[160px]">
                         <div className="flex-1 bg-glass border border-glass-border rounded-xl p-3 flex flex-col justify-center">
                             <div className="grid grid-cols-2 gap-3 h-full">
@@ -562,7 +643,6 @@ const CharacterSidebar = ({ isCollapsed, setIsCollapsed }) => {
                                 ))}
                             </div>
                         </div>
-                        {/* PERÍCIAS: Com Scroll */}
                         <div className="flex-1 bg-glass border border-glass-border rounded-xl p-3 flex flex-col overflow-hidden">
                             <span className="text-xs uppercase text-neon-green font-bold tracking-wider mb-2 block border-b border-glass-border pb-2 shrink-0">Perícias</span>
                             <div className="text-sm text-gray-300 whitespace-pre-line overflow-y-auto flex-1 max-h-[8rem] scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-transparent pr-2">
@@ -571,7 +651,6 @@ const CharacterSidebar = ({ isCollapsed, setIsCollapsed }) => {
                         </div>
                     </div>
                     
-                    {/* DANO E TRAUMAS */}
                     <div className="flex gap-4 mb-4 min-h-[160px]">
                         <div className="flex-1 bg-glass border border-glass-border rounded-xl p-3 flex flex-col overflow-hidden">
                             <span className="text-xs uppercase text-neon-red font-bold tracking-wider mb-2 block border-b border-glass-border pb-2 shrink-0">Dano</span>
@@ -596,7 +675,6 @@ const CharacterSidebar = ({ isCollapsed, setIsCollapsed }) => {
                             </div>
                         </div>
 
-                        {/* TRAUMAS: Com Scroll */}
                         <div className="flex-1 bg-glass border border-glass-border rounded-xl p-3 flex flex-col overflow-hidden">
                             <span className="text-xs uppercase text-neon-red font-bold tracking-wider mb-2 block border-b border-glass-border pb-2 shrink-0">Traumas</span>
                             <div className="text-sm text-gray-300 whitespace-pre-line overflow-y-auto flex-1 max-h-[8rem] scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-transparent pr-2">
@@ -608,7 +686,6 @@ const CharacterSidebar = ({ isCollapsed, setIsCollapsed }) => {
             </FadeInView>
         </div>
 
-        {/* FOOTER */}
         <div ref={footerRef} className="bg-black/80 border-t border-glass-border flex items-center justify-center gap-2 px-3 py-2 shrink-0 overflow-hidden" style={{ minHeight: footerIconSize + 20 }}>
              {gameState.characters.map((c, index) => (
                  <img 

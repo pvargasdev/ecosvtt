@@ -30,6 +30,9 @@ const Board = () => {
   const importInputRef = useRef(null);
   const adventuresListRef = useRef(null); // Ref para scroll automático
   
+  // CORREÇÃO: Rastreador do tamanho anterior da lista para controlar o scroll
+  const prevAdventuresLength = useRef(adventures.length);
+
   // Controle de Animação e Alvo
   const animationRef = useRef(null); 
   const targetViewRef = useRef({ x: 0, y: 0, scale: 1 }); // Onde a câmera quer chegar
@@ -39,7 +42,7 @@ const Board = () => {
 
   // Slider State
   const [sliderValue, setSliderValue] = useState(100);
-  
+  const [isCreatingAdventure, setIsCreatingAdventure] = useState(false);
   const [selectedIds, setSelectedIds] = useState(new Set()); 
   const [selectedFogIds, setSelectedFogIds] = useState(new Set());
   const [interaction, setInteraction] = useState({ 
@@ -77,12 +80,18 @@ const Board = () => {
   const zoomSpeedRef = useRef(ZOOM_SPEED); // Velocidade atual do zoom
   const lastZoomTimeRef = useRef(0); // Timestamp do último zoom
 
-  // Efeito para scrollar para o final da lista quando uma nova aventura é criada
+  // CORREÇÃO: Efeito inteligente para scroll
   useEffect(() => {
-    if (adventuresListRef.current) {
-        adventuresListRef.current.scrollTop = adventuresListRef.current.scrollHeight;
+    // Só scrolla para o fundo se a quantidade de aventuras AUMENTOU (criação/duplicação)
+    // Se diminuiu (exclusão), não faz nada.
+    if (adventures.length > prevAdventuresLength.current) {
+        if (adventuresListRef.current) {
+            adventuresListRef.current.scrollTop = adventuresListRef.current.scrollHeight;
+        }
     }
-  }, [adventures.length]); // Dispara quando o tamanho da lista muda
+    // Atualiza o rastreador
+    prevAdventuresLength.current = adventures.length;
+  }, [adventures.length]); 
 
   // Sincroniza o Slider com o Zoom Real
   useEffect(() => {
@@ -632,36 +641,74 @@ const Board = () => {
                         </div>
                     ))}
                 </div>
-                <div className="flex gap-2 pt-4 border-t border-glass-border">
-                    <input 
-                        className="flex-1 bg-black/50 border border-glass-border rounded p-2 text-white" 
-                        placeholder="Nome da Aventura" 
-                        value={newAdvName} 
-                        onChange={e => setNewAdvName(e.target.value)}
-                        onKeyDown={(e) => {
-                            if (e.key === 'Enter') {
-                                // Lógica de Nome Padrão
-                                const finalName = newAdvName.trim() === "" ? "Nova Aventura" : newAdvName;
-                                createAdventure(finalName);
-                                setNewAdvName("");
-                            }
-                        }}
-                    />
-                    <button 
-                        onClick={() => {
-                            // Lógica de Nome Padrão
-                            const finalName = newAdvName.trim() === "" ? "Nova Aventura" : newAdvName;
-                            createAdventure(finalName); 
-                            setNewAdvName(""); 
-                        }} 
-                        className="bg-neon-green text-black font-bold px-4 rounded hover:bg-white transition"
-                    >
-                        <Plus/>
-                    </button>
-                    <div className="relative">
-                        <button onClick={() => importInputRef.current?.click()} className="bg-glass border border-glass-border text-white px-3 py-2 rounded h-full hover:bg-white/10 transition" title="Importar"><Download size={20}/></button>
-                        <input ref={importInputRef} type="file" accept=".zip" className="hidden" onChange={(e) => { const file = e.target.files[0]; if(file) importAdventure(file); e.target.value = null; }}/>
-                    </div>
+                {/* ÁREA DE CRIAÇÃO E IMPORTAÇÃO POLIDA */}
+                <div className="pt-4 border-t border-glass-border">
+                    {!isCreatingAdventure ? (
+                        <div className="flex gap-2">
+                            {/* Botão Principal Estilizado */}
+                            <button 
+                                onClick={() => setIsCreatingAdventure(true)} 
+                                className="flex-1 py-3 bg-neon-green/10 border border-neon-green/40 text-neon-green font-bold rounded-lg hover:bg-neon-green hover:text-black hover:shadow-[0_0_15px_rgba(0,255,0,0.4)] transition-all flex items-center justify-center gap-2 group"
+                            >
+                                <Plus size={18} strokeWidth={3} className="group-hover:scale-110 transition-transform"/> NOVA AVENTURA
+                            </button>
+                            
+                            {/* Botão de Importar (Estilo Secundário para não brigar com o principal) */}
+                            <div className="relative">
+                                <button 
+                                    onClick={() => importInputRef.current?.click()} 
+                                    className="h-full px-4 bg-glass border border-glass-border text-text-muted hover:text-white rounded-lg hover:bg-white/10 transition flex items-center justify-center" 
+                                    title="Importar Aventura (.zip)"
+                                >
+                                    <Download size={20}/>
+                                </button>
+                                <input ref={importInputRef} type="file" accept=".zip" className="hidden" onChange={(e) => { const file = e.target.files[0]; if(file) importAdventure(file); e.target.value = null; }}/>
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="flex flex-col gap-3 animate-in fade-in slide-in-from-bottom-2 duration-200">
+                            {/* Input Destacado (Verde) */}
+                            <div className="relative">
+                                <input 
+                                    autoFocus 
+                                    placeholder="Nome da Aventura..." 
+                                    className="w-full bg-[#15151a] border border-neon-green text-white placeholder-white/20 rounded-lg p-3 outline-none focus:shadow-[0_0_15px_rgba(0,255,0,0.25)] transition-all" 
+                                    value={newAdvName} 
+                                    onChange={e => setNewAdvName(e.target.value)}
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter') {
+                                            const finalName = newAdvName.trim() === "" ? "Nova Aventura" : newAdvName;
+                                            createAdventure(finalName);
+                                            setNewAdvName("");
+                                            setIsCreatingAdventure(false);
+                                        }
+                                        if (e.key === 'Escape') setIsCreatingAdventure(false);
+                                    }}
+                                />
+                            </div>
+
+                            {/* Ações Flutuantes */}
+                            <div className="flex items-center justify-end gap-3 px-1">
+                                <button 
+                                    onClick={() => setIsCreatingAdventure(false)} 
+                                    className="text-xs font-medium text-zinc-500 hover:text-white transition-colors px-2 py-1"
+                                >
+                                    CANCELAR
+                                </button>
+                                <button 
+                                    onClick={() => {
+                                        const finalName = newAdvName.trim() === "" ? "Nova Aventura" : newAdvName;
+                                        createAdventure(finalName); 
+                                        setNewAdvName("");
+                                        setIsCreatingAdventure(false);
+                                    }} 
+                                    className="flex items-center gap-2 px-5 py-1.5 bg-neon-green text-black font-bold rounded-md text-xs hover:bg-white hover:scale-105 active:scale-95 transition-all shadow-lg shadow-green-900/20"
+                                >
+                                    <Check size={14} strokeWidth={3}/> CRIAR
+                                </button>
+                            </div>
+                        </div>
+                    )}
                 </div>
                 <div className="mt-8 pt-4 border-t border-glass-border text-center">
                     <button onClick={() => { if(window.confirm("Isso apagará TODAS as aventuras e tokens. Confirmar?")) resetAllData() }} className="text-[10px] text-red-500 hover:text-red-400 flex items-center justify-center gap-1 mx-auto opacity-50 hover:opacity-100 transition"><AlertTriangle size={10}/> Resetar Banco de Dados</button>
