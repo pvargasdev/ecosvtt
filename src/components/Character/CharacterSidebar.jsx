@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useGame } from '../../context/GameContext';
-import { ArrowLeft, Edit2, Plus, X, Upload, Download, Trash2, LogOut } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Edit2, Plus, X, Upload, Download, Trash2, LogOut } from 'lucide-react';
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
 
@@ -118,7 +118,7 @@ const CharacterForm = ({ formData, setFormData, handlePhotoUpload }) => {
     );
 };
 
-const CharacterSidebar = () => {
+const CharacterSidebar = ({ isCollapsed, setIsCollapsed }) => {
   const { 
     gameState, presets, activePresetId,
     addCharacter, updateCharacter, deleteCharacter, setAllCharacters,
@@ -166,7 +166,7 @@ const CharacterSidebar = () => {
       calcSize();
       window.addEventListener('resize', calcSize);
       return () => window.removeEventListener('resize', calcSize);
-  }, [gameState.characters.length, view]);
+  }, [gameState.characters.length, view, isCollapsed]); // Add isCollapsed dependência
 
   const showAlert = (title, msg) => setConfirmModal({ open: true, title, msg, onConfirm: null });
   const showConfirm = (title, msg, action) => setConfirmModal({ open: true, title, msg, onConfirm: action });
@@ -281,12 +281,47 @@ const CharacterSidebar = () => {
   };
 
   // ==========================================
+  // VIEW: ESTADO COLAPSADO (Minimalista)
+  // ==========================================
+  if (isCollapsed) {
+    return (
+        <div className="h-full flex flex-col items-center py-4 bg-ecos-bg border-r border-glass-border gap-6 overflow-hidden">
+             {/* Botão de Abrir */}
+             <button 
+                onClick={() => setIsCollapsed(false)} 
+                className="p-2 rounded-full bg-glass hover:bg-white/10 text-neon-blue transition shadow-lg border border-glass-border"
+                title="Expandir"
+             >
+                <ArrowRight size={20} />
+             </button>
+
+             {/* Placeholder Vertical */}
+             <div className="flex-1 flex items-center justify-center">
+                <span className="text-neon-blue font-rajdhani font-bold tracking-[0.3em] text-xl rotate-90 whitespace-nowrap opacity-50 select-none">
+                    PERSONAGENS
+                </span>
+             </div>
+        </div>
+    );
+  }
+
+  // ==========================================
   // VIEW: GERENCIADOR DE GRUPOS
   // ==========================================
   if (!activePresetId || view === 'manager') {
       return (
         <FadeInView key="manager" className="p-6 bg-ecos-bg text-text-main overflow-hidden border-r border-glass-border items-center relative">
             <ConfirmationOverlay />
+            
+            {/* Botão de Colapso (Posicionado Absoluto) */}
+            <button 
+                onClick={() => setIsCollapsed(true)} 
+                className="absolute top-2 right-2 p-2 rounded-full text-text-muted hover:text-white hover:bg-white/5 transition z-50"
+                title="Recolher"
+            >
+                <ArrowLeft size={20} />
+            </button>
+
             <h1 className="text-3xl font-rajdhani font-bold text-neon-blue mb-2 tracking-widest mt-10">PERSONAGENS</h1>
             <p className="text-text-muted text-sm text-center mb-8">Selecione um grupo para começar.</p>
             <div className="w-full max-w-xs space-y-4 flex-1 overflow-y-auto scrollbar-none pb-20">
@@ -333,7 +368,11 @@ const CharacterSidebar = () => {
                     <span className="font-rajdhani font-bold text-white truncate max-w-[120px] leading-none">{currentPreset?.name}</span>
                 </div>
             </div>
-            <button onClick={() => exitPreset()} className="p-1.5 bg-glass border border-glass-border rounded hover:bg-red-900/30 hover:text-red-400 text-text-muted transition flex items-center gap-1" title="Sair do Grupo"><LogOut size={14}/></button>
+            {/* Header Controls (Logout + Collapse) */}
+            <div className="flex items-center gap-2">
+                <button onClick={() => exitPreset()} className="p-1.5 bg-glass border border-glass-border rounded hover:bg-red-900/30 hover:text-red-400 text-text-muted transition flex items-center gap-1" title="Sair do Grupo"><LogOut size={14}/></button>
+                <button onClick={() => setIsCollapsed(true)} className="p-1.5 bg-glass border border-glass-border rounded hover:bg-white/10 text-text-muted hover:text-white transition" title="Recolher"><ArrowLeft size={14}/></button>
+            </div>
         </div>
 
         <div className="flex-1 overflow-y-auto grid grid-cols-2 gap-3 p-3 content-start scrollbar-thin">
@@ -380,7 +419,11 @@ const CharacterSidebar = () => {
                 {/* Header (Fica dentro do FadeIn para trocar junto com o char) */}
                 <div className="flex justify-between items-center p-4 border-b border-glass-border bg-black/40 shrink-0">
                     <button onClick={navToHub} className="p-2 rounded-full bg-glass hover:bg-white/10 transition"><ArrowLeft size={20} /></button>
-                    <button onClick={() => openEdit(false)} className="p-2 rounded-full bg-glass hover:bg-white/10 transition text-neon-purple"><Edit2 size={20} /></button>
+                    {/* Controles da Direita: Editar + Colapsar */}
+                    <div className="flex gap-2">
+                        <button onClick={() => openEdit(false)} className="p-2 rounded-full bg-glass hover:bg-white/10 transition text-neon-purple"><Edit2 size={20} /></button>
+                        <button onClick={() => setIsCollapsed(true)} className="p-2 rounded-full bg-glass hover:bg-white/10 transition text-text-muted hover:text-white"><ArrowLeft size={20} /></button>
+                    </div>
                 </div>
 
                 <div className="flex-1 overflow-y-auto p-6 scrollbar-thin">
