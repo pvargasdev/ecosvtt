@@ -72,19 +72,23 @@ const CharacterForm = ({ formData, setFormData, handlePhotoUpload }) => {
                 <input className={`w-full bg-black/50 border border-glass-border rounded p-2 text-white focus:${THEME_BORDER_PURPLE} transition-colors`}
                        value={formData.description||''} 
                        onChange={e=>setFormData({...formData, description:e.target.value})}/>
-            </div>         
-            <div className="bg-black/20 p-2 rounded border border-glass-border">
-                <span className="text-xs text-text-muted mb-2 block">Atributos</span>
-                <div className="grid grid-cols-4 gap-2">
-                    {['Mente','Corpo','Destreza','Presenca'].map(a=>(
-                        <div key={a}>
-                            <label className="text-[9px] text-text-muted block text-center uppercase">{a.substr(0,3)}</label>
-                            <input type="number" 
-                                   className={`w-full bg-black/50 border border-glass-border rounded p-1 text-white text-center font-bold focus:${THEME_BORDER_PURPLE} transition-colors [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none`}
-                                   value={formData.attributes?.[a.toLowerCase()]||0} 
-                                   onChange={e=>setFormData({...formData, attributes:{...formData.attributes, [a.toLowerCase()]:parseInt(e.target.value)}})}/>
-                        </div>
-                    ))}
+            </div>
+            
+            {/* ATRIBUTOS */}
+            <div>
+                <label className="text-xs text-text-muted mb-1 block">Atributos</label>
+                <div className="bg-black/20 p-2 rounded border border-glass-border">
+                    <div className="grid grid-cols-4 gap-2">
+                        {['Mente','Corpo','Destreza','Presenca'].map(a=>(
+                            <div key={a}>
+                                <label className="text-[9px] text-text-muted block text-center uppercase">{a.substr(0,3)}</label>
+                                <input type="number" 
+                                    className={`w-full bg-black/50 border border-glass-border rounded p-1 text-white text-center font-bold focus:${THEME_BORDER_PURPLE} transition-colors [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none`}
+                                    value={formData.attributes?.[a.toLowerCase()]||0} 
+                                    onChange={e=>setFormData({...formData, attributes:{...formData.attributes, [a.toLowerCase()]:parseInt(e.target.value)}})}/>
+                            </div>
+                        ))}
+                    </div>
                 </div>
             </div>
 
@@ -105,21 +109,23 @@ const CharacterForm = ({ formData, setFormData, handlePhotoUpload }) => {
             </div>
             
             {/* PAINEL DE DANO */}
-            <div className="bg-red-900/10 p-2 rounded border border-red-900/30">
-                <span className="text-xs text-neon-red mb-2 block">Tolerância a Dano</span>
-                <div className="flex gap-2">
-                    {[['superior','Grave'],['medium','Moderado'],['inferior','Leve']].map(([k,l])=>(
-                        <div key={k} className="flex-1">
-                            <label className="text-[9px] text-text-muted block text-center uppercase">{l}</label>
-                            <input type="number" 
-                                   className="w-full bg-black/50 border border-glass-border rounded p-1 text-white text-center focus:border-neon-red transition-colors [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" 
-                                   value={formData.damage?.[k]?.length||0} 
-                                   onChange={e=>{
-                                       const s = parseInt(e.target.value)||0; 
-                                       setFormData({...formData, damage:{...formData.damage, [k]:resizeDamageArray(formData.damage[k], s)}});
-                                   }}/>
-                        </div>
-                    ))}
+            <div>
+                <label className="text-xs text-text-muted mb-1 block">Tolerância a Dano</label>
+                <div className="bg-red-900/10 p-2 rounded border border-red-900/30">
+                    <div className="flex gap-2">
+                        {[['superior','Grave'],['medium','Moderado'],['inferior','Leve']].map(([k,l])=>(
+                            <div key={k} className="flex-1">
+                                <label className="text-[9px] text-text-muted block text-center uppercase">{l}</label>
+                                <input type="number" 
+                                    className="w-full bg-black/50 border border-glass-border rounded p-1 text-white text-center focus:border-neon-red transition-colors [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" 
+                                    value={formData.damage?.[k]?.length||0} 
+                                    onChange={e=>{
+                                        const s = parseInt(e.target.value)||0; 
+                                        setFormData({...formData, damage:{...formData.damage, [k]:resizeDamageArray(formData.damage[k], s)}});
+                                    }}/>
+                            </div>
+                        ))}
+                    </div>
                 </div>
             </div>
         </div>
