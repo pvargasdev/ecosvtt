@@ -3,20 +3,30 @@ import { useGame } from '../../context/GameContext';
 import { Settings, Image as ImageIcon, Box, Map, Plus, Trash2, X, ChevronDown, LogOut, Edit2, RotateCcw, Check, Search, Square, MousePointer, AlertTriangle } from 'lucide-react';
 import { imageDB } from '../../context/db';
 
-// Limites de Verificação
-// REMOVIDOS MAX_FILE_SIZE_MB e MAX_DIMENSION_PX conforme solicitado.
-
-const LibraryThumb = ({ token }) => {
+// --- CORREÇÃO DO PISCA (FLICKER) MANTIDA ---
+const LibraryThumb = React.memo(({ token }) => {
     const [src, setSrc] = useState(null);
+    
     useEffect(() => {
         let isMounted = true;
+        let objectUrl = null;
+
         if(token.imageId) {
             imageDB.getImage(token.imageId).then(blob => { 
-                if(blob && isMounted) setSrc(URL.createObjectURL(blob)); 
+                if(blob && isMounted) {
+                    objectUrl = URL.createObjectURL(blob);
+                    setSrc(objectUrl); 
+                }
             });
-        } else if (token.imageSrc) { setSrc(token.imageSrc); }
-        return () => { isMounted = false; if(src && !src.startsWith('data:')) URL.revokeObjectURL(src); }
-    }, [token]);
+        } else if (token.imageSrc) { 
+            setSrc(token.imageSrc); 
+        }
+
+        return () => { 
+            isMounted = false; 
+            if(objectUrl) URL.revokeObjectURL(objectUrl); 
+        }
+    }, [token.imageId, token.imageSrc]);
 
     return (
         <div draggable onDragStart={(e) => { e.dataTransfer.setData('application/json', JSON.stringify({ type: 'library_token', imageId: token.imageId, imageSrc: token.imageSrc })); }}
@@ -24,15 +34,18 @@ const LibraryThumb = ({ token }) => {
             {src && <img src={src} className="w-full h-full object-cover pointer-events-none" alt="token"/>}
         </div>
     );
-};
+}, (prevProps, nextProps) => {
+    return prevProps.token.id === nextProps.token.id &&
+           prevProps.token.imageId === nextProps.token.imageId &&
+           prevProps.token.imageSrc === nextProps.token.imageSrc;
+});
 
-// Componente de Alerta Interno
 const InternalAlert = ({ message, clearAlert }) => {
     useEffect(() => {
         if (message) {
             const timer = setTimeout(() => {
                 clearAlert();
-            }, 5000); // Esconde após 5 segundos
+            }, 5000); 
             return () => clearTimeout(timer);
         }
     }, [message, clearAlert]);
@@ -57,7 +70,6 @@ const InternalAlert = ({ message, clearAlert }) => {
     );
 };
 
-
 export const VTTLayout = ({ zoomValue, onZoomChange, activeTool, setActiveTool }) => {
   const { 
     activeAdventure, activeScene, 
@@ -68,66 +80,94 @@ export const VTTLayout = ({ zoomValue, onZoomChange, activeTool, setActiveTool }
   const [uiState, setUiState] = useState({ menuOpen: false, libraryOpen: false, mapConfigOpen: false });
   const [confirmModal, setConfirmModal] = useState({ open: false, message: '', onConfirm: null });
   const [inputModal, setInputModal] = useState({ open: false, title: '', value: '', onConfirm: null });
-  // MANTENDO O ESTADO: Mensagem de alerta interna (para erros de mapa ou futuro uso)
   const [alertMessage, setAlertMessage] = useState(null); 
   const clearAlert = useCallback(() => setAlertMessage(null), []);
 
-  // Refs para inputs
   const mapInputRef = useRef(null);
   const tokenInputRef = useRef(null);
   
-  // Refs para Click Outside
-  const headerRef = useRef(null);      // Referência do menu de botões
-  const mapConfigRef = useRef(null);   // Referência da janela de config
-  const libraryRef = useRef(null);     // Referência da biblioteca
-  const sceneRef = useRef(null);       // Referência do seletor de cenas
+  const headerRef = useRef(null);      
+  const mapConfigRef = useRef(null);   
+  const libraryRef = useRef(null);     
+  const sceneRef = useRef(null);       
 
-  // ==========================================
-  // FUNÇÃO DE UPLOAD MULTIPLO (SIMPLIFICADA)
-  // ==========================================
+  // Helper para fechar todos os menus
+  const closeAllMenus = useCallback(() => {
+      // Só atualiza o estado se algo estiver aberto, para evitar renders desnecessários
+      setUiState(prev => {
+          if (prev.menuOpen || prev.libraryOpen || prev.mapConfigOpen) {
+              return { menuOpen: false, libraryOpen: false, mapConfigOpen: false };
+          }
+          return prev;
+      });
+  }, []);
+
   const handleMultiTokenUpload = async (event) => {
       const files = event.target.files;
       if (!files || files.length === 0) return;
 
-      // Itera sobre todos os arquivos e chama o addTokenToLibrary para cada um
       for (let i = 0; i < files.length; i++) {
           const file = files[i];
           addTokenToLibrary(file);
       }
       
-      // Limpa o input após o processamento
       event.target.value = ''; 
   };
   
   // ==========================================
-  // CLICK OUTSIDE LOGIC
+  // CLICK OUTSIDE & INTERACTION LOGIC
   // ==========================================
   useEffect(() => {
-      const handleOutsideClick = (event) => {
-          // 1. Se clicou no cabeçalho (botões), não fazemos nada aqui (deixa o onClick do botão resolver)
+      const handleOutsideInteraction = (event) => {
+          // 1. Se a interação for dentro do cabeçalho (botões), não fecha imediatamente.
+          // Deixa o evento propagar para que o botão 'toggle' funcione.
           if (headerRef.current && headerRef.current.contains(event.target)) {
               return;
           }
 
-          // 2. Verifica Scene Selector
+          let shouldClose = false;
+
+          // Se clicou fora de qualquer janela aberta, marca para fechar
           if (uiState.menuOpen && sceneRef.current && !sceneRef.current.contains(event.target)) {
-              setUiState(prev => ({ ...prev, menuOpen: false }));
+              shouldClose = true;
           }
-
-          // 3. Verifica Library
           if (uiState.libraryOpen && libraryRef.current && !libraryRef.current.contains(event.target)) {
-              setUiState(prev => ({ ...prev, libraryOpen: false }));
+              shouldClose = true;
+          }
+          if (uiState.mapConfigOpen && mapConfigRef.current && !mapConfigRef.current.contains(event.target)) {
+              shouldClose = true;
           }
 
-          // 4. Verifica Map Config
-          if (uiState.mapConfigOpen && mapConfigRef.current && !mapConfigRef.current.contains(event.target)) {
-              setUiState(prev => ({ ...prev, mapConfigOpen: false }));
+          // Se clicou no "vazio" (fora de janelas e fora do header), fecha tudo
+          // Isso cobre cliques no mapa VTT ou scroll (wheel) no mapa.
+          if (shouldClose || (!uiState.menuOpen && !uiState.libraryOpen && !uiState.mapConfigOpen)) {
+               // A verificação extra acima garante que se eu clicar no mapa com tudo fechado, nada acontece,
+               // mas se algo estiver aberto, shouldClose será true por causa das verificações de ref.
+               // Simplificando: Se algo está aberto e cliquei fora das janelas (e fora do header), fecho.
+               if (uiState.menuOpen || uiState.libraryOpen || uiState.mapConfigOpen) {
+                   closeAllMenus();
+               }
+          }
+      };
+      
+      // Listener de teclado para fechar ao usar setas (Zoom)
+      const handleKeyDown = (e) => {
+          if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+              closeAllMenus();
           }
       };
 
-      document.addEventListener("mousedown", handleOutsideClick);
-      return () => document.removeEventListener("mousedown", handleOutsideClick);
-  }, [uiState]);
+      // Capture: true garante que pegamos o evento antes do stopPropagation do Board.jsx
+      document.addEventListener("mousedown", handleOutsideInteraction, { capture: true });
+      document.addEventListener("wheel", handleOutsideInteraction, { capture: true });
+      window.addEventListener("keydown", handleKeyDown);
+      
+      return () => {
+          document.removeEventListener("mousedown", handleOutsideInteraction, { capture: true });
+          document.removeEventListener("wheel", handleOutsideInteraction, { capture: true });
+          window.removeEventListener("keydown", handleKeyDown);
+      };
+  }, [uiState, closeAllMenus]);
 
 
   const toggle = (key, e) => {
@@ -139,7 +179,6 @@ export const VTTLayout = ({ zoomValue, onZoomChange, activeTool, setActiveTool }
     }));
   };
 
-  // Wrapper agora aceita containerRef para ligar ao sistema de click outside
   const WindowWrapper = ({ children, className, containerRef }) => (
       <div 
         ref={containerRef}
@@ -223,7 +262,6 @@ export const VTTLayout = ({ zoomValue, onZoomChange, activeTool, setActiveTool }
                   <div onClick={() => tokenInputRef.current?.click()} className="aspect-square border border-dashed border-glass-border rounded-full hover:bg-white/10 flex flex-col items-center justify-center cursor-pointer text-text-muted hover:text-neon-blue transition">
                       <Plus size={24}/>
                   </div>
-                  {/* ALTERADO: Mantido 'multiple' para importação múltipla. */}
                   <input 
                       ref={tokenInputRef} 
                       type="file" 
@@ -300,11 +338,8 @@ export const VTTLayout = ({ zoomValue, onZoomChange, activeTool, setActiveTool }
   return (
       <div className="absolute inset-0 pointer-events-none z-50">
           
-          {/* O ALERTA INTERNO FOI MANTIDO, mas não será usado na função de upload simplificada,
-              apenas para erros que o GameContext possa gerar ou para uso futuro. */}
           <InternalAlert message={alertMessage} clearAlert={clearAlert} />
 
-          {/* HEADER ALINHADO À DIREITA COM SLIDER INTEGRADO E REF ATRIBUÍDA */}
           <div 
              ref={headerRef}
              className="absolute top-4 right-4 flex flex-col bg-black/80 rounded-lg border border-glass-border shadow-lg backdrop-blur-sm pointer-events-auto z-40 w-max overflow-hidden scale-90 origin-top-right"
@@ -321,6 +356,8 @@ export const VTTLayout = ({ zoomValue, onZoomChange, activeTool, setActiveTool }
                         max="300" 
                         value={zoomValue || 100} 
                         onChange={onZoomChange}
+                        // --- INTERAÇÃO DIRETA: Fecha menus ao clicar no slider ---
+                        onMouseDown={closeAllMenus}
                         className="
                             w-80 h-2 bg-white/20 rounded-lg appearance-none cursor-pointer outline-none
                             [&::-webkit-slider-thumb]:appearance-none 
@@ -339,12 +376,11 @@ export const VTTLayout = ({ zoomValue, onZoomChange, activeTool, setActiveTool }
                 </div>
               )}
 
-              {/* BOTÕES DE MENU */}
               <div className="flex items-center gap-2 p-1.5">
                 
-                {/* Botões de Ferramenta */}
+                {/* Botões de Modo: Fecham os menus ao clicar */}
                 <button 
-                  onClick={() => setActiveTool('select')}
+                  onClick={() => { setActiveTool('select'); closeAllMenus(); }}
                   className={`p-2 rounded hover:bg-white/10 transition ${activeTool === 'select' ? 'bg-white/20 text-neon-green' : 'text-text-muted'}`}
                   title="Modo Seleção"
                 >
@@ -352,7 +388,7 @@ export const VTTLayout = ({ zoomValue, onZoomChange, activeTool, setActiveTool }
                 </button>
                 
                 <button 
-                  onClick={() => setActiveTool('fogOfWar')}
+                  onClick={() => { setActiveTool('fogOfWar'); closeAllMenus(); }}
                   className={`p-2 rounded hover:bg-white/10 transition ${activeTool === 'fogOfWar' ? 'bg-white/20 text-neon-purple' : 'text-text-muted'}`}
                   title="Fog of War"
                 >
@@ -370,11 +406,16 @@ export const VTTLayout = ({ zoomValue, onZoomChange, activeTool, setActiveTool }
                 <div className="w-px h-6 bg-glass-border mx-1"></div>
                 
                 <button onClick={(e) => toggle('mapConfigOpen', e)} className={`p-2 rounded hover:bg-white/10 transition ${uiState.mapConfigOpen ? 'text-neon-blue' : 'text-text-muted'}`} title="Configurar Fundo"><ImageIcon size={18}/></button>
-                <button onClick={(e) => toggle('libraryOpen', e)} className={`p-2 rounded hover:bg-white/10 transition ${uiState.libraryOpen ? 'text-neon-blue' : 'text-text-muted'}`} title="Biblioteca de Tokens"><Box size={18}/></button>
+                <button onClick={(e) => toggle('libraryOpen', e)} className={`p-2 rounded hover:bg-white/10 transition ${uiState.libraryOpen ? 'text-neon-blue' : 'text-text-muted'}`} title="Biblioteca"><Box size={18}/></button>
                 
                 <div className="w-px h-6 bg-glass-border mx-1"></div>
                 
-                <button onClick={(e) => { e.stopPropagation(); setConfirmModal({ open: true, message: "Sair da aventura?", onConfirm: () => setActiveAdventureId(null) }); }} className="p-2 rounded hover:bg-red-500/20 text-text-muted hover:text-red-500" title="Sair"><LogOut size={18}/></button>
+                {/* Botão Sair: Fecha os menus ao clicar */}
+                <button onClick={(e) => { 
+                    e.stopPropagation(); 
+                    closeAllMenus();
+                    setConfirmModal({ open: true, message: "Sair da aventura?", onConfirm: () => setActiveAdventureId(null) }); 
+                }} className="p-2 rounded hover:bg-red-500/20 text-text-muted hover:text-red-500" title="Sair"><LogOut size={18}/></button>
               </div>
           </div>
 
