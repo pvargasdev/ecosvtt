@@ -55,21 +55,22 @@ const CharacterForm = ({ formData, setFormData, handlePhotoUpload }) => {
             <div className="flex gap-2">
                 <div className="flex-1">
                     <label className="text-xs text-text-muted mb-1 block">Nome</label>
-                    <input className={`w-full bg-black/50 border border-glass-border rounded p-2 text-white outline-none focus:${THEME_BORDER_PURPLE} transition-colors`}
+                    {/* Adicionado outline-none para remover o bug do navegador */}
+                    <input className={`w-full bg-black/50 border border-glass-border rounded p-2 text-white outline-none focus:border-white transition-colors`}
                            value={formData.name||''} 
                            onChange={e=>setFormData({...formData, name:e.target.value})}/>
                 </div>
                 <div className="w-20">
-                    <label className="text-xs text-text-muted mb-1 block">Karma</label>
+                    <label className="text-xs text-text-muted mb-1 block">Karma Máx.</label>
                     <input type="number" 
-                           className={`w-full bg-black/50 border border-glass-border rounded p-2 text-white text-center focus:${THEME_BORDER_PURPLE} transition-colors [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none`} 
+                           className={`w-full bg-black/50 border border-glass-border rounded p-2 text-white text-center outline-none focus:border-white transition-colors [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none`} 
                            value={formData.karmaMax||0} 
                            onChange={e=>setFormData({...formData, karmaMax:parseInt(e.target.value)})}/>
                 </div>
             </div>
             <div>
                 <label className="text-xs text-text-muted mb-1 block">Descrição</label>
-                <input className={`w-full bg-black/50 border border-glass-border rounded p-2 text-white focus:${THEME_BORDER_PURPLE} transition-colors`}
+                <input className={`w-full bg-black/50 border border-glass-border rounded p-2 text-white outline-none focus:border-white transition-colors`}
                        value={formData.description||''} 
                        onChange={e=>setFormData({...formData, description:e.target.value})}/>
             </div>
@@ -83,7 +84,7 @@ const CharacterForm = ({ formData, setFormData, handlePhotoUpload }) => {
                             <div key={a}>
                                 <label className="text-[9px] text-text-muted block text-center uppercase">{a.substr(0,3)}</label>
                                 <input type="number" 
-                                    className={`w-full bg-black/50 border border-glass-border rounded p-1 text-white text-center font-bold focus:${THEME_BORDER_PURPLE} transition-colors [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none`}
+                                    className={`w-full bg-black/50 border border-glass-border rounded p-1 text-white text-center font-bold outline-none focus:border-white transition-colors [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none`}
                                     value={formData.attributes?.[a.toLowerCase()]||0} 
                                     onChange={e=>setFormData({...formData, attributes:{...formData.attributes, [a.toLowerCase()]:parseInt(e.target.value)}})}/>
                             </div>
@@ -95,7 +96,7 @@ const CharacterForm = ({ formData, setFormData, handlePhotoUpload }) => {
             {/* PERICIAS */}
             <div>
                 <label className="text-xs text-text-muted mb-1 block">Perícias</label>
-                <textarea className={`w-full bg-black/50 border border-glass-border rounded p-2 text-white h-20 text-sm focus:${THEME_BORDER_PURPLE} transition-colors`}
+                <textarea className={`w-full bg-black/50 border border-glass-border rounded p-2 text-white h-20 text-sm outline-none focus:border-white transition-colors`}
                           value={formData.skills||''} 
                           onChange={e=>setFormData({...formData, skills:e.target.value})}/>
             </div>
@@ -103,7 +104,7 @@ const CharacterForm = ({ formData, setFormData, handlePhotoUpload }) => {
             {/* TRAUMAS */}
             <div>
                 <label className="text-xs text-text-muted mb-1 block">Traumas</label>
-                <textarea className="w-full bg-black/50 border border-glass-border rounded p-2 text-white h-20 text-sm focus:border-neon-red transition-colors" 
+                <textarea className="w-full bg-black/50 border border-glass-border rounded p-2 text-white h-20 text-sm outline-none focus:border-white transition-colors" 
                           value={formData.traumas||''} 
                           onChange={e=>setFormData({...formData, traumas:e.target.value})}/>
             </div>
@@ -117,7 +118,7 @@ const CharacterForm = ({ formData, setFormData, handlePhotoUpload }) => {
                             <div key={k} className="flex-1">
                                 <label className="text-[9px] text-text-muted block text-center uppercase">{l}</label>
                                 <input type="number" 
-                                    className="w-full bg-black/50 border border-glass-border rounded p-1 text-white text-center focus:border-neon-red transition-colors [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" 
+                                    className="w-full bg-black/50 border border-glass-border rounded p-1 text-white text-center outline-none focus:border-white transition-colors [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" 
                                     value={formData.damage?.[k]?.length||0} 
                                     onChange={e=>{
                                         const s = parseInt(e.target.value)||0; 
