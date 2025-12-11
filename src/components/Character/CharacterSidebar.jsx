@@ -322,7 +322,7 @@ const CharacterSidebar = ({ isCollapsed, setIsCollapsed }) => {
                 <Menu size={20} />
              </button>
              <div className="flex-1 flex items-center justify-center">
-                <span className={`font-rajdhani font-bold tracking-[0.3em] text-xl rotate-90 whitespace-nowrap opacity-50 select-none ${THEME_PURPLE}`}>
+                <span className={`font-rajdhani font-bold tracking-[0.3em] text-xl rotate-90 whitespace-nowrap opacity-100 select-none text-text-muted`}>
                     PERSONAGENS
                 </span>
              </div>
@@ -368,7 +368,7 @@ const CharacterSidebar = ({ isCollapsed, setIsCollapsed }) => {
                 <div className="flex items-center gap-2 text-text-muted text-xs uppercase my-4"><div className="h-px bg-glass-border flex-1"></div><span>Grupos Salvos</span><div className="h-px bg-glass-border flex-1"></div></div>
                 {presets.length === 0 ? <div className="text-center text-text-muted italic text-sm">Vazio.</div> : presets.map(p => (
                     <div key={p.id} onClick={() => loadPreset(p.id)} className="bg-black/20 border border-glass-border rounded-lg p-3 flex justify-between items-center cursor-pointer hover:bg-white/5 transition group">
-                        <div><h3 className="font-bold text-white font-rajdhani">{p.name}</h3><div className="text-xs text-text-muted">{p.characters.length} Personagens</div></div>
+                        <div><h3 className="font-bold text-white font-rajdhani truncate max-w-[255px]">{p.name}</h3><div className="text-xs text-text-muted">{p.characters.length} Personagens</div></div>
                         <button onClick={(e) => { e.stopPropagation(); showConfirm("Apagar Grupo", "Não poderá ser desfeito.", () => deletePreset(p.id)); }} className="p-2 hover:bg-red-900/50 hover:text-red-500 rounded text-text-muted transition opacity-0 group-hover:opacity-100"><Trash2 size={16}/></button>
                     </div>
                 ))}
@@ -392,7 +392,7 @@ const CharacterSidebar = ({ isCollapsed, setIsCollapsed }) => {
             <div className="flex items-center gap-3">
                 <button onClick={() => exitPreset()} className="p-2 rounded-full bg-glass hover:bg-red-900/30 hover:text-red-400 text-text-muted transition" title="Sair do Grupo"><ArrowLeft size={20}/></button>
                 <div className="flex flex-col">
-                    <span className="text-[10px] text-text-muted uppercase font-bold leading-none">Grupo</span>
+                    <span className="text-[10px] text-text-muted uppercase font-bold leading-none">Grupo de Personagens</span>
                     <span className="font-rajdhani font-bold text-white truncate max-w-[150px] leading-none mt-1">{currentPreset?.name}</span>
                 </div>
             </div>
