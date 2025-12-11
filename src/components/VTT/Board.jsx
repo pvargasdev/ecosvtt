@@ -28,6 +28,7 @@ const Board = () => {
 
   const containerRef = useRef(null);
   const importInputRef = useRef(null);
+  const adventuresListRef = useRef(null); // Ref para scroll automático
   
   // Controle de Animação e Alvo
   const animationRef = useRef(null); 
@@ -75,6 +76,13 @@ const Board = () => {
   const zoomKeyRef = useRef(0); // 0 = parado, 1 = aumentar, -1 = diminuir
   const zoomSpeedRef = useRef(ZOOM_SPEED); // Velocidade atual do zoom
   const lastZoomTimeRef = useRef(0); // Timestamp do último zoom
+
+  // Efeito para scrollar para o final da lista quando uma nova aventura é criada
+  useEffect(() => {
+    if (adventuresListRef.current) {
+        adventuresListRef.current.scrollTop = adventuresListRef.current.scrollHeight;
+    }
+  }, [adventures.length]); // Dispara quando o tamanho da lista muda
 
   // Sincroniza o Slider com o Zoom Real
   useEffect(() => {
@@ -577,14 +585,33 @@ const Board = () => {
   if (!activeAdventureId || !activeAdventure) {
       return (
         <div className="w-full h-full bg-ecos-bg flex flex-col items-center justify-center p-6 text-white relative z-50">
+            {/* CSS ANIMATION STYLE - NATIVE NO-LIB SOLUTION */}
+            <style>{`
+                @keyframes enter-slide {
+                    0% { opacity: 0; transform: translateY(-15px) scale(0.95); max-height: 0; margin-bottom: 0; }
+                    40% { max-height: 60px; margin-bottom: 0.5rem; }
+                    100% { opacity: 1; transform: translateY(0) scale(1); max-height: 60px; margin-bottom: 0.5rem; }
+                }
+                .animate-enter {
+                    animation: enter-slide 0.45s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+                }
+            `}</style>
+
             <h1 className="text-5xl font-rajdhani font-bold text-neon-green mb-8 tracking-widest">TABULEIRO</h1>
             <div className="bg-glass border border-glass-border rounded-xl p-6 shadow-2xl w-full max-w-lg relative">
                 <h2 className="text-xl font-bold mb-4">Suas Aventuras</h2>
-                <div className="max-h-[300px] overflow-y-auto space-y-2 mb-4 scrollbar-thin pr-2">
+                <div ref={adventuresListRef} className="relative min-h-[120px] max-h-[300px] overflow-y-auto space-y-2 mb-4 scrollbar-thin pr-2 scroll-smooth">
+                    {/* Mensagem de Vazio (Agora Absolute para não empurrar o layout) */}
+                    {adventures.length === 0 && (
+                        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                            <p className="text-text-muted text-sm animate-pulse">Nenhuma aventura criada.</p>
+                        </div>
+                    )}
+
                     {adventures.map(adv => (
                         <div key={adv.id} 
-                             onClick={() => { if(renamingId !== adv.id) setActiveAdventureId(adv.id); }} 
-                             className={`group flex justify-between items-center p-3 rounded bg-white/5 border border-transparent transition-all ${renamingId === adv.id ? 'bg-white/10' : 'hover:bg-neon-green/10 hover:border-neon-green/30 cursor-pointer'}`}>
+                                onClick={() => { if(renamingId !== adv.id) setActiveAdventureId(adv.id); }} 
+                                className={`animate-enter group flex justify-between items-center p-3 rounded bg-white/5 border border-transparent transition-all ${renamingId === adv.id ? 'bg-white/10' : 'hover:bg-neon-green/10 hover:border-neon-green/30 cursor-pointer'}`}>
                             {renamingId === adv.id ? (
                                 <div className="flex flex-1 items-center gap-2" onClick={(e) => e.stopPropagation()}>
                                     <input autoFocus className="flex-1 bg-black/50 border border-neon-blue rounded px-2 py-1 text-white text-sm outline-none" value={renameValue} onChange={(e) => setRenameValue(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { updateAdventure(adv.id, { name: renameValue }); setRenamingId(null); } if (e.key === 'Escape') setRenamingId(null); }} />
@@ -604,7 +631,6 @@ const Board = () => {
                             )}
                         </div>
                     ))}
-                    {adventures.length === 0 && <p className="text-text-muted text-center text-sm py-4">Nenhuma aventura criada.</p>}
                 </div>
                 <div className="flex gap-2 pt-4 border-t border-glass-border">
                     <input 
