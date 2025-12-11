@@ -4,17 +4,20 @@ const path = require('path');
 const fs = require('fs');
 
 // --- 1. REMOÇÃO COMPLETA DA BARRA DE MENUS NATIVA ---
-// Configura o menu como null para evitar a barra nativa (File, Edit, View...)
 Menu.setApplicationMenu(null); 
 
-// --- CAMINHO DE DADOS ---
-// Usamos o diretório do executável para garantir que os dados fiquem ao lado do EXE.
-const DATA_PATH = path.join(app.getAppPath(), 'ecos_data');
+// --- CAMINHO DE DADOS (CORRIGIDO) ---
+// Se estiver empacotado (EXE), salva ao lado do executável.
+// Se estiver em desenvolvimento, salva na raiz do projeto.
+const BASE_PATH = app.isPackaged 
+    ? path.dirname(app.getPath('exe')) 
+    : app.getAppPath();
+
+const DATA_PATH = path.join(BASE_PATH, 'ecos_data');
 
 // Garante que a pasta de dados exista
 if (!fs.existsSync(DATA_PATH)) {
     fs.mkdirSync(DATA_PATH, { recursive: true });
-    console.log(`Pasta de dados criada em: ${DATA_PATH}`);
 }
 
 // --- FUNÇÕES DE ARQUIVO (JSON) ---
