@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useGame } from '../../context/GameContext';
-import { ArrowLeft, Menu, Edit2, Plus, X, Upload, Download, Trash2} from 'lucide-react';
+import { ArrowLeft, Menu, Edit2, Plus, X, Upload, Download, Trash2, LogOut } from 'lucide-react';
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
 
@@ -30,7 +30,7 @@ const CharacterForm = ({ formData, setFormData, handlePhotoUpload }) => {
         <div className="space-y-4 pb-4">
             <div className="flex justify-center mb-4">
                 <div className="relative group cursor-pointer" onClick={() => document.getElementById('edit-photo-input').click()}>
-                    <div className={`w-32 h-32 rounded-full border-4 ${formData.photo ? 'border-neon-purple' : 'border-glass-border border-dashed'} overflow-hidden bg-black flex items-center justify-center shadow-2xl transition-all group-hover:scale-105`}>
+                    <div className={`w-32 h-32 rounded-full border-2 ${formData.photo ? 'border-white/0' : 'border-glass-border border-dashed'} overflow-hidden bg-black flex items-center justify-center shadow-2xl transition-all group-hover:scale-95`}>
                         {formData.photo ? (
                             <img src={formData.photo} className="w-full h-full object-cover" alt="Avatar"/>
                         ) : (
@@ -65,7 +65,7 @@ const CharacterForm = ({ formData, setFormData, handlePhotoUpload }) => {
                        value={formData.description||''} 
                        onChange={e=>setFormData({...formData, description:e.target.value})}/>
             </div>
-            <div className="bg-white/5 p-2 rounded border border-glass-border">
+            <div className="bg-black/20 p-2 rounded border border-glass-border">
                 <span className="text-xs uppercase text-text-muted mb-2 block text-center">Atributos</span>
                 <div className="grid grid-cols-4 gap-2">
                     {['Mente','Corpo','Destreza','Presenca'].map(a=>(
@@ -80,7 +80,7 @@ const CharacterForm = ({ formData, setFormData, handlePhotoUpload }) => {
                 </div>
             </div>
 
-            {/* PERICIAS (Acima) */}
+            {/* PERICIAS */}
             <div>
                 <label className="text-xs text-text-muted mb-1 block">Perícias</label>
                 <textarea className="w-full bg-black/50 border border-glass-border rounded p-2 text-white h-20 text-sm focus:border-neon-purple transition-colors" 
@@ -88,7 +88,7 @@ const CharacterForm = ({ formData, setFormData, handlePhotoUpload }) => {
                           onChange={e=>setFormData({...formData, skills:e.target.value})}/>
             </div>
 
-            {/* TRAUMAS (Acima dos slots) */}
+            {/* TRAUMAS */}
             <div>
                 <label className="text-xs text-text-muted mb-1 block">Traumas</label>
                 <textarea className="w-full bg-black/50 border border-glass-border rounded p-2 text-white h-20 text-sm focus:border-neon-red transition-colors" 
@@ -96,7 +96,7 @@ const CharacterForm = ({ formData, setFormData, handlePhotoUpload }) => {
                           onChange={e=>setFormData({...formData, traumas:e.target.value})}/>
             </div>
             
-            {/* PAINEL DE DANO (Por último) */}
+            {/* PAINEL DE DANO */}
             <div className="bg-red-900/10 p-2 rounded border border-red-900/30">
                 <span className="text-xs uppercase text-neon-red mb-2 block">Tolerância a Dano</span>
                 <div className="flex gap-2">
@@ -269,7 +269,7 @@ const CharacterSidebar = ({ isCollapsed, setIsCollapsed }) => {
                       {confirmModal.onConfirm ? (
                           <>
                             <button onClick={closeModal} className="px-4 py-2 rounded border border-glass-border text-text-muted hover:bg-white/10 transition text-sm">Cancelar</button>
-                            <button onClick={() => { confirmModal.onConfirm(); closeModal(); }} className="px-4 py-2 rounded bg-neon-blue text-black font-bold hover:bg-white transition text-sm">Confirmar</button>
+                            <button onClick={() => { confirmModal.onConfirm(); closeModal(); }} className="px-4 py-2 rounded bg-neon-purple text-black font-bold hover:bg-white transition text-sm">Confirmar</button>
                           </>
                       ) : (
                           <button onClick={closeModal} className="px-6 py-2 rounded bg-glass border border-glass-border text-white hover:bg-white/10 transition text-sm">OK</button>
@@ -285,11 +285,11 @@ const CharacterSidebar = ({ isCollapsed, setIsCollapsed }) => {
   // ==========================================
   if (isCollapsed) {
     return (
-        <div className="h-full flex flex-col items-center py-4 bg-ecos-bg border-r border-glass-border gap-6 overflow-hidden">
+        <div className="h-full flex flex-col items-center py-4 bg-black/80 border-r border-glass-border gap-6 overflow-hidden">
              {/* Botão de Abrir */}
              <button 
                 onClick={() => setIsCollapsed(false)} 
-                className="p-2 rounded-full bg-glass hover:bg-white/10 text-neon-purple transition shadow-lg border border-glass-border"
+                className="p-2 rounded-full bg-glass hover:bg-white/10 text-text-muted hover:text-white transition"
                 title="Expandir"
              >
                 <Menu size={20} />
@@ -310,10 +310,10 @@ const CharacterSidebar = ({ isCollapsed, setIsCollapsed }) => {
   // ==========================================
   if (!activePresetId || view === 'manager') {
       return (
-        <FadeInView key="manager" className="p-6 bg-ecos-bg text-text-main overflow-hidden border-r border-glass-border items-center relative">
+        // Alterado de bg-ecos-bg para bg-black/80 para consistência com Details
+        <FadeInView key="manager" className="p-6 bg-black/80 text-text-main overflow-hidden border-r border-glass-border items-center relative">
             <ConfirmationOverlay />
             
-            {/* Botão de Colapso */}
             <button 
                 onClick={() => setIsCollapsed(true)} 
                 className="absolute top-2 right-2 p-2 rounded-full text-text-muted hover:text-white hover:bg-white/5 transition z-50"
@@ -322,13 +322,14 @@ const CharacterSidebar = ({ isCollapsed, setIsCollapsed }) => {
                 <Menu size={20} />
             </button>
 
-            {/* Título Roxo */}
             <h1 className="text-3xl font-rajdhani font-bold text-neon-purple mb-2 tracking-widest mt-10">PERSONAGENS</h1>
             <p className="text-text-muted text-sm text-center mb-8">Selecione um grupo para começar.</p>
             <div className="w-full max-w-xs space-y-4 flex-1 overflow-y-auto scrollbar-none pb-20">
-                <div className="bg-glass border border-glass-border rounded-lg p-4">
+                {/* Alterado bg-glass para bg-black/20 para ser mais escuro */}
+                <div className="bg-glass border border-glass-border rounded-lg p-0">
                     {!isCreatingPreset ? (
-                        <button onClick={() => setIsCreatingPreset(true)} className="w-full py-3 bg-neon-purple text-black font-bold rounded hover:bg-white transition flex items-center justify-center gap-2"><Plus size={18}/> NOVO GRUPO</button>
+                        // Botão alterado de Sólido para Outline (Mais dark/sci-fi)
+                        <button onClick={() => setIsCreatingPreset(true)} className="w-full py-3 bg-neon-purple/10 border border-neon-purple text-neon-purple font-bold rounded hover:bg-neon-purple hover:text-black transition flex items-center justify-center gap-2"><Plus size={18}/> NOVO GRUPO</button>
                     ) : (
                         <div className="flex flex-col gap-3" style={{ animation: 'fadeInUp 0.2s ease-out' }}>
                             <input autoFocus placeholder="Nome..." className="w-full bg-black/50 border border-glass-border rounded p-2 text-white" value={newPresetName} onChange={e=>setNewPresetName(e.target.value)} />
@@ -341,7 +342,8 @@ const CharacterSidebar = ({ isCollapsed, setIsCollapsed }) => {
                 </div>
                 <div className="flex items-center gap-2 text-text-muted text-xs uppercase my-4"><div className="h-px bg-glass-border flex-1"></div><span>Grupos Salvos</span><div className="h-px bg-glass-border flex-1"></div></div>
                 {presets.length === 0 ? <div className="text-center text-text-muted italic text-sm">Vazio.</div> : presets.map(p => (
-                    <div key={p.id} onClick={() => loadPreset(p.id)} className="bg-glass border border-glass-border rounded-lg p-3 flex justify-between items-center cursor-pointer hover:bg-white/5 transition group">
+                    // Alterado bg-glass para bg-black/20 e adicionado hover mais escuro
+                    <div key={p.id} onClick={() => loadPreset(p.id)} className="bg-black/20 border border-glass-border rounded-lg p-3 flex justify-between items-center cursor-pointer hover:bg-white/5 transition group">
                         <div><h3 className="font-bold text-white font-rajdhani">{p.name}</h3><div className="text-xs text-text-muted">{p.characters.length} Personagens</div></div>
                         <button onClick={(e) => { e.stopPropagation(); showConfirm("Apagar Grupo", "Não poderá ser desfeito.", () => deletePreset(p.id)); }} className="p-2 hover:bg-red-900/50 hover:text-red-500 rounded text-text-muted transition opacity-0 group-hover:opacity-100"><Trash2 size={16}/></button>
                     </div>
@@ -360,21 +362,17 @@ const CharacterSidebar = ({ isCollapsed, setIsCollapsed }) => {
   // ==========================================
   if (view === 'hub') {
     return (
-      <FadeInView key="hub" className="bg-ecos-bg text-text-main overflow-hidden relative border-r border-glass-border">
+      // Alterado de bg-ecos-bg para bg-black/80
+      <FadeInView key="hub" className="bg-black/80 text-text-main overflow-hidden relative border-r border-glass-border">
         <ConfirmationOverlay />
-        {/* Header Redesenhado - Botão SAIR movido para a Esquerda */}
         <div className="flex justify-between items-center p-4 border-b border-glass-border bg-black/40 shrink-0">
             <div className="flex items-center gap-3">
-                {/* Botão Sair do Grupo (Antes do nome) */}
                 <button onClick={() => exitPreset()} className="p-2 rounded-full bg-glass hover:bg-red-900/30 hover:text-red-400 text-text-muted transition" title="Sair do Grupo"><ArrowLeft size={20}/></button>
-                
                 <div className="flex flex-col">
                     <span className="text-[10px] text-text-muted uppercase font-bold leading-none">Grupo</span>
                     <span className="font-rajdhani font-bold text-white truncate max-w-[150px] leading-none mt-1">{currentPreset?.name}</span>
                 </div>
             </div>
-            
-            {/* Header Controls (Apenas Collapse) */}
             <div className="flex items-center gap-2">
                 <button onClick={() => setIsCollapsed(true)} className="p-2 rounded-full bg-glass hover:bg-white/10 text-text-muted hover:text-white transition" title="Recolher"><Menu size={20}/></button>
             </div>
@@ -390,7 +388,8 @@ const CharacterSidebar = ({ isCollapsed, setIsCollapsed }) => {
                     onDragOver={handleDragOver}
                     onDrop={(e) => handleDragSortDrop(e, index)}
                     onClick={() => navToChar(char.id)}
-                    className={`bg-glass border border-glass-border rounded-lg p-3 flex flex-col items-center cursor-pointer hover:bg-white/5 transition relative group min-h-[110px] ${draggedIndex === index ? 'opacity-30 border-dashed border-neon-purple' : ''}`}
+                    // Alterado bg-glass para bg-black/20
+                    className={`bg-black/20 border border-glass-border rounded-lg p-3 flex flex-col items-center cursor-pointer hover:bg-white/5 transition relative group min-h-[110px] ${draggedIndex === index ? 'opacity-30 border-dashed border-neon-purple' : ''}`}
                 >
                     <button onClick={(e) => { e.stopPropagation(); handleDeleteChar(char.id); }} className="absolute top-1 right-1 w-5 h-5 bg-red-600 rounded-full flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity z-10 text-[10px] hover:scale-110"><X size={10}/></button>
                     <img src={char.photo || 'https://via.placeholder.com/120'} className="w-16 h-16 rounded-full object-cover border border-glass-border mb-2 bg-[#222] pointer-events-none" alt={char.name} />
@@ -404,6 +403,7 @@ const CharacterSidebar = ({ isCollapsed, setIsCollapsed }) => {
              <div className="absolute inset-0 bg-ecos-bg z-50 p-4 flex flex-col overflow-hidden" style={{ animation: 'fadeInUp 0.3s ease-out' }}>
                 <div className="flex justify-between items-center mb-4"><h2 className="text-lg font-rajdhani font-bold text-neon-purple">Novo Personagem</h2><button onClick={() => setIsEditing(false)}><X size={20}/></button></div>
                 <div className="flex-1 overflow-y-auto scrollbar-thin pr-2"><CharacterForm formData={formData} setFormData={setFormData} handlePhotoUpload={handlePhotoUpload} /></div>
+                {/* Botão consistente com o "Novo Grupo" (Outline) */}
                 <button onClick={handleSaveChar} className="mt-4 w-full py-3 bg-neon-purple/10 border border-neon-purple text-neon-purple font-bold rounded hover:bg-neon-purple hover:text-black transition">ADICIONAR À MESA</button>
              </div>
         )}
@@ -489,7 +489,7 @@ const CharacterSidebar = ({ isCollapsed, setIsCollapsed }) => {
             </FadeInView>
         </div>
 
-        {/* FOOTER ESTATICO (Fora do FadeIn) */}
+        {/* FOOTER ESTATICO */}
         <div ref={footerRef} className="bg-black/80 border-t border-glass-border flex items-center justify-center gap-2 px-3 py-2 shrink-0 overflow-hidden" style={{ minHeight: footerIconSize + 20 }}>
              {gameState.characters.map((c, index) => (
                  <img 
