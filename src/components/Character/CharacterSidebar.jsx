@@ -327,10 +327,9 @@ const CharacterSidebar = () => {
       <FadeInView key="hub" className="bg-ecos-bg text-text-main overflow-hidden relative border-r border-glass-border">
         <ConfirmationOverlay />
         <div className="p-3 bg-neon-purple/10 border-b border-neon-purple/30 flex justify-between items-center shrink-0">
-            <div className="flex items-center gap-2 overflow-hidden">
-                <div className="w-2 h-2 rounded-full bg-neon-green shadow-[0_0_5px_#0f0]"></div>
+            <div className="left-4 flex items-center gap-2 overflow-hidden">
                 <div className="flex flex-col">
-                    <span className="text-[10px] text-neon-purple uppercase font-bold leading-none">Grupo Ativo</span>
+                    <span className="text-[10px] text-neon-purple uppercase font-bold leading-none">Grupo</span>
                     <span className="font-rajdhani font-bold text-white truncate max-w-[120px] leading-none">{currentPreset?.name}</span>
                 </div>
             </div>
