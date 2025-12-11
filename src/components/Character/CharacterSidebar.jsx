@@ -41,8 +41,8 @@ const CharacterForm = ({ formData, setFormData, handlePhotoUpload }) => {
     const handleFocus = (e) => e.target.select();
 
     return (
-        <div className="space-y-4 pb-4">
-            <div className="flex justify-center mb-4">
+        <div className="space-y-3 pb-4">
+            <div className="flex justify-center">
                 <div className="relative group cursor-pointer" onClick={() => document.getElementById('edit-photo-input').click()}>
                     <div className={`w-32 h-32 rounded-full border-2 ${formData.photo ? 'border-white/0' : 'border-glass-border border-dashed'} overflow-hidden bg-black flex items-center justify-center shadow-2xl transition-all group-hover:scale-95`}>
                         {formData.photo ? (
@@ -60,14 +60,14 @@ const CharacterForm = ({ formData, setFormData, handlePhotoUpload }) => {
 
             <div className="flex gap-2">
                 <div className="flex-1">
-                    <label className="text-xs text-text-muted mb-1 block">Nome</label>
+                    <label className="text-xs text-text-muted mb-0.5 block">Nome</label>
                     <input className={`w-full bg-black/50 border border-glass-border rounded p-2 text-white outline-none focus:border-white transition-colors`}
                            value={formData.name||''} 
                            maxLength={40} 
                            onChange={e=>setFormData({...formData, name:e.target.value})}/>
                 </div>
                 <div className="w-20">
-                    <label className="text-xs text-text-muted mb-1 block">Karma Máx.</label>
+                    <label className="text-xs text-text-muted mb-0.5 block">Karma Máx.</label>
                     <input type="text"
                            maxLength={1}
                            onFocus={handleFocus}
@@ -77,7 +77,7 @@ const CharacterForm = ({ formData, setFormData, handlePhotoUpload }) => {
                 </div>
             </div>
             <div>
-                <label className="text-xs text-text-muted mb-1 block">Descrição</label>
+                <label className="text-xs text-text-muted mb-0.5 block">Descrição</label>
                 <input className={`w-full bg-black/50 border border-glass-border rounded p-2 text-white outline-none focus:border-white transition-colors`}
                        maxLength={100}
                        value={formData.description||''} 
@@ -85,7 +85,7 @@ const CharacterForm = ({ formData, setFormData, handlePhotoUpload }) => {
             </div>
             
             <div>
-                <label className="text-xs text-text-muted mb-1 block">Atributos</label>
+                <label className="text-xs text-text-muted mb-0.5 block">Atributos</label>
                 <div className="bg-black/20 p-2 rounded border border-glass-border">
                     <div className="grid grid-cols-4 gap-2">
                         {['Mente','Corpo','Destreza','Presenca'].map(a=>(
@@ -104,7 +104,7 @@ const CharacterForm = ({ formData, setFormData, handlePhotoUpload }) => {
             </div>
 
             <div>
-                <label className="text-xs text-text-muted mb-1 block">Perícias</label>
+                <label className="text-xs text-text-muted mb-0.5 block">Perícias</label>
                 <textarea 
                     className={`w-full bg-black/50 border border-glass-border rounded p-2 text-white text-sm outline-none focus:border-white transition-colors resize-none h-32 max-h-32 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-transparent`}
                     value={formData.skills||''} 
@@ -113,7 +113,7 @@ const CharacterForm = ({ formData, setFormData, handlePhotoUpload }) => {
             </div>
 
             <div>
-                <label className="text-xs text-text-muted mb-1 block">Traumas</label>
+                <label className="text-xs text-text-muted mb-0.5 block">Traumas</label>
                 <textarea 
                     className="w-full bg-black/50 border border-glass-border rounded p-2 text-white text-sm outline-none focus:border-white transition-colors resize-none h-32 max-h-32 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-transparent" 
                     value={formData.traumas||''} 
@@ -122,7 +122,7 @@ const CharacterForm = ({ formData, setFormData, handlePhotoUpload }) => {
             </div>
             
             <div>
-                <label className="text-xs text-text-muted mb-1 block">Tolerância a Dano</label>
+                <label className="text-xs text-text-muted mb-0.5 block">Tolerância a Dano</label>
                 <div className="bg-red-900/10 p-2 rounded border border-red-900/30">
                     <div className="flex gap-2">
                         {[['superior','Grave'],['medium','Moderado'],['inferior','Leve']].map(([k,l])=>(

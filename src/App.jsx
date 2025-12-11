@@ -13,7 +13,7 @@ function App() {
           - Adicionado transition-all para animação suave de largura (Push Content)
           - Alterna entre w-[60px] e w-[400px] baseado no estado
       */}
-      <div className={`transition-all duration-300 ease-in-out ${isCollapsed ? 'w-[60px]' : 'w-[400px]'} h-full border-r border-gray-800 z-20 shadow-2xl relative shrink-0 bg-ecos-bg`}>
+      <div className={`transition-all duration-300 ease-in-out ${isCollapsed ? 'w-[60px]' : 'w-[400px]'} h-full  z-20 shadow-2xl relative shrink-0 bg-ecos-bg`}>
         <CharacterSidebar isCollapsed={isCollapsed} setIsCollapsed={setIsCollapsed} />
       </div>
 
