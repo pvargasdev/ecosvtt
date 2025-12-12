@@ -300,7 +300,6 @@ const CharacterSidebar = ({ isCollapsed, setIsCollapsed }) => {
                       >
                           <div className="flex justify-between items-start mb-2">
                               <span className={`font-rajdhani font-bold text-lg text-white group-hover:${THEME_PURPLE} transition-colors`}>{sys.name}</span>
-                              {sys.id === 'ecos_rpg_v1' && <span className="text-[9px] px-1.5 py-0.5 rounded border border-[#d084ff]/30 bg-[#d084ff]/10 text-[#d084ff]">PADRÃO</span>}
                           </div>
                           <p className="text-xs text-text-muted leading-relaxed pr-6 group-hover:text-gray-300">{sys.description}</p>
                           <ChevronRight className="absolute right-3 top-1/2 -translate-y-1/2 text-glass-border group-hover:text-[#d084ff] transition-all group-hover:translate-x-1" size={20} />

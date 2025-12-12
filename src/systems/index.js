@@ -19,6 +19,6 @@ export const getSystemList = () => {
         id: sys.SYSTEM_ID,
         name: sys.SYSTEM_NAME,
         // Você pode adicionar descrições nos arquivos de sistema futuramente
-        description: sys.SYSTEM_DESC || "Ficha padrão do sistema." 
+        description: sys.SYSTEM_DESC || "-" 
     }));
 };
