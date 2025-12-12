@@ -50,16 +50,16 @@ export const SYSTEM_NAME = 'D&D 5e';
 export const SYSTEM_DESC = '5e em Português.';
 
 export const defaultState = {
-    classLevel: "Guerreiro lvl. 1",
-    race: "Humano",
+    classLevel: "",
+    race: "",
     hp: 10,
     hpMax: 10,
     ac: 16, 
     speed: 9, 
     prof: 2,
-    attributes: { str: 16, dex: 12, con: 14, int: 10, wis: 10, cha: 8 },
-    skills: { atletismo: true }, 
-    attacks: "Espada Longa: +5 (1d8+3)\nArco Longo: +3 (1d8+1)",
+    attributes: { str: 10, dex: 10, con: 10, int: 10, wis: 10, cha: 10 },
+    skills: {}, 
+    attacks: "",
     notes: "", 
     deathSaves: { success: [false, false, false], failure: [false, false, false] }
 };
@@ -153,7 +153,7 @@ export const Editor = ({ data, updateData }) => {
 
             {/* Ataques */}
             <div>
-                <label className="text-xs text-text-muted mb-0.5 block">Ataques e Notas</label>
+                <label className="text-xs text-text-muted mb-0.5 block">Habilidades</label>
                 <textarea className="w-full bg-black/50 border border-glass-border rounded p-2 text-white text-sm outline-none focus:border-amber-400 h-20 resize-none scrollbar-thin"
                     value={data.attacks || ''} onChange={e=>updateData({ attacks:e.target.value })}/>
             </div>
@@ -260,7 +260,7 @@ export const Viewer = ({ data, updateData }) => {
                 {/* Ataques */}
                 <div className="flex-[4] bg-glass border border-glass-border rounded-xl p-3 flex flex-col overflow-hidden">
                     <span className={`text-xs uppercase ${THEME_COLOR} font-bold tracking-wider mb-2 block border-b border-glass-border pb-2 shrink-0 flex items-center gap-2`}>
-                        <Zap size={12}/> Ataques & Notas
+                        <Zap size={12}/> Habilidades
                     </span>
                     <div className="text-xs text-gray-300 whitespace-pre-line overflow-y-auto flex-1 max-h-[9rem] scrollbar-thin pr-1 font-mono">
                         {data.attacks || '-'}
