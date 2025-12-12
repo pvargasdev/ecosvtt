@@ -2,6 +2,7 @@ import React, { createContext, useState, useContext, useEffect, useCallback, use
 import { imageDB } from './db';
 import JSZip from 'jszip'; 
 import { saveAs } from 'file-saver'; 
+import { getSystemDefaultState } from '../systems'; 
 
 const STORAGE_CHARACTERS_KEY = 'ecos_vtt_chars_v6';
 const STORAGE_ADVENTURES_KEY = 'ecos_vtt_adventures_v3'; 
@@ -458,12 +459,28 @@ export const GameProvider = ({ children }) => {
   }, [characters, activeAdventureId]);
 
   // --- CHARACTERS ---
+  
+
+// ... (dentro de GameProvider) ...
+
+  // --- CHARACTERS ---
   const addCharacter = useCallback((charData) => {
+    // 1. Determina qual sistema usar (Se não vier especificado, usa o padrão do ecos)
+    const systemId = charData.systemId || 'ecos_rpg_v1';
+    
+    // 2. Carrega os dados padrão daquele sistema
+    const defaults = getSystemDefaultState(systemId);
+
+    // 3. Cria o objeto final, misturando os dados padrão com o que foi passado (ex: nome)
     const newChar = {
-      id: generateUUID(), name: "Novo Personagem", description: "", photo: null, karma: 0, karmaMax: 3,
-      attributes: { mente: 0, corpo: 0, destreza: 0, presenca: 0 }, 
-      skills: "", traumas: "", damage: { superior: [false], medium: [false, false], inferior: [false, false] }, ...charData
+      id: generateUUID(), 
+      systemId: systemId, // Importante salvar isso agora
+      name: "Novo Personagem", 
+      photo: null, 
+      ...defaults, // Espalha karma, attributes, skills, etc. do sistema
+      ...charData  // Sobrescreve com nome ou dados passados pelo form
     };
+    
     setCharacters(prev => [...prev, newChar]);
     return newChar.id;
   }, []);

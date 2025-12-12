@@ -3,21 +3,14 @@ import { useGame } from '../../context/GameContext';
 import { ArrowLeft, Menu, Edit2, Plus, X, Upload, Download, Trash2, Check } from 'lucide-react';
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
+import { getSystem, getSystemList } from '../../systems';
 
-// --- CONFIGURAÇÃO DE CORES ---
+
+// --- CONFIGURAÇÃO DE CORES (Mantidas para o Layout base) ---
 const THEME_PURPLE = "text-[#d084ff]";
 const THEME_BORDER_PURPLE = "border-[#d084ff]";
-const THEME_BG_PURPLE = "bg-[#d084ff]";
 const THEME_GLOW = "shadow-[0_0_15px_rgba(208,132,255,0.4)]";
 const THEME_GLOW_HOVER = "hover:shadow-[0_0_25px_rgba(208,132,255,0.6)]";
-
-// Utilitário para redimensionar arrays de dano
-const resizeDamageArray = (currentArray, newSize) => {
-    const arr = [...(currentArray || [])];
-    while(arr.length < newSize) arr.push(false);
-    while(arr.length > newSize) arr.pop();
-    return arr;
-};
 
 // Componente de Animação: FADE IN VERTICAL
 const FadeInView = ({ children, className }) => (
@@ -32,16 +25,21 @@ const FadeInView = ({ children, className }) => (
     </div>
 );
 
-const CharacterForm = ({ formData, setFormData, handlePhotoUpload }) => {
-    const handleSingleDigit = (value) => {
-        const clean = value.replace(/\D/g, '').slice(0, 1);
-        return clean === '' ? 0 : parseInt(clean);
+// O formulário agora é um Wrapper que chama o Editor do sistema
+const CharacterFormWrapper = ({ formData, setFormData, handlePhotoUpload }) => {
+    // Carrega o módulo do sistema baseado no ID do personagem (ou default)
+    const SystemModule = getSystem(formData.systemId);
+    
+    // Função auxiliar para atualizar dados específicos do sistema
+    // Isso permite que o componente do sistema use "updateData({ karma: 1 })" 
+    // e o wrapper propague isso para o setFormData geral
+    const handleSystemUpdate = (updates) => {
+        setFormData(prev => ({ ...prev, ...updates }));
     };
-
-    const handleFocus = (e) => e.target.select();
 
     return (
         <div className="space-y-3 pb-4">
+            {/* CABEÇALHO COMUM (FOTO E NOME) - Independente do Sistema */}
             <div className="flex justify-center">
                 <div className="relative group cursor-pointer" onClick={() => document.getElementById('edit-photo-input').click()}>
                     <div className={`w-32 h-32 rounded-full border-2 ${formData.photo ? 'border-white/0' : 'border-glass-border border-dashed'} overflow-hidden bg-black flex items-center justify-center shadow-2xl transition-all group-hover:scale-95`}>
@@ -66,82 +64,10 @@ const CharacterForm = ({ formData, setFormData, handlePhotoUpload }) => {
                            maxLength={40} 
                            onChange={e=>setFormData({...formData, name:e.target.value})}/>
                 </div>
-                <div className="w-20">
-                    <label className="text-xs text-text-muted mb-0.5 block">Karma Máx.</label>
-                    <input type="text"
-                           maxLength={1}
-                           onFocus={handleFocus}
-                           className={`w-full bg-black/50 border border-glass-border rounded p-2 text-white text-center outline-none focus:border-white transition-colors`} 
-                           value={formData.karmaMax||0} 
-                           onChange={e=>setFormData({...formData, karmaMax: handleSingleDigit(e.target.value)})}/>
-                </div>
-            </div>
-            <div>
-                <label className="text-xs text-text-muted mb-0.5 block">Descrição</label>
-                <input className={`w-full bg-black/50 border border-glass-border rounded p-2 text-white outline-none focus:border-white transition-colors`}
-                       maxLength={100}
-                       value={formData.description||''} 
-                       onChange={e=>setFormData({...formData, description:e.target.value})}/>
-            </div>
-            
-            <div>
-                <label className="text-xs text-text-muted mb-0.5 block">Atributos</label>
-                <div className="bg-black/20 p-2 rounded border border-glass-border">
-                    <div className="grid grid-cols-4 gap-2">
-                        {['Mente','Corpo','Destreza','Presenca'].map(a=>(
-                            <div key={a}>
-                                <label className="text-[9px] text-text-muted block text-center uppercase">{a.substr(0,3)}</label>
-                                <input type="text"
-                                    maxLength={1}
-                                    onFocus={handleFocus}
-                                    className={`w-full bg-black/50 border border-glass-border rounded p-1 text-white text-center font-bold outline-none focus:border-white transition-colors`}
-                                    value={formData.attributes?.[a.toLowerCase()]||0} 
-                                    onChange={e=>setFormData({...formData, attributes:{...formData.attributes, [a.toLowerCase()]: handleSingleDigit(e.target.value)}})}/>
-                            </div>
-                        ))}
-                    </div>
-                </div>
             </div>
 
-            <div>
-                <label className="text-xs text-text-muted mb-0.5 block">Perícias</label>
-                <textarea 
-                    className={`w-full bg-black/50 border border-glass-border rounded p-2 text-white text-sm outline-none focus:border-white transition-colors resize-none h-32 max-h-32 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-transparent`}
-                    value={formData.skills||''} 
-                    placeholder="Liste as perícias..."
-                    onChange={e=>setFormData({...formData, skills:e.target.value})}/>
-            </div>
-
-            <div>
-                <label className="text-xs text-text-muted mb-0.5 block">Traumas</label>
-                <textarea 
-                    className="w-full bg-black/50 border border-glass-border rounded p-2 text-white text-sm outline-none focus:border-white transition-colors resize-none h-32 max-h-32 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-transparent" 
-                    value={formData.traumas||''} 
-                    placeholder="Liste os traumas..."
-                    onChange={e=>setFormData({...formData, traumas:e.target.value})}/>
-            </div>
-            
-            <div>
-                <label className="text-xs text-text-muted mb-0.5 block">Tolerância a Dano</label>
-                <div className="bg-red-900/10 p-2 rounded border border-red-900/30">
-                    <div className="flex gap-2">
-                        {[['superior','Grave'],['medium','Moderado'],['inferior','Leve']].map(([k,l])=>(
-                            <div key={k} className="flex-1">
-                                <label className="text-[9px] text-text-muted block text-center uppercase">{l}</label>
-                                <input type="text"
-                                    maxLength={1}
-                                    onFocus={handleFocus}
-                                    className="w-full bg-black/50 border border-glass-border rounded p-1 text-white text-center outline-none focus:border-white transition-colors" 
-                                    value={formData.damage?.[k]?.length||0} 
-                                    onChange={e=>{
-                                        const s = handleSingleDigit(e.target.value); 
-                                        setFormData({...formData, damage:{...formData.damage, [k]:resizeDamageArray(formData.damage[k], s)}});
-                                    }}/>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            </div>
+            {/* Renderiza o Editor Específico do Sistema (Atributos, Perícias, etc) */}
+            <SystemModule.Editor data={formData} updateData={handleSystemUpdate} />
         </div>
     );
 };
@@ -157,34 +83,27 @@ const CharacterSidebar = ({ isCollapsed, setIsCollapsed }) => {
   const [activeCharId, setActiveCharId] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({});
-
+  const [isSelectingSystem, setIsSelectingSystem] = useState(false); // NOVO
   const [newPresetName, setNewPresetName] = useState("");
   const [isCreatingPreset, setIsCreatingPreset] = useState(false);
-  
-  // ESTADOS PARA RENOMEAR
   const [renamingPresetId, setRenamingPresetId] = useState(null);
   const [renamePresetValue, setRenamePresetValue] = useState("");
-
   const [confirmModal, setConfirmModal] = useState({ open: false, title: '', msg: '', onConfirm: null });
-  
   const [draggedIndex, setDraggedIndex] = useState(null);
   const footerRef = useRef(null);
   const [footerIconSize, setFooterIconSize] = useState(48);
-
-  // REFS PARA LISTA E SCROLL
   const presetsListRef = useRef(null);
   const prevPresetsLength = useRef(presets.length);
 
   const activeChar = gameState.characters.find(c => c.id === activeCharId);
   const currentPreset = presets.find(p => p.id === activePresetId);
 
-  // EFEITO DE SCROLL INTELIGENTE
+  // Determina o módulo do sistema do personagem ativo
+  const ActiveSystemModule = activeChar ? getSystem(activeChar.systemId) : null;
+
   useEffect(() => {
-    // Só scrolla para o fundo se a quantidade de grupos AUMENTOU (criação)
     if (presets.length > prevPresetsLength.current) {
-        if (presetsListRef.current) {
-            presetsListRef.current.scrollTop = presetsListRef.current.scrollHeight;
-        }
+        if (presetsListRef.current) presetsListRef.current.scrollTop = presetsListRef.current.scrollHeight;
     }
     prevPresetsLength.current = presets.length;
   }, [presets.length]);
@@ -195,9 +114,7 @@ const CharacterSidebar = ({ isCollapsed, setIsCollapsed }) => {
   }, [activePresetId]);
 
   useEffect(() => {
-      if (activePresetId && gameState.characters) {
-          saveToPreset(activePresetId);
-      }
+      if (activePresetId && gameState.characters) saveToPreset(activePresetId);
   }, [gameState.characters, activePresetId, saveToPreset]);
 
   useEffect(() => {
@@ -262,7 +179,6 @@ const CharacterSidebar = ({ isCollapsed, setIsCollapsed }) => {
       e.target.value = null;
   };
 
-  // ATUALIZADO: Criação com nome padrão e sem abrir direto
   const handleCreateNewPreset = () => {
       const nameToUse = newPresetName.trim() || "Novo Grupo";
       createPreset(nameToUse);
@@ -270,7 +186,6 @@ const CharacterSidebar = ({ isCollapsed, setIsCollapsed }) => {
       setIsCreatingPreset(false);
   };
 
-  // Função para Renomear
   const handleRenamePreset = (id) => {
     if (!renamePresetValue.trim()) return setRenamingPresetId(null);
     updatePreset(id, { name: renamePresetValue });
@@ -280,6 +195,7 @@ const CharacterSidebar = ({ isCollapsed, setIsCollapsed }) => {
   const handleSaveChar = () => {
     if (!formData.name) return showAlert("Erro", "Nome é obrigatório");
     if (activeCharId === 'NEW') {
+        // Ao criar, o addCharacter no GameContext vai mesclar com os dados default do sistema
         const newId = addCharacter(formData);
         setActiveCharId(newId);
     } else {
@@ -304,9 +220,15 @@ const CharacterSidebar = ({ isCollapsed, setIsCollapsed }) => {
       });
   };
 
-  const openEdit = (isNew = false) => {
+  const openEdit = (isNew = false, systemId = null) => {
     if (isNew) {
-      setFormData({ name: "", description: "", karmaMax: 3, attributes: { mente:0, corpo:0, destreza:0, presenca:0 }, skills: "", traumas: "", damage: { superior: [false], medium: [false,false], inferior: [false,false] }, photo: null });
+      // Se for novo, usa o sistema escolhido. Se não tiver escolhido (fallsafe), usa o padrão.
+      const selectedSys = systemId || 'ecos_rpg_v1';
+      setFormData({ 
+          name: "", 
+          photo: null, 
+          systemId: selectedSys 
+      }); 
       setActiveCharId('NEW');
     } else {
       setFormData(JSON.parse(JSON.stringify(activeChar)));
@@ -350,28 +272,21 @@ const CharacterSidebar = ({ isCollapsed, setIsCollapsed }) => {
   if (isCollapsed) {
     return (
         <div className="h-full flex flex-col items-center py-4 bg-black/80 border-r border-glass-border gap-6 overflow-hidden">
-             <button 
-                onClick={() => setIsCollapsed(false)} 
-                className="p-2 rounded-full bg-glass hover:bg-white/10 text-text-muted hover:text-white transition"
-                title="Expandir"
-             >
+             <button onClick={() => setIsCollapsed(false)} className="p-2 rounded-full bg-glass hover:bg-white/10 text-text-muted hover:text-white transition" title="Expandir">
                 <Menu size={20} />
              </button>
              <div className="flex-1 flex items-center justify-center">
-                <span className={`font-rajdhani font-bold tracking-[0.3em] text-xl rotate-90 whitespace-nowrap opacity-100 select-none text-text-muted`}>
-                    PERSONAGENS
-                </span>
+                <span className={`font-rajdhani font-bold tracking-[0.3em] text-xl rotate-90 whitespace-nowrap opacity-100 select-none text-text-muted`}>PERSONAGENS</span>
              </div>
         </div>
     );
   }
 
   // ==========================================
-  // VIEW: GERENCIADOR DE GRUPOS
+  // VIEW: GERENCIADOR DE GRUPOS (Mantido idêntico)
   // ==========================================
   if (!activePresetId || view === 'manager') {
       return (
-        // REMOVIDO overflow-hidden GERAL para permitir que a shadow do botão apareça
         <FadeInView key="manager" className="p-6 bg-black/80 text-text-main border-r border-glass-border items-center relative">
             <style>{`
                 @keyframes enter-slide {
@@ -379,132 +294,54 @@ const CharacterSidebar = ({ isCollapsed, setIsCollapsed }) => {
                     40% { max-height: 60px; margin-bottom: 0.5rem; }
                     100% { opacity: 1; transform: translateY(0) scale(1); max-height: 60px; margin-bottom: 0.5rem; }
                 }
-                .animate-enter {
-                    animation: enter-slide 0.45s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
-                }
+                .animate-enter { animation: enter-slide 0.45s cubic-bezier(0.2, 0.8, 0.2, 1) forwards; }
             `}</style>
             
             <ConfirmationOverlay />
-            <button 
-                onClick={() => setIsCollapsed(true)} 
-                className="absolute top-2 right-2 p-2 rounded-full text-text-muted hover:text-white hover:bg-white/5 transition z-50"
-                title="Recolher"
-            >
-                <Menu size={20} />
-            </button>
+            <button onClick={() => setIsCollapsed(true)} className="absolute top-2 right-2 p-2 rounded-full text-text-muted hover:text-white hover:bg-white/5 transition z-50" title="Recolher"><Menu size={20} /></button>
             <h1 className={`text-3xl font-rajdhani font-bold ${THEME_PURPLE} mb-2 tracking-widest mt-10`}>PERSONAGENS</h1>
             <p className="text-text-muted text-sm text-center mb-8">Selecione um grupo para começar.</p>
             
             <div className="w-full max-w-xs flex flex-col flex-1 h-full min-h-0">
-                
-                {/* COMPONENTE DE CRIAÇÃO (Botão e Input) - Adicionado padding container para evitar corte de shadow */}
                 <div className="w-full mb-4 px-1 pt-1">
                     {!isCreatingPreset ? (
-                        <button 
-                            onClick={() => setIsCreatingPreset(true)} 
-                            className={`w-full py-3 bg-[#d084ff]/10 border border-[#d084ff]/40 text-[#d084ff] font-bold rounded-lg hover:bg-[#d084ff] hover:text-black hover:shadow-[0_0_15px_rgba(208,132,255,0.4)] transition-all flex items-center justify-center gap-2 group`}
-                        >
+                        <button onClick={() => setIsCreatingPreset(true)} className={`w-full py-3 bg-[#d084ff]/10 border border-[#d084ff]/40 text-[#d084ff] font-bold rounded-lg hover:bg-[#d084ff] hover:text-black hover:shadow-[0_0_15px_rgba(208,132,255,0.4)] transition-all flex items-center justify-center gap-2 group`}>
                             <Plus size={18} strokeWidth={3} className="group-hover:scale-110 transition-transform"/> NOVO GRUPO
                         </button>
                     ) : (
                         <div className="flex flex-col gap-2" style={{ animation: 'fadeInUp 0.2s ease-out' }}>
-                            <input 
-                                autoFocus 
-                                placeholder="Nome do Grupo..." 
-                                className="w-full bg-[#15151a] border border-[#d084ff] text-white placeholder-white/20 rounded-lg p-3 outline-none shadow-[0_0_10px_rgba(208,132,255,0.15)] focus:shadow-[0_0_15px_rgba(208,132,255,0.3)] transition-all" 
-                                value={newPresetName} 
-                                onChange={e => setNewPresetName(e.target.value)} 
-                                onKeyDown={(e) => {
-                                    if (e.key === 'Enter') handleCreateNewPreset();
-                                    if (e.key === 'Escape') setIsCreatingPreset(false);
-                                }}
-                            />
-                            
+                            <input autoFocus placeholder="Nome do Grupo..." className="w-full bg-[#15151a] border border-[#d084ff] text-white placeholder-white/20 rounded-lg p-3 outline-none shadow-[0_0_10px_rgba(208,132,255,0.15)] focus:shadow-[0_0_15px_rgba(208,132,255,0.3)] transition-all" value={newPresetName} onChange={e => setNewPresetName(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') handleCreateNewPreset(); if (e.key === 'Escape') setIsCreatingPreset(false); }} />
                             <div className="flex items-center justify-end gap-2 px-1">
-                                <button 
-                                    onClick={() => setIsCreatingPreset(false)} 
-                                    className="text-xs font-medium text-zinc-500 hover:text-white transition-colors px-3 py-2"
-                                >
-                                    CANCELAR
-                                </button>
-                                <button 
-                                    onClick={handleCreateNewPreset} 
-                                    className="flex items-center gap-2 px-4 py-2 bg-[#d084ff] text-black font-bold rounded text-xs hover:bg-white transition-all shadow-lg shadow-purple-900/20"
-                                >
-                                    <Check size={14} strokeWidth={3}/> CRIAR
-                                </button>
+                                <button onClick={() => setIsCreatingPreset(false)} className="text-xs font-medium text-zinc-500 hover:text-white transition-colors px-3 py-2">CANCELAR</button>
+                                <button onClick={handleCreateNewPreset} className="flex items-center gap-2 px-4 py-2 bg-[#d084ff] text-black font-bold rounded text-xs hover:bg-white transition-all shadow-lg shadow-purple-900/20"><Check size={14} strokeWidth={3}/> CRIAR</button>
                             </div>
                         </div>
                     )}
                 </div>
-
+                {/* ... Restante da lista de presets igual ... */}
                 <div className="flex items-center gap-2 text-text-muted text-xs uppercase my-2 shrink-0">
                     <div className="h-px bg-glass-border flex-1"></div>
                     <span>Grupos Salvos</span>
                     <div className="h-px bg-glass-border flex-1"></div>
                 </div>
-
-                {/* LISTA DE PRESETS COM SCROLL E ANIMAÇÃO */}
                 <div ref={presetsListRef} className="flex-1 overflow-y-auto scrollbar-none pb-4 relative min-h-[100px] space-y-2">
-                     {/* Mensagem Vazio Absoluta */}
                      {presets.length === 0 && (
-                        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                            <p className="text-text-muted italic text-sm opacity-50">Vazio.</p>
-                        </div>
+                        <div className="absolute inset-0 flex items-center justify-center pointer-events-none"><p className="text-text-muted italic text-sm opacity-50">Vazio.</p></div>
                     )}
-
                     {presets.map(p => (
-                        <div 
-                            key={p.id} 
-                            onClick={() => { if(renamingPresetId !== p.id) loadPreset(p.id); }} 
-                            className={`animate-enter bg-black/20 border border-glass-border rounded-lg p-3 flex justify-between items-center cursor-pointer transition group min-h-[66px] ${renamingPresetId === p.id ? 'bg-white/10' : 'hover:bg-white/5'}`}
-                        >
+                        <div key={p.id} onClick={() => { if(renamingPresetId !== p.id) loadPreset(p.id); }} className={`animate-enter bg-black/20 border border-glass-border rounded-lg p-3 flex justify-between items-center cursor-pointer transition group min-h-[66px] ${renamingPresetId === p.id ? 'bg-white/10' : 'hover:bg-white/5'}`}>
                             {renamingPresetId === p.id ? (
-                                // MODO DE EDIÇÃO
                                 <div className="flex items-center gap-2 w-full animate-in fade-in duration-200" onClick={e => e.stopPropagation()}>
-                                    <input 
-                                        autoFocus
-                                        onFocus={(e) => e.target.select()}
-                                        className="flex-1 bg-black/50 border border-white/50 rounded px-2 py-1 text-white text-sm outline-none"
-                                        value={renamePresetValue}
-                                        onChange={e => setRenamePresetValue(e.target.value)}
-                                        onKeyDown={e => {
-                                            if(e.key === 'Enter') handleRenamePreset(p.id);
-                                            if(e.key === 'Escape') setRenamingPresetId(null);
-                                        }}
-                                    />
+                                    <input autoFocus onFocus={(e) => e.target.select()} className="flex-1 bg-black/50 border border-white/50 rounded px-2 py-1 text-white text-sm outline-none" value={renamePresetValue} onChange={e => setRenamePresetValue(e.target.value)} onKeyDown={e => { if(e.key === 'Enter') handleRenamePreset(p.id); if(e.key === 'Escape') setRenamingPresetId(null); }} />
                                     <button onClick={() => setRenamingPresetId(null)} className="p-1 rounded bg-black/40 hover:bg-white/20 text-text-muted hover:text-white transition"><ArrowLeft size={16}/></button>
                                     <button onClick={() => handleRenamePreset(p.id)} className="p-1 rounded bg-neon-green hover:bg-white text-black transition"><Check size={16}/></button>           
                                 </div>
                             ) : (
-                                // MODO DE VISUALIZAÇÃO
                                 <>
-                                    <div>
-                                        <h3 className="font-bold text-white font-rajdhani truncate max-w-[180px]">{p.name}</h3>
-                                        <div className="text-xs text-text-muted">{p.characters.length} Personagens</div>
-                                    </div>
+                                    <div><h3 className="font-bold text-white font-rajdhani truncate max-w-[180px]">{p.name}</h3><div className="text-xs text-text-muted">{p.characters.length} Personagens</div></div>
                                     <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity gap-1">
-                                        <button 
-                                            onClick={(e) => { 
-                                                e.stopPropagation(); 
-                                                setRenamingPresetId(p.id); 
-                                                setRenamePresetValue(p.name); 
-                                            }} 
-                                            className="p-2 hover:bg-white/10 hover:text-yellow-400 rounded text-text-muted transition" 
-                                            title="Renomear"
-                                        >
-                                            <Edit2 size={16}/>
-                                        </button>
-                                        <button 
-                                            onClick={(e) => { 
-                                                e.stopPropagation(); 
-                                                showConfirm("Apagar Grupo", "Não poderá ser desfeito.", () => deletePreset(p.id)); 
-                                            }} 
-                                            className="p-2 hover:bg-red-900/50 hover:text-red-500 rounded text-text-muted transition" 
-                                            title="Excluir"
-                                        >
-                                            <Trash2 size={16}/>
-                                        </button>
+                                        <button onClick={(e) => { e.stopPropagation(); setRenamingPresetId(p.id); setRenamePresetValue(p.name); }} className="p-2 hover:bg-white/10 hover:text-yellow-400 rounded text-text-muted transition" title="Renomear"><Edit2 size={16}/></button>
+                                        <button onClick={(e) => { e.stopPropagation(); showConfirm("Apagar Grupo", "Não poderá ser desfeito.", () => deletePreset(p.id)); }} className="p-2 hover:bg-red-900/50 hover:text-red-500 rounded text-text-muted transition" title="Excluir"><Trash2 size={16}/></button>
                                     </div>
                                 </>
                             )}
@@ -543,59 +380,74 @@ const CharacterSidebar = ({ isCollapsed, setIsCollapsed }) => {
         <div className="flex-1 overflow-y-auto grid grid-cols-2 gap-4 p-4 content-start scrollbar-thin">
             {gameState.characters.map((char, index) => (
                 <div 
-                    key={char.id}
-                    draggable
-                    onDragStart={(e) => handleDragSortStart(e, index, char)}
-                    onDragEnd={handleDragEnd}
-                    onDragOver={handleDragOver}
-                    onDrop={(e) => handleDragSortDrop(e, index)}
+                    key={char.id} draggable onDragStart={(e) => handleDragSortStart(e, index, char)} onDragEnd={handleDragEnd} onDragOver={handleDragOver} onDrop={(e) => handleDragSortDrop(e, index)}
                     onClick={() => navToChar(char.id)}
                     className={`bg-black/20 border border-glass-border rounded-xl p-4 flex flex-col items-center justify-start py-6 gap-4 cursor-pointer hover:bg-white/5 transition relative group h-[198px] ${draggedIndex === index ? `opacity-30 border-dashed ${THEME_BORDER_PURPLE}` : ''}`}
                 >
                     <button onClick={(e) => { e.stopPropagation(); handleDeleteChar(char.id); }} className="absolute top-2 right-2 w-6 h-6 bg-red-600 rounded-full flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity z-10 text-xs hover:scale-110 shadow-md"><X size={12}/></button>
-                    
                     <img src={char.photo || 'https://via.placeholder.com/150'} className="w-24 h-24 rounded-full object-cover pointer-events-none shadow-lg transition-all group-hover:scale-105" alt={char.name} />
-                    
                     <div className="w-full flex flex-col items-center gap-1">
-                        <span className="font-semibold text-center text-lg leading-tight w-full line-clamp-2 px-1 text-white pointer-events-none break-words">
-                            {char.name}
-                        </span>
-                        
-                        {char.name.length <= 12 && (
-                             <div className="w-10 h-[2px] bg-white/20 rounded-full mt-1"></div>
-                        )}
+                        <span className="font-semibold text-center text-lg leading-tight w-full line-clamp-2 px-1 text-white pointer-events-none break-words">{char.name}</span>
+                        {char.name.length <= 12 && (<div className="w-10 h-[2px] bg-white/20 rounded-full mt-1"></div>)}
                     </div>
                 </div>
             ))}
             
-            <div onClick={() => openEdit(true)} className="border border-dashed border-glass-border rounded-xl p-4 flex flex-col items-center justify-center cursor-pointer hover:bg-white/5 opacity-50 hover:opacity-100 h-[200px] transition-all gap-3">
-                <div className="p-4 rounded-full bg-glass-border/20">
-                    <Plus size={32} className="text-text-muted"/>
-                </div>
+            {/* O onClick aqui ativa o isSelectingSystem */}
+            <div onClick={() => setIsSelectingSystem(true)} className="border border-dashed border-glass-border rounded-xl p-4 flex flex-col items-center justify-center cursor-pointer hover:bg-white/5 opacity-50 hover:opacity-100 h-[200px] transition-all gap-3">
+                <div className="p-4 rounded-full bg-glass-border/20"><Plus size={32} className="text-text-muted"/></div>
                 <span className="text-sm text-text-muted font-rajdhani uppercase tracking-widest truncate max-w-[135px]">Novo personagem</span>
             </div>
         </div>
 
+        {/* --- CORREÇÃO: O Modal agora está AQUI dentro, acessível na view Hub --- */}
+        {isSelectingSystem && (
+            <div className="absolute inset-0 z-[60] bg-black/90 backdrop-blur-md flex items-center justify-center p-6 animate-in fade-in duration-200">
+                <div className="bg-[#15151a] border border-glass-border rounded-xl shadow-2xl w-full max-w-md flex flex-col max-h-[80%]">
+                    <div className="p-4 border-b border-glass-border flex justify-between items-center bg-black/40 rounded-t-xl">
+                        <h3 className="font-rajdhani font-bold text-xl text-white tracking-wider">ESCOLHA O SISTEMA</h3>
+                        <button onClick={() => setIsSelectingSystem(false)} className="text-text-muted hover:text-white transition">
+                            <X size={20}/>
+                        </button>
+                    </div>
+                    <div className="p-4 overflow-y-auto space-y-3 custom-scrollbar">
+                        {getSystemList().map(sys => (
+                            <button 
+                                key={sys.id}
+                                onClick={() => {
+                                    setIsSelectingSystem(false);
+                                    openEdit(true, sys.id); 
+                                }}
+                                className="w-full text-left bg-black/40 border border-glass-border hover:border-[#d084ff] hover:bg-[#d084ff]/10 p-4 rounded-lg group transition-all duration-200"
+                            >
+                                <div className="flex justify-between items-center mb-1">
+                                    <span className="font-bold text-[#d084ff] font-rajdhani text-lg group-hover:text-white transition-colors">
+                                        {sys.name}
+                                    </span>
+                                    {sys.id === 'ecos_rpg_v1' && (
+                                        <span className="text-[10px] bg-[#d084ff]/20 text-[#d084ff] px-2 py-0.5 rounded border border-[#d084ff]/30">PADRÃO</span>
+                                    )}
+                                </div>
+                                <p className="text-xs text-text-muted group-hover:text-gray-300">
+                                    {sys.description}
+                                </p>
+                            </button>
+                        ))}
+                    </div>
+                </div>
+            </div>
+        )}
+
         {isEditing && (
              <div className="absolute inset-0 bg-ecos-bg z-50 p-4 flex flex-col overflow-hidden" style={{ animation: 'fadeInUp 0.3s ease-out' }}>
                 <div className="flex items-center gap-4 mb-4 p-4 border-b border-glass-border bg-black/40 -mx-4 -mt-4">
-                    <button 
-                        onClick={handleCancelEdit} 
-                        className="p-2 rounded-full bg-glass hover:bg-white/10 transition text-text-muted hover:text-white"
-                        title="Voltar (Descarta alterações)"
-                    >
-                        <ArrowLeft size={20}/>
-                    </button>
+                    <button onClick={handleCancelEdit} className="p-2 rounded-full bg-glass hover:bg-white/10 transition text-text-muted hover:text-white" title="Voltar (Descarta alterações)"><ArrowLeft size={20}/></button>
                     <h2 className={`text-lg font-rajdhani font-bold ${THEME_PURPLE} uppercase tracking-wider`}>Novo Personagem</h2>
                 </div>
-                
-                <div className="flex-1 overflow-y-auto scrollbar-thin pr-2"><CharacterForm formData={formData} setFormData={setFormData} handlePhotoUpload={handlePhotoUpload} /></div>
-                <button 
-                    onClick={handleSaveChar} 
-                    className={`mt-4 w-full py-3 bg-[#d084ff]/10 border border-[#d084ff] text-[#d084ff] font-bold rounded hover:bg-[#d084ff] hover:text-black transition-all ${THEME_GLOW} ${THEME_GLOW_HOVER}`}
-                >
-                    ADICIONAR À MESA
-                </button>
+                <div className="flex-1 overflow-y-auto scrollbar-thin pr-2">
+                    <CharacterFormWrapper formData={formData} setFormData={setFormData} handlePhotoUpload={handlePhotoUpload} />
+                </div>
+                <button onClick={handleSaveChar} className={`mt-4 w-full py-3 bg-[#d084ff]/10 border border-[#d084ff] text-[#d084ff] font-bold rounded hover:bg-[#d084ff] hover:text-black transition-all ${THEME_GLOW} ${THEME_GLOW_HOVER}`}>ADICIONAR À MESA</button>
              </div>
         )}
       </FadeInView>
@@ -608,7 +460,6 @@ const CharacterSidebar = ({ isCollapsed, setIsCollapsed }) => {
   return (
     <div className="h-full flex flex-col bg-black/80 text-text-main relative overflow-hidden">
         <ConfirmationOverlay />
-        
         <div className="flex-1 relative overflow-hidden">
             <FadeInView key={activeCharId || 'details'} className="absolute inset-0 flex flex-col">
                 <div className="flex justify-between items-center p-4 border-b border-glass-border bg-black/40 shrink-0">
@@ -620,150 +471,45 @@ const CharacterSidebar = ({ isCollapsed, setIsCollapsed }) => {
                 </div>
 
                 <div className="flex-1 overflow-y-auto p-6 scrollbar-thin">
-                    
                     <div className="flex items-center gap-4 mb-4">
-                        <img 
-                            draggable 
-                            onDragStart={(e) => handleDragSortStart(e, -1, activeChar)} 
-                            onDragEnd={handleDragEnd} 
-                            src={activeChar.photo || 'https://via.placeholder.com/120'} 
-                            className="w-[100px] h-[100px] rounded-2xl object-cover shadow-lg cursor-grab active:cursor-grabbing hover:scale-105 transition-transform shrink-0" 
-                            alt="Avatar"
-                        />
-                        
+                        <img draggable onDragStart={(e) => handleDragSortStart(e, -1, activeChar)} onDragEnd={handleDragEnd} src={activeChar.photo || 'https://via.placeholder.com/120'} className="w-[100px] h-[100px] rounded-2xl object-cover shadow-lg cursor-grab active:cursor-grabbing hover:scale-105 transition-transform shrink-0" alt="Avatar"/>
                         <div className="flex-1 flex flex-col justify-center gap-2 h-[100px] min-w-0">
-                            <h2 
-                                className="text-2xl font-bold leading-none font-rajdhani truncate w-full text-white" 
-                                title={activeChar.name}
-                            >
-                                {activeChar.name}
-                            </h2>
-
-                            <div className={`flex items-center justify-between bg-[#d084ff]/15 border border-[#d084ff] rounded-xl p-2 h-[60px] w-full ${THEME_GLOW}`}>
-                                <button 
-                                    onClick={() => updateCharacter(activeChar.id, { karma: Math.max(0, activeChar.karma - 1) })} 
-                                    className="w-10 h-full flex items-center justify-center text-xl bg-[#d084ff]/20 rounded hover:bg-[#d084ff] hover:text-black hover:shadow-[0_0_10px_#d084ff] transition-all shrink-0"
-                                >
-                                    -
-                                </button>
-                                <div className="flex flex-col items-center min-w-[3rem]">
-                                    <span className={`text-[10px] ${THEME_PURPLE} font-bold tracking-widest uppercase`}>KARMA</span>
-                                    <span className="text-3xl font-rajdhani font-bold text-white drop-shadow-[0_0_10px_#d084ff] leading-none">{activeChar.karma}</span>
-                                </div>
-                                <button 
-                                    onClick={() => updateCharacter(activeChar.id, { karma: Math.min(activeChar.karmaMax, activeChar.karma + 1) })} 
-                                    className="w-10 h-full flex items-center justify-center text-xl bg-[#d084ff]/20 rounded hover:bg-[#d084ff] hover:text-black hover:shadow-[0_0_10px_#d084ff] transition-all shrink-0"
-                                >
-                                    +
-                                </button>
-                            </div>
+                            <h2 className="text-2xl font-bold leading-none font-rajdhani truncate w-full text-white" title={activeChar.name}>{activeChar.name}</h2>
+                            {/* O nome é global, mas o restante é do sistema */}
                         </div>
                     </div>
 
-                    <div className="bg-glass border border-glass-border rounded-xl p-1.5 mb-4 min-h-[30px] flex items-center relative overflow-hidden">
-                         <span className="text-lg font-rajdhani font-semibold text-text-main line-clamp-2 text-center text-ellipsis w-full leading-tight">
-                            {activeChar.description || '---'}
-                         </span>
-                    </div>
-
-                    <div className="flex gap-4 mb-4 min-h-[160px]">
-                        <div className="flex-1 bg-glass border border-glass-border rounded-xl p-3 flex flex-col justify-center">
-                            <div className="grid grid-cols-2 gap-3 h-full">
-                                {['mente','corpo','destreza','presenca'].map(a=>(
-                                    <div key={a} className="bg-black/20 border border-white/5 rounded-lg flex flex-col items-center justify-center p-1 overflow-hidden">
-                                        <span className="font-rajdhani font-bold text-2xl text-neon-blue drop-shadow-[0_0_5px_rgba(0,243,255,0.3)] leading-none">{activeChar.attributes[a]}</span>
-                                        <span className="text-[10px] uppercase text-text-muted mt-1 tracking-wider truncate max-w-full">
-                                            {a.substring(0,3)}
-                                        </span>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                        <div className="flex-1 bg-glass border border-glass-border rounded-xl p-3 flex flex-col overflow-hidden">
-                            <span className="text-xs uppercase text-neon-green font-bold tracking-wider mb-2 block border-b border-glass-border pb-2 shrink-0">Perícias</span>
-                            <div className="text-sm text-gray-300 whitespace-pre-line overflow-y-auto flex-1 max-h-[6.5rem] scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-transparent pr-2">
-                                {activeChar.skills || '-'}
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div className="flex gap-4 mb-4 min-h-[160px]">
-                        <div className="flex-1 bg-glass border border-glass-border rounded-xl p-3 flex flex-col overflow-hidden">
-                            <span className="text-xs uppercase text-neon-red font-bold tracking-wider mb-2 block border-b border-glass-border pb-2 shrink-0">Dano</span>
-                            <div className="flex flex-col gap-2 h-full justify-between">
-                                {['superior', 'medium', 'inferior'].map((k) => (
-                                    <div key={k} className="flex gap-2 flex-1 w-full">
-                                        {activeChar.damage[k].map((f, i) => (
-                                            <button
-                                                key={i}
-                                                onClick={() => {
-                                                    const n = [...activeChar.damage[k]];
-                                                    n[i] = !n[i];
-                                                    updateCharacter(activeChar.id, { damage: { ...activeChar.damage, [k]: n } });
-                                                }}
-                                                className={`h-full flex-1 rounded border border-glass-border transition-all ${
-                                                    f ? 'bg-neon-red shadow-[0_0_10px_#ff2a2a] border-neon-red' : 'bg-black/30 hover:bg-white/10'
-                                                }`}
-                                            />
-                                        ))}
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-
-                        <div className="flex-1 bg-glass border border-glass-border rounded-xl p-3 flex flex-col overflow-hidden">
-                            <span className="text-xs uppercase text-neon-red font-bold tracking-wider mb-2 block border-b border-glass-border pb-2 shrink-0">Traumas</span>
-                            <div className="text-sm text-gray-300 whitespace-pre-line overflow-y-auto flex-1 max-h-[6.5rem] scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-transparent pr-2">
-                                {activeChar.traumas || '-'}
-                            </div>
-                        </div>
-                    </div>
+                    {/* RENDERIZAÇÃO DA FICHA INTERATIVA (Sistema) */}
+                    {ActiveSystemModule && (
+                        <ActiveSystemModule.Viewer 
+                            data={activeChar} 
+                            updateData={(updates) => updateCharacter(activeChar.id, updates)} 
+                        />
+                    )}
                 </div>
             </FadeInView>
         </div>
 
         <div ref={footerRef} className="bg-black/80 border-t border-glass-border flex items-center justify-center gap-2 px-3 py-2 shrink-0 overflow-hidden" style={{ minHeight: footerIconSize + 20 }}>
              {gameState.characters.map((c, index) => (
-                 <img 
-                    key={c.id}
-                    draggable
-                    onDragStart={(e) => handleDragSortStart(e, index, c)}
-                    onDragEnd={handleDragEnd}
-                    onDragOver={handleDragOver}
-                    onDrop={(e) => handleDragSortDrop(e, index)}
-                    src={c.photo || 'https://via.placeholder.com/50'}
-                    onClick={() => navToChar(c.id)}
-                    style={{ width: footerIconSize, height: footerIconSize }}
-                    className={`rounded-full border-2 object-cover cursor-pointer hover:scale-110 transition-transform shrink-0 ${c.id === activeChar.id ? `border-white opacity-100 shadow-[0_0_15px_rgba(208,132,255,0.5)]` : 'border-transparent opacity-50 hover:opacity-100'}`} 
-                    alt={c.name}
-                 />
+                 <img key={c.id} draggable onDragStart={(e) => handleDragSortStart(e, index, c)} onDragEnd={handleDragEnd} onDragOver={handleDragOver} onDrop={(e) => handleDragSortDrop(e, index)} src={c.photo || 'https://via.placeholder.com/50'} onClick={() => navToChar(c.id)} style={{ width: footerIconSize, height: footerIconSize }} className={`rounded-full border-2 object-cover cursor-pointer hover:scale-110 transition-transform shrink-0 ${c.id === activeChar.id ? `border-white opacity-100 shadow-[0_0_15px_rgba(208,132,255,0.5)]` : 'border-transparent opacity-50 hover:opacity-100'}`} alt={c.name} />
              ))}
         </div>
 
         {isEditing && (
              <div className="absolute inset-0 bg-black/90 backdrop-blur-md z-50 p-4 flex flex-col overflow-y-auto" style={{ animation: 'fadeInUp 0.3s ease-out' }}>
                 <div className="flex items-center gap-4 mb-4 p-4 border-b border-glass-border bg-black/40 -mx-4 -mt-4">
-                    <button 
-                        onClick={handleCancelEdit} 
-                        className="p-2 rounded-full bg-glass hover:bg-white/10 transition text-text-muted hover:text-white"
-                        title="Voltar (Descarta alterações)"
-                    >
-                        <ArrowLeft size={20}/>
-                    </button>
+                    <button onClick={handleCancelEdit} className="p-2 rounded-full bg-glass hover:bg-white/10 transition text-text-muted hover:text-white" title="Voltar (Descarta alterações)"><ArrowLeft size={20}/></button>
                     <h2 className={`text-xl font-rajdhani font-bold ${THEME_PURPLE} uppercase tracking-wider`}>Editar Personagem</h2>
                 </div>
-                
                 <div className="flex-1 overflow-y-auto scrollbar-thin pr-2">
-                    <CharacterForm formData={formData} setFormData={setFormData} handlePhotoUpload={handlePhotoUpload} />
+                    {/* WRAPPER DO FORMULÁRIO */}
+                    <CharacterFormWrapper formData={formData} setFormData={setFormData} handlePhotoUpload={handlePhotoUpload} />
                 </div>
-                <button 
-                    onClick={handleSaveChar} 
-                    className={`mt-4 w-full py-3 bg-[#d084ff]/10 border border-[#d084ff] text-[#d084ff] font-bold rounded hover:bg-[#d084ff] hover:text-black transition-all ${THEME_GLOW} ${THEME_GLOW_HOVER}`}
-                >
-                    SALVAR ALTERAÇÕES
-                </button>
+                <button onClick={handleSaveChar} className={`mt-4 w-full py-3 bg-[#d084ff]/10 border border-[#d084ff] text-[#d084ff] font-bold rounded hover:bg-[#d084ff] hover:text-black transition-all ${THEME_GLOW} ${THEME_GLOW_HOVER}`}>SALVAR ALTERAÇÕES</button>
              </div>
         )}
+
     </div>
   );
 };
