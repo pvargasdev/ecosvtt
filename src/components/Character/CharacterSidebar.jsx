@@ -82,7 +82,6 @@ const CharacterSidebar = ({ isCollapsed, setIsCollapsed }) => {
   const [activeCharId, setActiveCharId] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({});
-  // REMOVIDO: const [isSelectingSystem, setIsSelectingSystem] = useState(false);
   
   const [newPresetName, setNewPresetName] = useState("");
   const [isCreatingPreset, setIsCreatingPreset] = useState(false);
@@ -204,14 +203,21 @@ const CharacterSidebar = ({ isCollapsed, setIsCollapsed }) => {
     activeCharId === 'NEW' ? setView('hub') : setView('details');
   };
 
-  // Lógica inteligente do botão voltar
+  // --- LÓGICA DO BOTÃO VOLTAR / CANCELAR ---
   const handleCancelEdit = () => {
-    // Se for novo e já tiver selecionado sistema, volta para a seleção
-    if (activeCharId === 'NEW' && formData.systemId) {
-        setFormData(prev => ({ ...prev, systemId: null }));
-        return;
+    // 1. SE FOR NOVO PERSONAGEM: Nunca pede confirmação
+    if (activeCharId === 'NEW') {
+        if (formData.systemId) {
+            // Se estava preenchendo a ficha, volta para a seleção de sistema
+            setFormData(prev => ({ ...prev, systemId: null }));
+        } else {
+            // Se estava na seleção, fecha tudo
+            setIsEditing(false);
+        }
+        return; // Sai da função sem mostrar modal
     }
-    // Caso contrário (ou se for edição de existente), confirma o cancelamento total
+
+    // 2. SE FOR EDIÇÃO DE EXISTENTE: Pede confirmação
     showConfirm(
         "Descartar Alterações?",
         "Se sair agora, as alterações não salvas serão perdidas.",
@@ -229,24 +235,20 @@ const CharacterSidebar = ({ isCollapsed, setIsCollapsed }) => {
   // Inicializa o processo de edição/criação
   const openEdit = (isNew = false, systemId = null) => {
     if (isNew) {
-      // Ao criar novo, iniciamos SEM systemId para forçar a tela de seleção
       setFormData({ 
           name: "", 
           photo: null, 
-          systemId: null // Isso ativa a tela de seleção
+          systemId: null 
       }); 
       setActiveCharId('NEW');
     } else {
-      // Editar existente
       setFormData(JSON.parse(JSON.stringify(activeChar)));
     }
     setIsEditing(true);
   };
 
-  // Quando o usuário escolhe um card de sistema
   const handleSelectSystem = (sysId) => {
       const defaults = getSystemDefaultState(sysId);
-      // Mescla os defaults e define o ID, o que fará o FormWrapper renderizar
       setFormData(prev => ({ 
           ...prev, 
           ...defaults,
@@ -310,7 +312,6 @@ const CharacterSidebar = ({ isCollapsed, setIsCollapsed }) => {
   );
 
   // --- RENDERIZAÇÃO DA CAMADA DE EDIÇÃO ---
-  // Esta função renderiza o overlay de edição, seja para selecionar sistema ou preencher ficha
   const renderEditingOverlay = () => {
     if (!isEditing) return null;
 
