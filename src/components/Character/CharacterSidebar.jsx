@@ -1,8 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useGame } from '../../context/GameContext';
 import { ArrowLeft, Menu, Edit2, Plus, X, Upload, Download, Trash2, Check, ChevronRight } from 'lucide-react';
-import JSZip from 'jszip';
-import { saveAs } from 'file-saver';
 import { getSystem, getSystemList, getSystemDefaultState } from '../../systems';
 
 // --- CONFIGURAÇÃO DE CORES ---
@@ -26,7 +24,6 @@ const FadeInView = ({ children, className }) => (
 
 // Wrapper do Formulário
 const CharacterFormWrapper = ({ formData, setFormData, handlePhotoUpload }) => {
-    // Se não tiver sistema selecionado, não renderiza nada (segurança)
     if (!formData.systemId) return null;
 
     const SystemModule = getSystem(formData.systemId);
@@ -75,7 +72,8 @@ const CharacterSidebar = ({ isCollapsed, setIsCollapsed }) => {
   const { 
     gameState, presets, activePresetId,
     addCharacter, updateCharacter, deleteCharacter, setAllCharacters,
-    createPreset, loadPreset, saveToPreset, deletePreset, mergePresets, exitPreset, updatePreset 
+    createPreset, loadPreset, saveToPreset, deletePreset, exitPreset, updatePreset,
+    exportPreset, importPreset // NOVO: Funções individuais
   } = useGame();
   
   const [view, setView] = useState('manager'); 
@@ -93,11 +91,10 @@ const CharacterSidebar = ({ isCollapsed, setIsCollapsed }) => {
   const [footerIconSize, setFooterIconSize] = useState(48);
   const presetsListRef = useRef(null);
   const prevPresetsLength = useRef(presets.length);
+  const importInputRef = useRef(null); // Ref para o input de arquivo
 
   const activeChar = gameState.characters.find(c => c.id === activeCharId);
   const currentPreset = presets.find(p => p.id === activePresetId);
-
-  // Módulo do sistema para Visualização (Viewer)
   const ActiveSystemModule = activeChar ? getSystem(activeChar.systemId) : null;
 
   useEffect(() => {
@@ -156,28 +153,6 @@ const CharacterSidebar = ({ isCollapsed, setIsCollapsed }) => {
   const handleDragEnd = () => setDraggedIndex(null);
   const handleDragOver = (e) => e.preventDefault();
 
-  const handleExportPresetsZip = async () => {
-      const zip = new JSZip();
-      zip.file("presets.json", JSON.stringify(presets, null, 2));
-      const content = await zip.generateAsync({ type: "blob" });
-      saveAs(content, `ecos_grupos.zip`);
-  };
-
-  const handleImportPresetsZip = async (e) => {
-      const file = e.target.files[0];
-      if (!file) return;
-      try {
-          const zip = await JSZip.loadAsync(file);
-          const jsonFile = zip.file("presets.json");
-          if (jsonFile) {
-              const str = await jsonFile.async("string");
-              const json = JSON.parse(str);
-              if (Array.isArray(json)) mergePresets(json);
-          }
-      } catch (err) { showAlert("Erro", "Arquivo inválido."); }
-      e.target.value = null;
-  };
-
   const handleCreateNewPreset = () => {
       const nameToUse = newPresetName.trim() || "Novo Grupo";
       createPreset(nameToUse);
@@ -203,26 +178,13 @@ const CharacterSidebar = ({ isCollapsed, setIsCollapsed }) => {
     activeCharId === 'NEW' ? setView('hub') : setView('details');
   };
 
-  // --- LÓGICA DO BOTÃO VOLTAR / CANCELAR ---
   const handleCancelEdit = () => {
-    // 1. SE FOR NOVO PERSONAGEM: Nunca pede confirmação
     if (activeCharId === 'NEW') {
-        if (formData.systemId) {
-            // Se estava preenchendo a ficha, volta para a seleção de sistema
-            setFormData(prev => ({ ...prev, systemId: null }));
-        } else {
-            // Se estava na seleção, fecha tudo
-            setIsEditing(false);
-        }
-        return; // Sai da função sem mostrar modal
+        if (formData.systemId) setFormData(prev => ({ ...prev, systemId: null }));
+        else setIsEditing(false);
+        return; 
     }
-
-    // 2. SE FOR EDIÇÃO DE EXISTENTE: Pede confirmação
-    showConfirm(
-        "Descartar Alterações?",
-        "Se sair agora, as alterações não salvas serão perdidas.",
-        () => setIsEditing(false)
-    );
+    showConfirm("Descartar Alterações?", "Se sair agora, as alterações não salvas serão perdidas.", () => setIsEditing(false));
   };
 
   const handleDeleteChar = (id) => {
@@ -232,14 +194,9 @@ const CharacterSidebar = ({ isCollapsed, setIsCollapsed }) => {
       });
   };
 
-  // Inicializa o processo de edição/criação
-  const openEdit = (isNew = false, systemId = null) => {
+  const openEdit = (isNew = false) => {
     if (isNew) {
-      setFormData({ 
-          name: "", 
-          photo: null, 
-          systemId: null 
-      }); 
+      setFormData({ name: "", photo: null, systemId: null }); 
       setActiveCharId('NEW');
     } else {
       setFormData(JSON.parse(JSON.stringify(activeChar)));
@@ -249,11 +206,7 @@ const CharacterSidebar = ({ isCollapsed, setIsCollapsed }) => {
 
   const handleSelectSystem = (sysId) => {
       const defaults = getSystemDefaultState(sysId);
-      setFormData(prev => ({ 
-          ...prev, 
-          ...defaults,
-          systemId: sysId 
-      }));
+      setFormData(prev => ({ ...prev, ...defaults, systemId: sysId }));
   };
 
   const handlePhotoUpload = (e) => {
@@ -286,7 +239,6 @@ const CharacterSidebar = ({ isCollapsed, setIsCollapsed }) => {
       );
   };
 
-  // --- SUB-COMPONENTE: SELEÇÃO DE SISTEMA (In-Line) ---
   const SystemSelectionScreen = () => (
       <div className="flex flex-col h-full animate-in fade-in zoom-in-95 duration-300">
           <div className="p-2 mb-2">
@@ -310,36 +262,20 @@ const CharacterSidebar = ({ isCollapsed, setIsCollapsed }) => {
       </div>
   );
 
-  // --- RENDERIZAÇÃO DA CAMADA DE EDIÇÃO ---
   const renderEditingOverlay = () => {
     if (!isEditing) return null;
-
-    // Determina o título baseado no estado
     const isSelecting = activeCharId === 'NEW' && !formData.systemId;
-    const title = activeCharId === 'NEW' 
-        ? (isSelecting ? "Novo Personagem" : "Criando Personagem")
-        : "Editar Personagem";
+    const title = activeCharId === 'NEW' ? (isSelecting ? "Novo Personagem" : "Criando Personagem") : "Editar Personagem";
 
     return (
         <div className="absolute inset-0 bg-[#121216] z-50 flex flex-col overflow-hidden animate-in slide-in-from-bottom-10 fade-in duration-300">
-            {/* Header Fixo */}
             <div className="flex items-center gap-4 p-4 border-b border-glass-border bg-black/40 shrink-0">
-                <button onClick={handleCancelEdit} className="p-2 rounded-full bg-glass hover:bg-white/10 transition text-text-muted hover:text-white" title="Voltar">
-                    <ArrowLeft size={20}/>
-                </button>
+                <button onClick={handleCancelEdit} className="p-2 rounded-full bg-glass hover:bg-white/10 transition text-text-muted hover:text-white" title="Voltar"><ArrowLeft size={20}/></button>
                 <h2 className={`text-lg font-rajdhani font-bold ${THEME_PURPLE} uppercase tracking-wider`}>{title}</h2>
             </div>
-
-            {/* Conteúdo Variável */}
             <div className="flex-1 overflow-y-auto scrollbar-thin p-4">
-                {isSelecting ? (
-                    <SystemSelectionScreen />
-                ) : (
-                    <CharacterFormWrapper formData={formData} setFormData={setFormData} handlePhotoUpload={handlePhotoUpload} />
-                )}
+                {isSelecting ? <SystemSelectionScreen /> : <CharacterFormWrapper formData={formData} setFormData={setFormData} handlePhotoUpload={handlePhotoUpload} />}
             </div>
-
-            {/* Footer Fixo (Botão de Salvar) - Só aparece se NÃO estiver selecionando sistema */}
             {!isSelecting && (
                 <div className="p-4 border-t border-glass-border bg-black/40 shrink-0">
                     <button onClick={handleSaveChar} className={`w-full py-3 bg-[#d084ff]/10 border border-[#d084ff] text-[#d084ff] font-bold rounded hover:bg-[#d084ff] hover:text-black transition-all ${THEME_GLOW} ${THEME_GLOW_HOVER}`}>
@@ -357,9 +293,7 @@ const CharacterSidebar = ({ isCollapsed, setIsCollapsed }) => {
   if (isCollapsed) {
     return (
         <div className="h-full flex flex-col items-center py-4 bg-black/80 border-r border-glass-border gap-6 overflow-hidden">
-             <button onClick={() => setIsCollapsed(false)} className="p-2 rounded-full bg-glass hover:bg-white/10 text-text-muted hover:text-white transition" title="Expandir">
-                <Menu size={20} />
-             </button>
+             <button onClick={() => setIsCollapsed(false)} className="p-2 rounded-full bg-glass hover:bg-white/10 text-text-muted hover:text-white transition" title="Expandir"><Menu size={20} /></button>
              <div className="flex-1 flex items-center justify-center">
                 <span className={`font-rajdhani font-bold tracking-[0.3em] text-xl rotate-90 whitespace-nowrap opacity-100 select-none text-text-muted`}>PERSONAGENS</span>
              </div>
@@ -390,9 +324,20 @@ const CharacterSidebar = ({ isCollapsed, setIsCollapsed }) => {
             <div className="w-full max-w-xs flex flex-col flex-1 h-full min-h-0">
                 <div className="w-full mb-4 px-1 pt-1">
                     {!isCreatingPreset ? (
-                        <button onClick={() => setIsCreatingPreset(true)} className={`w-full py-3 bg-[#d084ff]/10 border border-[#d084ff]/40 text-[#d084ff] font-bold rounded-lg hover:bg-[#d084ff] hover:text-black hover:shadow-[0_0_15px_rgba(208,132,255,0.4)] transition-all flex items-center justify-center gap-2 group`}>
-                            <Plus size={18} strokeWidth={3} className="group-hover:scale-110 transition-transform"/> NOVO GRUPO
-                        </button>
+                        <div className="flex gap-2">
+                             {/* BOTÃO NOVO GRUPO */}
+                            <button onClick={() => setIsCreatingPreset(true)} className={`flex-1 py-3 bg-[#d084ff]/10 border border-[#d084ff]/40 text-[#d084ff] font-bold rounded-lg hover:bg-[#d084ff] hover:text-black hover:shadow-[0_0_15px_rgba(208,132,255,0.4)] transition-all flex items-center justify-center gap-2 group`}>
+                                <Plus size={18} strokeWidth={3} className="group-hover:scale-110 transition-transform"/> NOVO GRUPO
+                            </button>
+                            
+                            {/* BOTÃO IMPORTAR GRUPO (NOVO) */}
+                            <div className="relative">
+                                <button onClick={() => importInputRef.current?.click()} className="h-full px-4 bg-glass border border-glass-border text-text-muted hover:text-white rounded-lg hover:bg-white/10 transition flex items-center justify-center" title="Importar Grupo (.zip)">
+                                    <Download size={20}/>
+                                </button>
+                                <input ref={importInputRef} type="file" className="hidden" accept=".zip" onChange={(e) => { const file = e.target.files[0]; if(file) importPreset(file); e.target.value = null; }}/>
+                            </div>
+                        </div>
                     ) : (
                         <div className="flex flex-col gap-2" style={{ animation: 'fadeInUp 0.2s ease-out' }}>
                             <input autoFocus placeholder="Nome do Grupo..." className="w-full bg-[#15151a] border border-[#d084ff] text-white placeholder-white/20 rounded-lg p-3 outline-none shadow-[0_0_10px_rgba(208,132,255,0.15)] focus:shadow-[0_0_15px_rgba(208,132,255,0.3)] transition-all" value={newPresetName} onChange={e => setNewPresetName(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') handleCreateNewPreset(); if (e.key === 'Escape') setIsCreatingPreset(false); }} />
@@ -403,12 +348,13 @@ const CharacterSidebar = ({ isCollapsed, setIsCollapsed }) => {
                         </div>
                     )}
                 </div>
-                {/* Lista de presets ... */}
+
                 <div className="flex items-center gap-2 text-text-muted text-xs uppercase my-2 shrink-0">
                     <div className="h-px bg-glass-border flex-1"></div>
                     <span>Grupos Salvos</span>
                     <div className="h-px bg-glass-border flex-1"></div>
                 </div>
+
                 <div ref={presetsListRef} className="flex-1 overflow-y-auto scrollbar-none pb-4 relative min-h-[100px] space-y-2">
                      {presets.length === 0 && (
                         <div className="absolute inset-0 flex items-center justify-center pointer-events-none"><p className="text-text-muted italic text-sm opacity-50">Vazio.</p></div>
@@ -425,6 +371,9 @@ const CharacterSidebar = ({ isCollapsed, setIsCollapsed }) => {
                                 <>
                                     <div><h3 className="font-bold text-white font-rajdhani truncate max-w-[180px]">{p.name}</h3><div className="text-xs text-text-muted">{p.characters.length} Personagens</div></div>
                                     <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity gap-1">
+                                        {/* BOTAO EXPORTAR INDIVIDUAL */}
+                                        <button onClick={(e) => { e.stopPropagation(); exportPreset(p.id); }} className="p-2 hover:bg-white/10 hover:text-neon-blue rounded text-text-muted transition" title="Exportar Grupo"><Upload size={16}/></button>
+                                        
                                         <button onClick={(e) => { e.stopPropagation(); setRenamingPresetId(p.id); setRenamePresetValue(p.name); }} className="p-2 hover:bg-white/10 hover:text-yellow-400 rounded text-text-muted transition" title="Renomear"><Edit2 size={16}/></button>
                                         <button onClick={(e) => { e.stopPropagation(); showConfirm("Apagar Grupo", "Não poderá ser desfeito.", () => deletePreset(p.id)); }} className="p-2 hover:bg-red-900/50 hover:text-red-500 rounded text-text-muted transition" title="Excluir"><Trash2 size={16}/></button>
                                     </div>
@@ -434,10 +383,7 @@ const CharacterSidebar = ({ isCollapsed, setIsCollapsed }) => {
                     ))}
                 </div>
             </div>
-            <div className="w-full border-t border-glass-border pt-4 flex justify-between text-xs text-text-muted mt-auto">
-                <button onClick={handleExportPresetsZip} className="flex gap-1 items-center hover:text-white"><Upload size={12}/> Exportar</button>
-                <label className="flex gap-1 items-center hover:text-white cursor-pointer"><Download size={12}/> Importar<input type="file" className="hidden" accept=".zip" onChange={handleImportPresetsZip}/></label>
-            </div>
+            {/* FOOTER REMOVIDO (Anteriormente Exportar/Importar Bulk) */}
         </FadeInView>
       );
   }
@@ -470,7 +416,7 @@ const CharacterSidebar = ({ isCollapsed, setIsCollapsed }) => {
                     className={`bg-black/20 border border-glass-border rounded-xl p-4 flex flex-col items-center justify-start py-6 gap-4 cursor-pointer hover:bg-white/5 transition relative group h-[198px] ${draggedIndex === index ? `opacity-30 border-dashed ${THEME_BORDER_PURPLE}` : ''}`}
                 >
                     <button onClick={(e) => { e.stopPropagation(); handleDeleteChar(char.id); }} className="absolute top-2 right-2 w-6 h-6 bg-red-600 rounded-full flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity z-10 text-xs hover:scale-110 shadow-md"><X size={12}/></button>
-                    <img src={char.photo || 'https://via.placeholder.com/150'} className="w-24 h-24 rounded-full object-cover pointer-events-none shadow-lg transition-all group-hover:scale-105" alt={char.name} />
+                    <img src={char.photo || '[https://via.placeholder.com/150](https://via.placeholder.com/150)'} className="w-24 h-24 rounded-full object-cover pointer-events-none shadow-lg transition-all group-hover:scale-105" alt={char.name} />
                     <div className="w-full flex flex-col items-center gap-1">
                         <span className="font-semibold text-center text-lg leading-tight w-full line-clamp-2 px-1 text-white pointer-events-none break-words">{char.name}</span>
                         {char.name.length <= 12 && (<div className="w-10 h-[2px] bg-white/20 rounded-full mt-1"></div>)}
@@ -478,16 +424,12 @@ const CharacterSidebar = ({ isCollapsed, setIsCollapsed }) => {
                 </div>
             ))}
             
-            {/* CARD: NOVO PERSONAGEM */}
             <div onClick={() => openEdit(true)} className="border border-dashed border-glass-border rounded-xl p-4 flex flex-col items-center justify-center cursor-pointer hover:bg-white/5 opacity-50 hover:opacity-100 h-[200px] transition-all gap-3">
                 <div className="p-4 rounded-full bg-glass-border/20"><Plus size={32} className="text-text-muted"/></div>
                 <span className="text-sm text-text-muted font-rajdhani uppercase tracking-widest truncate max-w-[135px]">Novo personagem</span>
             </div>
         </div>
-
-        {/* --- RENDERIZAÇÃO DO EDITOR (AGORA INTEGRADO) --- */}
         {renderEditingOverlay()}
-
       </FadeInView>
     );
   }
@@ -510,7 +452,7 @@ const CharacterSidebar = ({ isCollapsed, setIsCollapsed }) => {
 
                 <div className="flex-1 overflow-y-auto p-6 scrollbar-thin">
                     <div className="flex items-center gap-4 mb-4">
-                        <img draggable onDragStart={(e) => handleDragSortStart(e, -1, activeChar)} onDragEnd={handleDragEnd} src={activeChar.photo || 'https://via.placeholder.com/120'} className="w-[100px] h-[100px] rounded-2xl object-cover shadow-lg cursor-grab active:cursor-grabbing hover:scale-105 transition-transform shrink-0" alt="Avatar"/>
+                        <img draggable onDragStart={(e) => handleDragSortStart(e, -1, activeChar)} onDragEnd={handleDragEnd} src={activeChar.photo || '[https://via.placeholder.com/120](https://via.placeholder.com/120)'} className="w-[100px] h-[100px] rounded-2xl object-cover shadow-lg cursor-grab active:cursor-grabbing hover:scale-105 transition-transform shrink-0" alt="Avatar"/>
                         <div className="flex-1 flex flex-col justify-center gap-2 h-[100px] min-w-0">
                             <h2 className="text-2xl font-bold leading-none font-rajdhani truncate w-full text-white" title={activeChar.name}>{activeChar.name}</h2>
                         </div>
@@ -528,13 +470,10 @@ const CharacterSidebar = ({ isCollapsed, setIsCollapsed }) => {
 
         <div ref={footerRef} className="bg-black/80 border-t border-glass-border flex items-center justify-center gap-2 px-3 py-2 shrink-0 overflow-hidden" style={{ minHeight: footerIconSize + 20 }}>
              {gameState.characters.map((c, index) => (
-                 <img key={c.id} draggable onDragStart={(e) => handleDragSortStart(e, index, c)} onDragEnd={handleDragEnd} onDragOver={handleDragOver} onDrop={(e) => handleDragSortDrop(e, index)} src={c.photo || 'https://via.placeholder.com/50'} onClick={() => navToChar(c.id)} style={{ width: footerIconSize, height: footerIconSize }} className={`rounded-full border-2 object-cover cursor-pointer hover:scale-110 transition-transform shrink-0 ${c.id === activeChar.id ? `border-white opacity-100 shadow-[0_0_15px_rgba(208,132,255,0.5)]` : 'border-transparent opacity-50 hover:opacity-100'}`} alt={c.name} />
+                 <img key={c.id} draggable onDragStart={(e) => handleDragSortStart(e, index, c)} onDragEnd={handleDragEnd} onDragOver={handleDragOver} onDrop={(e) => handleDragSortDrop(e, index)} src={c.photo || '[https://via.placeholder.com/50](https://via.placeholder.com/50)'} onClick={() => navToChar(c.id)} style={{ width: footerIconSize, height: footerIconSize }} className={`rounded-full border-2 object-cover cursor-pointer hover:scale-110 transition-transform shrink-0 ${c.id === activeChar.id ? `border-white opacity-100 shadow-[0_0_15px_rgba(208,132,255,0.5)]` : 'border-transparent opacity-50 hover:opacity-100'}`} alt={c.name} />
              ))}
         </div>
-
-        {/* --- RENDERIZAÇÃO DO EDITOR TAMBÉM NA VIEW DE DETALHES --- */}
         {renderEditingOverlay()}
-
     </div>
   );
 };

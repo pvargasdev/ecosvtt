@@ -35,22 +35,15 @@ export const GameProvider = ({ children }) => {
   const broadcastChannel = useRef(null);
   const isRemoteUpdate = useRef(false); 
   
-  // CORREÇÃO: Ref para acessar o estado atual dentro dos listeners sem recriá-los
   const stateRef = useRef({ adventures, characters, presets, activeAdventureId, isDataLoaded });
 
-  // Mantém o ref atualizado sempre que o estado muda
   useEffect(() => {
     stateRef.current = { adventures, characters, presets, activeAdventureId, isDataLoaded };
   }, [adventures, characters, presets, activeAdventureId, isDataLoaded]);
 
-  // Função centralizada para processar mensagens recebidas
-  // CORREÇÃO: Removemos as dependências de estado (adventures, etc) do array de dependências
   const handleIncomingMessage = useCallback((type, data) => {
-      // 1. Handshake: Pedido de dados
       if (type === 'REQUEST_FULL_SYNC') {
-          // Lemos do Ref, garantindo dados frescos sem recriar a função
           const current = stateRef.current;
-          
           if (!isGMWindow && current.isDataLoaded) {
               const payload = { 
                   adventures: current.adventures, 
@@ -58,7 +51,6 @@ export const GameProvider = ({ children }) => {
                   presets: current.presets, 
                   activeAdventureId: current.activeAdventureId 
               };
-              
               if (window.electron) {
                   window.electron.sendSync('FULL_SYNC_RESPONSE', payload);
               } else if (broadcastChannel.current) {
@@ -68,7 +60,6 @@ export const GameProvider = ({ children }) => {
           return;
       }
 
-      // 2. Handshake: Recebimento de dados (Janela GM)
       if (type === 'FULL_SYNC_RESPONSE') {
           if (isGMWindow) {
               isRemoteUpdate.current = true;
@@ -82,7 +73,6 @@ export const GameProvider = ({ children }) => {
           return;
       }
 
-      // 3. Updates Normais (Tempo Real)
       isRemoteUpdate.current = true;
       switch (type) {
           case 'SYNC_ADVENTURES': setAdventures(data); break;
@@ -90,28 +80,21 @@ export const GameProvider = ({ children }) => {
           case 'SYNC_PRESETS': setPresets(data); break;
           case 'SYNC_ACTIVE_ADV_ID': setActiveAdventureId(data); break;
       }
-      // Pequeno delay para garantir que o useEffect de broadcast não dispare de volta
       setTimeout(() => { isRemoteUpdate.current = false; }, 50);
-  }, [isGMWindow, urlAdvId]); // Dependências estáveis agora
+  }, [isGMWindow, urlAdvId]); 
 
-  // Configuração dos Listeners (Ao montar)
   useEffect(() => {
-      // A. Configura BroadcastChannel
       broadcastChannel.current = new BroadcastChannel('ecos_vtt_sync');
       broadcastChannel.current.onmessage = (event) => {
           handleIncomingMessage(event.data.type, event.data.data);
       };
 
-      // B. Configura IPC (Electron Build)
-      // CORREÇÃO: Verificamos se já existe um listener para evitar duplicatas,
-      // mas como handleIncomingMessage agora é estável, este efeito roda apenas uma vez.
       if (window.electron && window.electron.onSync) {
           window.electron.onSync(({ type, data }) => {
               handleIncomingMessage(type, data);
           });
       }
 
-      // C. Se for GM, pede dados iniciais
       if (isGMWindow) {
           if (window.electron && window.electron.sendSync) {
               window.electron.sendSync('REQUEST_FULL_SYNC', null);
@@ -120,19 +103,15 @@ export const GameProvider = ({ children }) => {
           }
       }
 
-      // D. Listener de Status da Janela
       if (!isGMWindow && window.electron?.onGMStatusChange) {
           window.electron.onGMStatusChange((isOpen) => setIsGMWindowOpen(isOpen));
       }
 
       return () => {
           if (broadcastChannel.current) broadcastChannel.current.close();
-          // Nota: Se o seu preload do Electron tiver um método removeListener, seria ideal chamar aqui.
-          // Mas com a estabilização do handleIncomingMessage, o vazamento foi estancado.
       };
   }, [handleIncomingMessage, isGMWindow]); 
 
-  // Função de Envio (Broadcast)
   const broadcast = (type, data) => {
       if (!isRemoteUpdate.current && isDataLoaded) {
           if (window.electron && window.electron.sendSync) {
@@ -145,7 +124,6 @@ export const GameProvider = ({ children }) => {
   };
 
   // --- FUNÇÕES DE ARMAZENAMENTO ---
-  
   const loadData = async (key) => {
       if (window.electron) {
           try { return await window.electron.readJson(key); } catch { return null; }
@@ -167,7 +145,7 @@ export const GameProvider = ({ children }) => {
       }
   };
 
-  // --- CARREGAMENTO INICIAL (MOUNT) ---
+  // --- CARREGAMENTO INICIAL ---
   useEffect(() => {
       if (isGMWindow) return;
 
@@ -201,7 +179,6 @@ export const GameProvider = ({ children }) => {
   }, [isGMWindow]);
 
   // --- EFEITOS DE SALVAMENTO E SYNC ---
-  
   useEffect(() => { 
       saveData(STORAGE_CHARACTERS_KEY, characters);
       broadcast('SYNC_CHARACTERS', characters); 
@@ -233,7 +210,7 @@ export const GameProvider = ({ children }) => {
   }, [activePresetId, activeTool, isDataLoaded]);
 
 
-  // --- LÓGICA DO JOGO (CRUD - Mantida igual) ---
+  // --- LÓGICA DO JOGO ---
 
   const generateUUID = () => crypto.randomUUID();
   const activeAdventure = adventures.find(a => a.id === activeAdventureId);
@@ -272,7 +249,7 @@ export const GameProvider = ({ children }) => {
       setAdventures(prev => [...prev, copy]);
   }, [adventures]);
 
-  // --- EXPORT / IMPORT ---
+  // --- EXPORT / IMPORT ADVENTURE ---
   const exportAdventure = useCallback(async (advId) => {
       const adv = adventures.find(a => a.id === advId);
       if (!adv) return;
@@ -317,7 +294,7 @@ export const GameProvider = ({ children }) => {
       } catch (e) { console.error(e); alert("Erro ao importar aventura."); }
   }, []);
 
-  // --- SCENE / TOKEN CRUD (Restante das funções mantidas, lógica de estado é local) ---
+  // --- SCENE / TOKEN / FOG CRUD ---
   const addScene = useCallback((name) => {
       if (!activeAdventureId) return;
       const newId = generateUUID();
@@ -459,26 +436,16 @@ export const GameProvider = ({ children }) => {
   }, [characters, activeAdventureId]);
 
   // --- CHARACTERS ---
-  
-
-// ... (dentro de GameProvider) ...
-
-  // --- CHARACTERS ---
   const addCharacter = useCallback((charData) => {
-    // 1. Determina qual sistema usar (Se não vier especificado, usa o padrão do ecos)
     const systemId = charData.systemId || 'ecos_rpg_v1';
-    
-    // 2. Carrega os dados padrão daquele sistema
     const defaults = getSystemDefaultState(systemId);
-
-    // 3. Cria o objeto final, misturando os dados padrão com o que foi passado (ex: nome)
     const newChar = {
       id: generateUUID(), 
-      systemId: systemId, // Importante salvar isso agora
+      systemId: systemId, 
       name: "Novo Personagem", 
       photo: null, 
-      ...defaults, // Espalha karma, attributes, skills, etc. do sistema
-      ...charData  // Sobrescreve com nome ou dados passados pelo form
+      ...defaults, 
+      ...charData 
     };
     
     setCharacters(prev => [...prev, newChar]);
@@ -487,10 +454,82 @@ export const GameProvider = ({ children }) => {
   
   const updateCharacter = useCallback((id, updates) => setCharacters(prev => prev.map(char => char.id === id ? { ...char, ...updates } : char)), []);
   const deleteCharacter = useCallback((id) => setCharacters(prev => prev.filter(char => char.id !== id)), []);
-  const importCharacters = useCallback((list) => { if(Array.isArray(list)) setCharacters(prev => [...prev, ...list]); }, []);
   const setAllCharacters = useCallback((list) => setCharacters(list), []);
 
-  // --- PRESETS ---
+  // --- PRESETS & IMPORT/EXPORT INDIVIDUAL ---
+  
+  // NOVO: Exportar Preset Individual (com imagens)
+  const exportPreset = useCallback(async (presetId) => {
+      const preset = presets.find(p => p.id === presetId);
+      if (!preset) return;
+
+      const zip = new JSZip();
+      zip.file("preset.json", JSON.stringify(preset));
+      const imgFolder = zip.folder("images");
+      const imageIds = new Set();
+
+      // Itera sobre os personagens do preset para encontrar imagens
+      preset.characters.forEach(char => {
+          // Se photo for ID (não começa com data:), adiciona à lista
+          if (char.photo && !char.photo.startsWith('data:')) {
+              imageIds.add(char.photo);
+          }
+          // Nota: Se for data: (base64 legado), já vai dentro do JSON, não precisa fazer nada
+      });
+
+      for (const id of imageIds) {
+          const blob = await imageDB.getImage(id);
+          if (blob) imgFolder.file(id, blob);
+      }
+
+      const content = await zip.generateAsync({ type: "blob" });
+      saveAs(content, `grupo_${preset.name.replace(/\s+/g, '_')}.zip`);
+  }, [presets]);
+
+  // NOVO: Importar Preset Individual
+  const importPreset = useCallback(async (file) => {
+      if (!file) return;
+      try {
+          const zip = await JSZip.loadAsync(file);
+          
+          // 1. Ler JSON
+          const jsonFile = zip.file("preset.json");
+          if (!jsonFile) throw new Error("Arquivo de grupo inválido");
+          const presetData = JSON.parse(await jsonFile.async("string"));
+
+          // 2. Salvar imagens extraídas no imageDB
+          const imgFolder = zip.folder("images");
+          if (imgFolder) {
+              const images = [];
+              imgFolder.forEach((relativePath, file) => images.push({ id: relativePath, file }));
+              for (const img of images) {
+                  const blob = await img.file.async("blob");
+                  await imageDB.saveImage(blob, img.id); // Tenta manter o mesmo ID para não quebrar links
+              }
+          }
+
+          // 3. Gerar novos IDs para evitar conflito (Preset e Personagens)
+          // Isso permite importar o mesmo grupo várias vezes
+          const newPresetId = generateUUID();
+          const newCharacters = presetData.characters.map(char => ({
+              ...char,
+              id: generateUUID() // Novo ID para cada char
+          }));
+
+          const newPreset = {
+              ...presetData,
+              id: newPresetId,
+              name: `${presetData.name}`, // Pode adicionar (Cópia) se quiser, mas importação direta é melhor limpa
+              characters: newCharacters
+          };
+
+          setPresets(prev => [...prev, newPreset]);
+      } catch (e) {
+          console.error(e);
+          alert("Erro ao importar grupo.");
+      }
+  }, []);
+
   const createPreset = useCallback((name) => {
     const newPreset = { id: generateUUID(), name, characters: [] };
     setCharacters([]); setPresets(prev => [...prev, newPreset]); return newPreset.id;
@@ -512,6 +551,7 @@ export const GameProvider = ({ children }) => {
       if(activePresetId === id) { setActivePresetId(null); setCharacters([]); } 
   }, [activePresetId]);
   
+  // Função legada de merge (ainda útil se quiser manter compatibilidade com backups antigos)
   const mergePresets = useCallback((list) => { 
       setPresets(prev => { 
           const ids = new Set(prev.map(p => p.id)); 
@@ -525,7 +565,6 @@ export const GameProvider = ({ children }) => {
   
   const resetAllData = async () => { 
       if (window.electron) {
-          // Futuro: ipc para limpar
       } else {
           localStorage.clear(); 
           await imageDB.clearAll(); 
@@ -541,8 +580,9 @@ export const GameProvider = ({ children }) => {
     addScene, updateScene, updateSceneMap, setActiveScene, deleteScene,
     activeTool, setActiveTool, addFogArea, updateFogArea, deleteFogArea, deleteMultipleFogAreas,
     addTokenToLibrary, removeTokenFromLibrary, addTokenInstance, updateTokenInstance, deleteTokenInstance, deleteMultipleTokenInstances, importCharacterAsToken,
-    gameState: { characters }, addCharacter, updateCharacter, deleteCharacter, importCharacters, setAllCharacters,
+    gameState: { characters }, addCharacter, updateCharacter, deleteCharacter, setAllCharacters,
     presets, activePresetId, createPreset, loadPreset, saveToPreset, deletePreset, mergePresets, exitPreset, updatePreset,
+    exportPreset, importPreset, // NOVAS FUNÇÕES EXPOSTAS
     resetAllData
   };
 
