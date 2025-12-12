@@ -3,7 +3,7 @@ import { useGame } from '../../context/GameContext';
 import Token from './Token';
 import { VTTLayout } from './VTTLayout';
 import { imageDB } from '../../context/db';
-import { Plus, Trash2, Download, Upload, Copy, Edit2, X, Check } from 'lucide-react';
+import { Plus, Trash2, Download, Upload, Copy, Edit2, X, Check, Search } from 'lucide-react';
 
 const MIN_SCALE = 0.1;
 const MAX_SCALE = 5.0;
@@ -114,12 +114,15 @@ const Board = () => {
       };
   }, []);
 
-  // Atalhos
+  // Atalhos (CORREÇÃO AQUI)
   useEffect(() => {
     const handleKeyDown = (e) => {
+        // --- FIX CRÍTICO: Bloqueia atalhos se o foco estiver em um input ---
+        if (['INPUT', 'TEXTAREA'].includes(document.activeElement?.tagName)) return;
+
         if (e.code === 'Space' && !e.repeat) setIsSpacePressed(true);
+
         if ((e.key === 'Delete' || e.key === 'Backspace')) {
-            if (['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) return;
             if (selectedIds.size > 0 && activeScene) {
                 deleteMultipleTokenInstances(activeScene?.id, Array.from(selectedIds));
                 setSelectedIds(new Set());
@@ -142,15 +145,22 @@ const Board = () => {
             lastZoomTimeRef.current = Date.now();
         }
     };
+    
     const handleKeyUp = (e) => {
+        // Também bloqueia no KeyUp para evitar inconsistência de estado
+        if (['INPUT', 'TEXTAREA'].includes(document.activeElement?.tagName)) return;
+
         if (e.code === 'Space') setIsSpacePressed(false);
+        
         if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
             zoomKeyRef.current = 0;
             zoomSpeedRef.current = 0.01;
         }
     };
+    
     window.addEventListener('keydown', handleKeyDown); 
     window.addEventListener('keyup', handleKeyUp);
+    
     return () => { 
         window.removeEventListener('keydown', handleKeyDown); 
         window.removeEventListener('keyup', handleKeyUp); 
@@ -158,7 +168,7 @@ const Board = () => {
   }, [selectedIds, selectedFogIds, activeScene, deleteMultipleTokenInstances, deleteMultipleFogAreas, setActiveTool]);
 
   // ==========================================
-  // LOOP DE ANIMAÇÃO (CORRIGIDO PARA NÃO TRAVAR)
+  // LOOP DE ANIMAÇÃO
   // ==========================================
 
   const animateCamera = useCallback(() => {
@@ -188,7 +198,6 @@ const Board = () => {
   }, []);
 
   const startAnimation = useCallback(() => {
-      // FIX: Sempre cancela a anterior para garantir que o loop reinicie limpo
       if (animationRef.current) cancelAnimationFrame(animationRef.current);
       animationRef.current = requestAnimationFrame(animateCamera);
   }, [animateCamera]);
@@ -258,7 +267,7 @@ const Board = () => {
   };
 
   // ==========================================
-  // HANDLER DE SCROLL (BLINDADO)
+  // HANDLER DE SCROLL
   // ==========================================
   useLayoutEffect(() => {
     const node = containerRef.current;
@@ -298,8 +307,6 @@ const Board = () => {
     
     node.addEventListener('wheel', onWheel, { passive: false });
     return () => node.removeEventListener('wheel', onWheel);
-    
-    // FIX CRÍTICO: Adicionado activeAdventureId para garantir re-bind se a view for remontada
   }, [startAnimation, activeAdventureId]);
 
   // ==========================================
@@ -436,7 +443,7 @@ const Board = () => {
   };
 
   if (!activeAdventureId || !activeAdventure) {
-      // ... Menu Principal (Mantido) ...
+      // ... Menu Principal (Preservado) ...
       return (
         <div className="w-full h-full bg-ecos-bg flex flex-col items-center justify-center p-6 text-white relative z-50">
             <style>{`
@@ -541,11 +548,34 @@ const Board = () => {
             ))}
             
             {fogDrawing.isDrawing && (
-                <div className="absolute pointer-events-none fog-area" style={{ left: Math.min(fogDrawing.startX, fogDrawing.currentX), top: Math.min(fogDrawing.startY, fogDrawing.currentY), width: Math.abs(fogDrawing.currentX - fogDrawing.startX), height: Math.abs(fogDrawing.currentY - fogDrawing.startY), backgroundColor: 'rgba(0, 0, 0, 0.7)', border: '2px dashed rgba(255, 255, 255, 0.3)', zIndex: 15 }} />
+                <div
+                    className="absolute pointer-events-none fog-area"
+                    style={{
+                        left: Math.min(fogDrawing.startX, fogDrawing.currentX),
+                        top: Math.min(fogDrawing.startY, fogDrawing.currentY),
+                        width: Math.abs(fogDrawing.currentX - fogDrawing.startX),
+                        height: Math.abs(fogDrawing.currentY - fogDrawing.startY),
+                        backgroundColor: 'rgba(0, 0, 0, 0.7)',
+                        border: '2px dashed rgba(255, 255, 255, 0.3)',
+                        zIndex: 15,
+                    }}
+                />
             )}
             
             {activeScene?.fogOfWar?.map(fog => (
-                <div key={fog.id} className={`fog-area absolute ${selectedFogIds.has(fog.id) ? 'ring-2 ring-yellow-400' : ''} ${activeTool === 'select' ? 'cursor-move' : 'cursor-default'}`} style={{ left: fog.x, top: fog.y, width: fog.width, height: fog.height, backgroundColor: 'rgba(0, 0, 0, 1)', zIndex: 15 }} onMouseDown={(e) => handleFogDown(e, fog.id)} />
+                <div
+                    key={fog.id}
+                    className={`fog-area absolute ${selectedFogIds.has(fog.id) ? 'ring-2 ring-yellow-400' : ''} ${activeTool === 'select' ? 'cursor-move' : 'cursor-default'}`}
+                    style={{
+                        left: fog.x,
+                        top: fog.y,
+                        width: fog.width,
+                        height: fog.height,
+                        backgroundColor: 'rgba(0, 0, 0, 1)',
+                        zIndex: 15,
+                    }}
+                    onMouseDown={(e) => handleFogDown(e, fog.id)}
+                />
             ))}
         </div>
         
