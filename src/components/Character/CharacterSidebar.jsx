@@ -3,7 +3,7 @@ import { useGame } from '../../context/GameContext';
 import { ArrowLeft, Menu, Edit2, Plus, X, Upload, Download, Trash2, Check } from 'lucide-react';
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
-import { getSystem, getSystemList } from '../../systems';
+import { getSystem, getSystemList, getSystemDefaultState } from '../../systems';
 
 
 // --- CONFIGURAÇÃO DE CORES (Mantidas para o Layout base) ---
@@ -222,9 +222,13 @@ const CharacterSidebar = ({ isCollapsed, setIsCollapsed }) => {
 
   const openEdit = (isNew = false, systemId = null) => {
     if (isNew) {
-      // Se for novo, usa o sistema escolhido. Se não tiver escolhido (fallsafe), usa o padrão.
       const selectedSys = systemId || 'ecos_rpg_v1';
+      
+      // FIX: Carrega os dados padrão do sistema escolhido
+      const defaults = getSystemDefaultState(selectedSys);
+
       setFormData({ 
+          ...defaults, // Espalha karmaMax, damage, attributes, etc.
           name: "", 
           photo: null, 
           systemId: selectedSys 
