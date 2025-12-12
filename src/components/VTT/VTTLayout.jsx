@@ -3,8 +3,6 @@ import { useGame } from '../../context/GameContext';
 import { Settings, Image as ImageIcon, Box, ArrowLeft, Map, Plus, Trash2, X, ChevronDown, LogOut, Edit2, RotateCcw, Check, Search, Square, MousePointer, AlertTriangle } from 'lucide-react';
 import { imageDB } from '../../context/db';
 
-// --- COMPONENTES AUXILIARES ---
-
 const LibraryThumb = React.memo(({ token }) => {
     const [src, setSrc] = useState(null);
     
@@ -91,7 +89,6 @@ export const VTTLayout = ({ zoomValue, onZoomChange, activeTool, setActiveTool }
   const libraryRef = useRef(null);     
   const sceneRef = useRef(null);       
 
-  // Helper para fechar todos os menus
   const closeAllMenus = useCallback(() => {
       setUiState(prev => {
           if (prev.menuOpen || prev.libraryOpen || prev.mapConfigOpen) {
@@ -113,9 +110,6 @@ export const VTTLayout = ({ zoomValue, onZoomChange, activeTool, setActiveTool }
       event.target.value = ''; 
   };
   
-  // ==========================================
-  // CLICK OUTSIDE & INTERACTION LOGIC
-  // ==========================================
   useEffect(() => {
       const handleOutsideInteraction = (event) => {
           if (headerRef.current && headerRef.current.contains(event.target)) {
@@ -270,14 +264,12 @@ export const VTTLayout = ({ zoomValue, onZoomChange, activeTool, setActiveTool }
       );
   };
 
-  // --- SELETOR DE CENAS POLIDO E INLINE ---
   const SceneSelector = () => {
       if (!uiState.menuOpen) return null;
 
       const scenesListRef = useRef(null);
       const prevScenesLength = useRef(activeAdventure?.scenes.length || 0);
 
-      // Estados locais para edição inline
       const [isCreating, setIsCreating] = useState(false);
       const [newSceneName, setNewSceneName] = useState("");
       
@@ -286,7 +278,6 @@ export const VTTLayout = ({ zoomValue, onZoomChange, activeTool, setActiveTool }
       
       const [deletingId, setDeletingId] = useState(null);
 
-      // Scroll inteligente: só scrolla para o fundo se a quantidade de cenas AUMENTOU
       useEffect(() => {
         if (activeAdventure?.scenes.length > prevScenesLength.current) {
             if (scenesListRef.current) {
@@ -309,9 +300,11 @@ export const VTTLayout = ({ zoomValue, onZoomChange, activeTool, setActiveTool }
           setRenamingId(null);
       };
 
+      // VERIFICA SE HÁ APENAS UMA CENA
+      const isOnlyScene = activeAdventure?.scenes.length <= 1;
+
       return (
           <WindowWrapper containerRef={sceneRef} className="absolute top-24 right-4 w-72 bg-black/90 border border-glass-border backdrop-blur-sm rounded-xl shadow-2xl z-50 overflow-hidden scale-90 origin-top-right flex flex-col max-h-[60vh]">
-              {/* STYLE TAG PARA ANIMAÇÃO LOCAL */}
               <style>{`
                   @keyframes enter-slide {
                       0% { opacity: 0; transform: translateY(-15px) scale(0.95); max-height: 0; margin-bottom: 0; }
@@ -327,7 +320,7 @@ export const VTTLayout = ({ zoomValue, onZoomChange, activeTool, setActiveTool }
                   <h3 className="font-rajdhani font-bold text-white text-sm">Cenas da Aventura</h3>
               </div>
 
-              <div ref={scenesListRef} className="overflow-y-auto scrollbar-thin flex-1 relative min-h-[100px] space-y-1 p-2">
+              <div ref={scenesListRef} className="overflow-y-auto scrollbar-thin flex-1 relative min-h-[60px] space-y-1 p-2">
                   
                   {activeAdventure?.scenes.length === 0 && (
                       <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
@@ -336,27 +329,25 @@ export const VTTLayout = ({ zoomValue, onZoomChange, activeTool, setActiveTool }
                   )}
 
                   {activeAdventure?.scenes.map(s => {
-                      // 1. MODO DELETAR (Confirmação Inline)
                       if (deletingId === s.id) {
                           return (
-                              <div key={s.id} className="p-2 m-2 rounded bg-red-900/30 border border-red-500/50 flex justify-between items-center animate-in fade-in zoom-in duration-200 mb-2">
+                              <div key={s.id} className="p-3 rounded bg-red-900/30 border border-red-500/50 flex justify-between items-center fade-in duration-200">
                                   <span className="text-white text-xs font-bold pl-1">Excluir cena?</span>
                                   <div className="flex gap-1 shrink-0">
-                                      <button onClick={(e)=>{e.stopPropagation(); setDeletingId(null);}} className="p-1 rounded bg-black/40 hover:bg-white/20 text-text-muted hover:text-white transition"><X size={14}/></button>
+                                      <button onClick={(e)=>{e.stopPropagation(); setDeletingId(null);}} className="p-1 rounded bg-black/40 hover:bg-white/20 text-text-muted hover:text-white transition"><ArrowLeft size={14}/></button>
                                       <button onClick={(e)=>{e.stopPropagation(); deleteScene(s.id); setDeletingId(null);}} className="p-1 rounded bg-red-600 hover:bg-red-500 text-white transition"><Trash2 size={14}/></button>
                                   </div>
                               </div>
                           );
                       }
 
-                      // 2. MODO RENOMEAR (Input Inline)
                       if (renamingId === s.id) {
                           return (
-                              <div key={s.id} className="p-2 m-2 rounded bg-white/10 border border-white/30 flex items-center gap-1 animate-in fade-in zoom-in duration-200 mb-2">
+                              <div key={s.id} className="p-3 rounded bg-white/10 border border-white/30 flex items-center gap-1 fade-in duration-200">
                                   <input 
                                       autoFocus
                                       onFocus={(e) => e.target.select()}
-                                      className="flex-1 bg-black/50 border border-glass-border rounded px-2 py-1 text-white text-sm outline-none focus:border-white min-w-0"
+                                      className="flex-1 bg-black/50 border border-glass-border rounded px-2 text-white text-sm outline-none focus:border-white min-w-0"
                                       value={renameValue}
                                       onChange={e => setRenameValue(e.target.value)}
                                       onKeyDown={e => {
@@ -365,28 +356,38 @@ export const VTTLayout = ({ zoomValue, onZoomChange, activeTool, setActiveTool }
                                       }}
                                   />
                                   <div className="flex gap-1 shrink-0">
-                                      <button onClick={() => setRenamingId(null)} className="p-1 rounded bg-black/40 hover:bg-white/20 text-text-muted hover:text-white transition"><X size={14}/></button>
+                                      <button onClick={() => setRenamingId(null)} className="p-1 rounded bg-black/40 hover:bg-white/20 text-text-muted hover:text-white transition"><ArrowLeft size={14}/></button>
                                       <button onClick={() => handleRename(s.id)} className="p-1 rounded bg-neon-green hover:bg-white text-black transition"><Check size={14}/></button>
                                   </div>
                               </div>
                           );
                       }
 
-                      // 3. MODO VISUALIZAÇÃO (Padrão)
                       return (
                           <div key={s.id} onClick={(e) => { e.stopPropagation(); setActiveScene(s.id); }}
-                               className={`animate-enter p-3 flex justify-between items-center cursor-pointer hover:bg-white/5 border-l-2 group transition-colors rounded ${activeScene?.id === s.id ? 'border-neon-green bg-white/5' : 'border-transparent'}`}>
+                               className={`p-3 flex justify-between items-center cursor-pointer hover:bg-white/5 border-l-2 group transition-colors rounded ${activeScene?.id === s.id ? 'border-neon-green bg-white/5' : 'border-transparent'}`}>
                               <span className={`text-sm font-bold truncate max-w-[150px] ${activeScene?.id === s.id ? 'text-neon-green' : 'text-white'}`}>{s.name}</span>
                               <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                   <button onClick={(e) => { e.stopPropagation(); setRenamingId(s.id); setRenameValue(s.name); setDeletingId(null); }} className="text-text-muted hover:text-yellow-400 p-1 transition"><Edit2 size={14}/></button>
-                                  <button onClick={(e) => { e.stopPropagation(); setDeletingId(s.id); setRenamingId(null); }} className="text-text-muted hover:text-red-500 p-1 transition"><Trash2 size={14}/></button>
+                                  <button 
+                                      onClick={(e) => { 
+                                          e.stopPropagation(); 
+                                          if (!isOnlyScene) {
+                                              setDeletingId(s.id); 
+                                              setRenamingId(null); 
+                                          }
+                                      }} 
+                                      className={`p-1 transition ${isOnlyScene ? 'text-text-muted opacity-30 cursor-not-allowed' : 'text-text-muted hover:text-red-500'}`}
+                                      title={isOnlyScene ? "Não é possível excluir a única cena" : "Excluir"}
+                                  >
+                                      <Trash2 size={14}/>
+                                  </button>
                               </div>
                           </div>
                       );
                   })}
               </div>
 
-              {/* ÁREA DE CRIAÇÃO (Footer) */}
               <div className="p-3 border-t border-glass-border bg-black/40">
                   {!isCreating ? (
                       <button 
@@ -396,7 +397,7 @@ export const VTTLayout = ({ zoomValue, onZoomChange, activeTool, setActiveTool }
                           <Plus size={14} strokeWidth={3}/> NOVA CENA
                       </button>
                   ) : (
-                      <div className="flex flex-col gap-2 animate-in fade-in slide-in-from-bottom-2 duration-200">
+                      <div className="flex flex-col gap-2 animate-in fade-in duration-200">
                           <input 
                               autoFocus
                               placeholder="Nome da Cena..."
@@ -446,7 +447,6 @@ export const VTTLayout = ({ zoomValue, onZoomChange, activeTool, setActiveTool }
              onClick={e => e.stopPropagation()} onMouseDown={e => e.stopPropagation()}
           >
               
-              {/* SLIDER DE ZOOM */}
               {onZoomChange && (
                 <div className="px-3 py-2 border-b border-white/5 flex items-center gap-2 justify-left bg-black/20">
                     <Search size={15} className="text-text-muted"/>

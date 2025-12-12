@@ -3,7 +3,7 @@ import { useGame } from '../../context/GameContext';
 import Token from './Token';
 import { VTTLayout } from './VTTLayout';
 import { imageDB } from '../../context/db';
-import { Plus, Trash2, Download, Upload, Copy, Edit2, X, Check, Monitor } from 'lucide-react';
+import { Plus, Trash2, Download, Upload, Copy, Edit2, X, Check, Monitor, ArrowLeft } from 'lucide-react';
 
 const MIN_SCALE = 0.1;
 const MAX_SCALE = 5.0;
@@ -22,7 +22,7 @@ const Board = () => {
     updateAdventure, duplicateAdventure, 
     resetAllData,
     exportAdventure, importAdventure,
-    isGMWindow, isGMWindowOpen // <-- Estados para controle da janela
+    isGMWindow, isGMWindowOpen 
   } = useGame();
 
   const containerRef = useRef(null);
@@ -65,7 +65,6 @@ const Board = () => {
 
   // --- EFFECTS ---
 
-  // Scroll automático lista
   useEffect(() => {
     if (adventures.length > prevAdventuresLength.current) {
         if (adventuresListRef.current) {
@@ -75,7 +74,6 @@ const Board = () => {
     prevAdventuresLength.current = adventures.length;
   }, [adventures.length]); 
 
-  // Sincroniza slider e refs
   useEffect(() => {
     const currentPercent = Math.round(view.scale * 100);
     if (Math.abs(sliderValue - currentPercent) > 1 && !animationRef.current) {
@@ -87,7 +85,6 @@ const Board = () => {
     }
   }, [view.scale, view.x, view.y]);
 
-  // Carrega Mapa
   useEffect(() => {
       if (!activeScene) return;
       const loadMap = async () => {
@@ -108,14 +105,12 @@ const Board = () => {
       loadMap();
   }, [activeScene, mapParams.id, mapParams.url]);
 
-  // Cleanup de Animação ao desmontar
   useEffect(() => {
       return () => {
           if (animationRef.current) cancelAnimationFrame(animationRef.current);
       };
   }, []);
 
-  // Atalhos
   useEffect(() => {
     const handleKeyDown = (e) => {
         if (['INPUT', 'TEXTAREA'].includes(document.activeElement?.tagName)) return;
@@ -198,7 +193,6 @@ const Board = () => {
       animationRef.current = requestAnimationFrame(animateCamera);
   }, [animateCamera]);
 
-  // Zoom Teclado
   const applyKeyboardZoom = useCallback(() => {
     if (zoomKeyRef.current === 0) return;
     const now = Date.now();
@@ -262,18 +256,13 @@ const Board = () => {
       }
   };
 
-  // ==========================================
-  // HANDLER DE SCROLL
-  // ==========================================
   useLayoutEffect(() => {
     const node = containerRef.current;
     if (!node) return;
 
     const onWheel = (e) => {
         if (e.target.closest('.overflow-y-auto')) return;
-        
         e.preventDefault(); 
-        
         const delta = -e.deltaY; 
         const scaleAmount = delta * ZOOM_SPEED_FACTOR; 
 
@@ -305,9 +294,6 @@ const Board = () => {
     return () => node.removeEventListener('wheel', onWheel);
   }, [startAnimation, activeAdventureId]);
 
-  // ==========================================
-  // MANIPULAÇÃO DO MOUSE
-  // ==========================================
   const handleAuxClick = (e) => { if (e.button === 1) e.preventDefault(); };
 
   const handleMouseDown = (e) => {
@@ -440,8 +426,6 @@ const Board = () => {
 
   // --- RENDERIZAÇÃO DO MENU OU TELA DE ESPERA ---
   if (!activeAdventureId || !activeAdventure) {
-      
-      // MODO 1: TELA DE ESPERA DA JANELA DO MESTRE
       if (isGMWindow) {
           return (
             <div className="w-full h-full bg-[#15151a] flex flex-col items-center justify-center text-white p-6">
@@ -452,7 +436,6 @@ const Board = () => {
           );
       }
 
-      // MODO 2: MENU DE SELEÇÃO DE AVENTURA (Janela Principal)
       return (
         <div className="w-full h-full bg-ecos-bg flex flex-col items-center justify-center p-6 text-white relative z-50">
             <style>{`
@@ -468,11 +451,8 @@ const Board = () => {
             <h1 className="text-5xl font-rajdhani font-bold text-neon-green mb-8 tracking-widest">TABULEIRO</h1>
             <div className="bg-glass border border-glass-border rounded-xl p-6 shadow-2xl w-full max-w-lg relative">
                 
-                {/* HEADER COM BOTÃO DO MONITOR */}
                 <div className="flex justify-between items-center mb-4">
                     <h2 className="text-xl font-bold">Suas Aventuras</h2>
-                    
-                    {/* BOTÃO DO MESTRE (Só aparece se Electron estiver disponível) */}
                     {window.electron && (
                         <button 
                             onClick={() => window.electron.openGMWindow()}
@@ -498,10 +478,19 @@ const Board = () => {
                     {adventures.map(adv => (
                         <div key={adv.id} onClick={() => { if(renamingId !== adv.id) setActiveAdventureId(adv.id); }} className={`animate-enter group flex justify-between items-center p-3 rounded bg-white/5 border border-transparent transition-all ${renamingId === adv.id ? 'bg-white/10' : 'hover:bg-neon-green/10 hover:border-neon-green/30 cursor-pointer'}`}>
                             {renamingId === adv.id ? (
-                                <div className="flex flex-1 items-center gap-2" onClick={(e) => e.stopPropagation()}>
-                                    <input autoFocus className="flex-1 bg-black/50 border border-white/50 rounded px-2 py-1 text-white text-sm outline-none" value={renameValue} onChange={(e) => setRenameValue(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { updateAdventure(adv.id, { name: renameValue }); setRenamingId(null); } if (e.key === 'Escape') setRenamingId(null); }} />
-                                    <button onClick={() => { updateAdventure(adv.id, { name: renameValue }); setRenamingId(null); }} className="text-neon-green hover:text-white"><Check size={16}/></button>
-                                    <button onClick={() => setRenamingId(null)} className="text-red-400 hover:text-white"><X size={16}/></button>
+                                <div className="flex flex-1 items-center gap-2 animate-in fade-in duration-200" onClick={(e) => e.stopPropagation()}>
+                                    <input 
+                                        autoFocus 
+                                        className="flex-1 bg-black/50 border border-white/50 rounded px-2 py-1 text-white text-sm outline-none" 
+                                        value={renameValue} 
+                                        onChange={(e) => setRenameValue(e.target.value)} 
+                                        onKeyDown={(e) => { 
+                                            if (e.key === 'Enter') { updateAdventure(adv.id, { name: renameValue }); setRenamingId(null); } 
+                                            if (e.key === 'Escape') setRenamingId(null); 
+                                        }} 
+                                    />
+                                    <button onClick={() => setRenamingId(null)} className="p-1 rounded bg-black/40 hover:bg-white/20 text-text-muted hover:text-white transition"><ArrowLeft size={16}/></button>
+                                    <button onClick={() => { updateAdventure(adv.id, { name: renameValue }); setRenamingId(null); }} className="p-1 rounded bg-neon-green hover:bg-white text-black transition"><Check size={16}/></button>
                                 </div>
                             ) : (
                                 <>
@@ -518,7 +507,6 @@ const Board = () => {
                     ))}
                 </div>
                 
-                {/* ÁREA DE CRIAÇÃO */}
                 <div className="pt-4 border-t border-glass-border">
                     {!isCreatingAdventure ? (
                         <div className="flex gap-2">
@@ -567,7 +555,6 @@ const Board = () => {
         onDragOver={e => e.preventDefault()}
         onAuxClick={handleAuxClick} 
     >
-        {/* INDICADOR DE MODO MESTRE */}
         {isGMWindow && (
             <div className="absolute top-4 left-4 z-50 bg-neon-green/20 border border-neon-green px-3 py-1 rounded text-neon-green font-bold font-rajdhani text-sm pointer-events-none select-none">
                 VISÃO DO MESTRE
@@ -611,9 +598,7 @@ const Board = () => {
                         top: fog.y,
                         width: fog.width,
                         height: fog.height,
-                        // --- LÓGICA DE VISIBILIDADE DO FOG ---
                         backgroundColor: isGMWindow ? 'rgba(0, 0, 0, 0.5)' : 'rgba(0, 0, 0, 1)',
-                        // Permite clicar através do fog se for GM (para pegar tokens embaixo)
                         pointerEvents: (isGMWindow && activeTool !== 'fogOfWar') ? 'none' : 'auto',
                         zIndex: 15,
                     }}
