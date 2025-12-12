@@ -1,4 +1,4 @@
-import React, { createContext, useState, useContext, useEffect, useCallback } from 'react';
+import React, { createContext, useState, useContext, useEffect, useCallback, useRef } from 'react';
 import { imageDB } from './db';
 import JSZip from 'jszip'; 
 import { saveAs } from 'file-saver'; 
@@ -12,7 +12,12 @@ const ACTIVE_TOOL_KEY = 'ecos_vtt_active_tool';
 const GameContext = createContext({});
 
 export const GameProvider = ({ children }) => {
-  // --- ESTADOS (Iniciam vazios para permitir carga assíncrona) ---
+  // --- DETECÇÃO DE MODO ---
+  const queryParams = new URLSearchParams(window.location.search);
+  const isGMWindow = queryParams.get('mode') === 'gm';
+  const urlAdvId = queryParams.get('advId'); // ID vindo da URL
+
+  // --- ESTADOS ---
   const [isDataLoaded, setIsDataLoaded] = useState(false);
   
   const [characters, setCharacters] = useState([]);
@@ -22,10 +27,83 @@ export const GameProvider = ({ children }) => {
   const [activePresetId, setActivePresetId] = useState(null);
   const [activeTool, setActiveTool] = useState('select');
   const [activeAdventureId, setActiveAdventureId] = useState(null);
+  
+  // Estado visual para o botão do monitor na janela principal
+  const [isGMWindowOpen, setIsGMWindowOpen] = useState(false);
+
+  // --- CONTROLE DE SINCRONIZAÇÃO (Broadcast) ---
+  const broadcastChannel = useRef(null);
+  const isRemoteUpdate = useRef(false); 
+
+  useEffect(() => {
+      broadcastChannel.current = new BroadcastChannel('ecos_vtt_sync');
+
+      broadcastChannel.current.onmessage = (event) => {
+          const { type, data } = event.data;
+          
+          // 1. SOLICITAÇÃO DE SINCRONIZAÇÃO TOTAL (Janela GM abrindo)
+          if (type === 'REQUEST_FULL_SYNC') {
+              if (!isGMWindow && isDataLoaded) { // Só a principal responde
+                  broadcastChannel.current.postMessage({ type: 'FULL_SYNC_RESPONSE', data: {
+                      adventures, characters, presets, activeAdventureId
+                  }});
+              }
+              return;
+          }
+
+          // 2. RESPOSTA DE SINCRONIZAÇÃO TOTAL (Janela GM recebendo a carga inicial)
+          if (type === 'FULL_SYNC_RESPONSE') {
+              if (isGMWindow) {
+                  isRemoteUpdate.current = true;
+                  setAdventures(data.adventures);
+                  setCharacters(data.characters);
+                  setPresets(data.presets);
+                  // Usa o ID da URL (o que o mestre estava vendo), senão usa o ID sincronizado
+                  setActiveAdventureId(urlAdvId || data.activeAdventureId);
+                  setIsDataLoaded(true); // Libera o Broadcast da janela GM
+                  setTimeout(() => { isRemoteUpdate.current = false; }, 100);
+              }
+              return;
+          }
+
+          // 3. ATUALIZAÇÕES NORMAIS DE ESTADO
+          isRemoteUpdate.current = true;
+          switch (type) {
+              case 'SYNC_ADVENTURES': setAdventures(data); break;
+              case 'SYNC_CHARACTERS': setCharacters(data); break;
+              case 'SYNC_PRESETS': setPresets(data); break;
+              case 'SYNC_ACTIVE_ADV_ID': setActiveAdventureId(data); break;
+          }
+          setTimeout(() => { isRemoteUpdate.current = false; }, 50);
+      };
+
+      // Se for janela GM, pede dados ao canal imediatamente
+      if (isGMWindow) {
+          broadcastChannel.current.postMessage({ type: 'REQUEST_FULL_SYNC' });
+      }
+
+      // Listener do Electron para status da janela GM (Só na principal)
+      if (!isGMWindow && window.electron?.onGMStatusChange) {
+          window.electron.onGMStatusChange((isOpen) => {
+              setIsGMWindowOpen(isOpen);
+          });
+      }
+
+      return () => {
+          if (broadcastChannel.current) broadcastChannel.current.close();
+      };
+  }, [isGMWindow, isDataLoaded]);
+
+  // Helper de Broadcast seguro
+  const broadcast = (type, data) => {
+      // Só transmite se a mudança foi local (não veio de outro broadcast)
+      if (!isRemoteUpdate.current && broadcastChannel.current && isDataLoaded) {
+          broadcastChannel.current.postMessage({ type, data });
+      }
+  };
 
   // --- FUNÇÕES DE ARMAZENAMENTO HÍBRIDO ---
   
-  // Ler dados (Disco ou LocalStorage)
   const loadData = async (key) => {
       if (window.electron) {
           try { return await window.electron.readJson(key); } catch { return null; }
@@ -34,12 +112,13 @@ export const GameProvider = ({ children }) => {
       }
   };
 
-  // Salvar dados (Disco ou LocalStorage)
   const saveData = async (key, data) => {
-      if (!isDataLoaded) return; // PROTEÇÃO CRÍTICA: Não salvar antes de carregar
+      if (!isDataLoaded) return; 
+      
+      // JANELA GM NUNCA SALVA NO DISCO
+      if (isGMWindow) return;
 
       if (window.electron) {
-          // Deep clone para garantir pureza dos dados ao passar pela ponte
           const cleanData = JSON.parse(JSON.stringify(data));
           await window.electron.writeJson(key, cleanData);
       } else {
@@ -50,13 +129,14 @@ export const GameProvider = ({ children }) => {
 
   // --- CARREGAMENTO INICIAL (MOUNT) ---
   useEffect(() => {
+      // Se for janela GM, pula o carregamento do disco e espera o Broadcast
+      if (isGMWindow) return;
+
       const init = async () => {
-          // Carrega as estruturas principais
           const loadedChars = await loadData(STORAGE_CHARACTERS_KEY) || [];
           const loadedPresets = await loadData(PRESETS_KEY) || [];
           const loadedAdventures = await loadData(STORAGE_ADVENTURES_KEY) || [];
           
-          // Carrega configurações simples
           let loadedTool = 'select';
           let loadedActivePreset = null;
 
@@ -69,30 +149,41 @@ export const GameProvider = ({ children }) => {
               loadedActivePreset = localStorage.getItem(ACTIVE_PRESET_KEY) || null;
           }
 
-          // Atualiza Estado
           setCharacters(loadedChars);
           setPresets(loadedPresets);
           setAdventures(loadedAdventures);
           setActiveTool(loadedTool);
           setActivePresetId(loadedActivePreset);
 
-          // Libera o salvamento automático
           setIsDataLoaded(true);
       };
 
       init();
-  }, []);
+  }, [isGMWindow]);
 
-  // --- EFEITOS DE SALVAMENTO AUTOMÁTICO ---
-  // Só executam se isDataLoaded for true
+  // --- EFEITOS DE MUDANÇA (SALVAMENTO/SYNC) ---
   
-  useEffect(() => { saveData(STORAGE_CHARACTERS_KEY, characters); }, [characters, isDataLoaded]);
-  useEffect(() => { saveData(PRESETS_KEY, presets); }, [presets, isDataLoaded]);
-  useEffect(() => { saveData(STORAGE_ADVENTURES_KEY, adventures); }, [adventures, isDataLoaded]);
+  useEffect(() => { 
+      saveData(STORAGE_CHARACTERS_KEY, characters);
+      broadcast('SYNC_CHARACTERS', characters); 
+  }, [characters, isDataLoaded]);
 
-  // Persistência de Configurações
+  useEffect(() => { 
+      saveData(PRESETS_KEY, presets);
+      broadcast('SYNC_PRESETS', presets);
+  }, [presets, isDataLoaded]);
+
+  useEffect(() => { 
+      saveData(STORAGE_ADVENTURES_KEY, adventures);
+      broadcast('SYNC_ADVENTURES', adventures);
+  }, [adventures, isDataLoaded]);
+
   useEffect(() => {
-      if (!isDataLoaded) return;
+      if (isDataLoaded) broadcast('SYNC_ACTIVE_ADV_ID', activeAdventureId);
+  }, [activeAdventureId, isDataLoaded]);
+
+  useEffect(() => {
+      if (!isDataLoaded || isGMWindow) return;
       if (window.electron) {
           window.electron.writeJson('ecos_settings', { activeTool, activePresetId });
       } else {
@@ -103,7 +194,7 @@ export const GameProvider = ({ children }) => {
   }, [activePresetId, activeTool, isDataLoaded]);
 
 
-  // --- LÓGICA DO JOGO (PRESERVADA INTEGRALMENTE) ---
+  // --- LÓGICA DO JOGO ---
 
   const generateUUID = () => crypto.randomUUID();
   const activeAdventure = adventures.find(a => a.id === activeAdventureId);
@@ -142,15 +233,12 @@ export const GameProvider = ({ children }) => {
       setAdventures(prev => [...prev, copy]);
   }, [adventures]);
 
-  // --- EXPORT / IMPORT ---
   const exportAdventure = useCallback(async (advId) => {
       const adv = adventures.find(a => a.id === advId);
       if (!adv) return;
-
       const zip = new JSZip();
       zip.file("adventure.json", JSON.stringify(adv));
       const imgFolder = zip.folder("images");
-
       const imageIds = new Set();
       adv.scenes.forEach(scene => {
           if (scene.mapImageId) imageIds.add(scene.mapImageId);
@@ -159,12 +247,10 @@ export const GameProvider = ({ children }) => {
       if (adv.tokenLibrary) {
           adv.tokenLibrary.forEach(t => { if (t.imageId) imageIds.add(t.imageId); });
       }
-
       for (const id of imageIds) {
           const blob = await imageDB.getImage(id);
           if (blob) imgFolder.file(id, blob);
       }
-
       const content = await zip.generateAsync({ type: "blob" });
       saveAs(content, `adventure_${adv.name.replace(/\s+/g, '_')}.zip`);
   }, [adventures]);
@@ -175,13 +261,8 @@ export const GameProvider = ({ children }) => {
           const zip = await JSZip.loadAsync(file);
           const jsonFile = zip.file("adventure.json");
           if (!jsonFile) throw new Error("Arquivo inválido");
-          
           const advData = JSON.parse(await jsonFile.async("string"));
-          advData.scenes = advData.scenes.map(scene => ({
-              ...scene,
-              fogOfWar: scene.fogOfWar || []
-          }));
-          
+          advData.scenes = advData.scenes.map(scene => ({ ...scene, fogOfWar: scene.fogOfWar || [] }));
           const imgFolder = zip.folder("images");
           if (imgFolder) {
               const images = [];
@@ -196,47 +277,27 @@ export const GameProvider = ({ children }) => {
       } catch (e) { console.error(e); alert("Erro ao importar aventura."); }
   }, []);
 
-  // --- SCENE / TOKEN CRUD ---
   const addScene = useCallback((name) => {
       if (!activeAdventureId) return;
       const newId = generateUUID();
-      const newScene = { 
-          id: newId, 
-          name: name || "Nova Cena", 
-          mapImageId: null, 
-          mapScale: 1.0, 
-          tokens: [],
-          fogOfWar: [] 
-      };
-      setAdventures(prev => prev.map(adv => adv.id !== activeAdventureId ? adv : { 
-          ...adv, 
-          scenes: [...adv.scenes, newScene], 
-      }));
+      const newScene = { id: newId, name: name || "Nova Cena", mapImageId: null, mapScale: 1.0, tokens: [], fogOfWar: [] };
+      setAdventures(prev => prev.map(adv => adv.id !== activeAdventureId ? adv : { ...adv, scenes: [...adv.scenes, newScene] }));
   }, [activeAdventureId]);
 
   const updateSceneMap = useCallback(async (sceneId, file) => {
       if (!activeAdventureId || !file) return;
       const imageId = await handleImageUpload(file);
-      setAdventures(prev => prev.map(adv => adv.id !== activeAdventureId ? adv : { 
-          ...adv, 
-          scenes: adv.scenes.map(s => s.id === sceneId ? { ...s, mapImageId: imageId } : s) 
-      }));
+      setAdventures(prev => prev.map(adv => adv.id !== activeAdventureId ? adv : { ...adv, scenes: adv.scenes.map(s => s.id === sceneId ? { ...s, mapImageId: imageId } : s) }));
   }, [activeAdventureId]);
 
   const updateScene = useCallback((sceneId, updates) => {
       if (!activeAdventureId) return;
-      setAdventures(prev => prev.map(adv => adv.id !== activeAdventureId ? adv : { 
-          ...adv, 
-          scenes: adv.scenes.map(s => s.id === sceneId ? { ...s, ...updates } : s) 
-      }));
+      setAdventures(prev => prev.map(adv => adv.id !== activeAdventureId ? adv : { ...adv, scenes: adv.scenes.map(s => s.id === sceneId ? { ...s, ...updates } : s) }));
   }, [activeAdventureId]);
 
   const setActiveScene = useCallback((sceneId) => {
       if (!activeAdventureId) return;
-      setAdventures(prev => prev.map(adv => adv.id !== activeAdventureId ? adv : { 
-          ...adv, 
-          activeSceneId: sceneId 
-      }));
+      setAdventures(prev => prev.map(adv => adv.id !== activeAdventureId ? adv : { ...adv, activeSceneId: sceneId }));
   }, [activeAdventureId]);
 
   const deleteScene = useCallback((sceneId) => {
@@ -255,13 +316,7 @@ export const GameProvider = ({ children }) => {
       if (!activeAdventureId) return;
       setAdventures(prev => prev.map(adv => {
           if (adv.id !== activeAdventureId) return adv;
-          return { 
-              ...adv, 
-              scenes: adv.scenes.map(s => s.id !== sceneId ? s : { 
-                  ...s, 
-                  fogOfWar: [...(s.fogOfWar || []), { id: generateUUID(), ...fogData }] 
-              }) 
-          };
+          return { ...adv, scenes: adv.scenes.map(s => s.id !== sceneId ? s : { ...s, fogOfWar: [...(s.fogOfWar || []), { id: generateUUID(), ...fogData }] }) };
       }));
   }, [activeAdventureId]);
 
@@ -269,13 +324,7 @@ export const GameProvider = ({ children }) => {
       if (!activeAdventureId) return;
       setAdventures(prev => prev.map(adv => {
           if (adv.id !== activeAdventureId) return adv;
-          return { 
-              ...adv, 
-              scenes: adv.scenes.map(s => s.id !== sceneId ? s : { 
-                  ...s, 
-                  fogOfWar: (s.fogOfWar || []).map(f => f.id === fogId ? { ...f, ...updates } : f) 
-              }) 
-          };
+          return { ...adv, scenes: adv.scenes.map(s => s.id !== sceneId ? s : { ...s, fogOfWar: (s.fogOfWar || []).map(f => f.id === fogId ? { ...f, ...updates } : f) }) };
       }));
   }, [activeAdventureId]);
 
@@ -283,13 +332,7 @@ export const GameProvider = ({ children }) => {
       if (!activeAdventureId) return;
       setAdventures(prev => prev.map(adv => {
           if (adv.id !== activeAdventureId) return adv;
-          return { 
-              ...adv, 
-              scenes: adv.scenes.map(s => s.id !== sceneId ? s : { 
-                  ...s, 
-                  fogOfWar: (s.fogOfWar || []).filter(f => f.id !== fogId) 
-              }) 
-          };
+          return { ...adv, scenes: adv.scenes.map(s => s.id !== sceneId ? s : { ...s, fogOfWar: (s.fogOfWar || []).filter(f => f.id !== fogId) }) };
       }));
   }, [activeAdventureId]);
 
@@ -298,13 +341,7 @@ export const GameProvider = ({ children }) => {
       const idsSet = new Set(fogIdsArray);
       setAdventures(prev => prev.map(adv => {
           if (adv.id !== activeAdventureId) return adv;
-          return { 
-              ...adv, 
-              scenes: adv.scenes.map(s => s.id !== sceneId ? s : { 
-                  ...s, 
-                  fogOfWar: (s.fogOfWar || []).filter(f => !idsSet.has(f.id)) 
-              }) 
-          };
+          return { ...adv, scenes: adv.scenes.map(s => s.id !== sceneId ? s : { ...s, fogOfWar: (s.fogOfWar || []).filter(f => !idsSet.has(f.id)) }) };
       }));
   }, [activeAdventureId]);
 
@@ -312,44 +349,34 @@ export const GameProvider = ({ children }) => {
   const addTokenToLibrary = useCallback(async (file) => {
       if (!activeAdventureId || !file) return;
       const imageId = await handleImageUpload(file);
-      setAdventures(prev => prev.map(adv => adv.id !== activeAdventureId ? adv : { 
-          ...adv, 
-          tokenLibrary: [...(adv.tokenLibrary || []), { id: generateUUID(), imageId }] 
-      }));
+      setAdventures(prev => prev.map(adv => adv.id !== activeAdventureId ? adv : { ...adv, tokenLibrary: [...(adv.tokenLibrary || []), { id: generateUUID(), imageId }] }));
   }, [activeAdventureId]);
 
   const removeTokenFromLibrary = useCallback((tokenId) => {
       if (!activeAdventureId) return;
-      setAdventures(prev => prev.map(adv => adv.id !== activeAdventureId ? adv : { 
-          ...adv, 
-          tokenLibrary: adv.tokenLibrary.filter(t => t.id !== tokenId) 
-      }));
+      setAdventures(prev => prev.map(adv => adv.id !== activeAdventureId ? adv : { ...adv, tokenLibrary: adv.tokenLibrary.filter(t => t.id !== tokenId) }));
   }, [activeAdventureId]);
 
   const addTokenInstance = useCallback((sceneId, tokenData) => {
       if (!activeAdventureId) return;
       setAdventures(prev => prev.map(adv => {
           if (adv.id !== activeAdventureId) return adv;
-          return { 
-              ...adv, 
-              scenes: adv.scenes.map(s => s.id !== sceneId ? s : { 
-                  ...s, 
-                  tokens: [...s.tokens, { id: generateUUID(), x: 0, y: 0, scale: 1, ...tokenData }] 
-              }) 
-          };
+          return { ...adv, scenes: adv.scenes.map(s => s.id !== sceneId ? s : { ...s, tokens: [...s.tokens, { id: generateUUID(), x: 0, y: 0, scale: 1, ...tokenData }] }) };
       }));
   }, [activeAdventureId]);
 
+  // CORREÇÃO SINTÁTICA REALIZADA AQUI:
   const updateTokenInstance = useCallback((sceneId, tokenId, updates) => {
       if (!activeAdventureId) return;
       setAdventures(prev => prev.map(adv => {
           if (adv.id !== activeAdventureId) return adv;
           return { 
               ...adv, 
-              scenes: adv.scenes.map(s => s.id !== sceneId ? s : { 
-                  ...s, 
-                  tokens: s.tokens.map(t => t.id === tokenId ? { ...t, ...updates } : t) 
-              }) 
+              scenes: adv.scenes.map(s => 
+                  s.id === sceneId 
+                  ? { ...s, tokens: s.tokens.map(t => t.id === tokenId ? { ...t, ...updates } : t) } 
+                  : s
+              ) 
           };
       }));
   }, [activeAdventureId]);
@@ -358,13 +385,7 @@ export const GameProvider = ({ children }) => {
     if (!activeAdventureId) return;
     setAdventures(prev => prev.map(adv => {
         if (adv.id !== activeAdventureId) return adv;
-        return { 
-            ...adv, 
-            scenes: adv.scenes.map(s => s.id !== sceneId ? s : { 
-                ...s, 
-                tokens: s.tokens.filter(t => t.id !== tokenId) 
-            }) 
-        };
+        return { ...adv, scenes: adv.scenes.map(s => s.id !== sceneId ? s : { ...s, tokens: s.tokens.filter(t => t.id !== tokenId) }) };
     }));
   }, [activeAdventureId]);
 
@@ -373,13 +394,7 @@ export const GameProvider = ({ children }) => {
       const idsSet = new Set(tokenIdsArray);
       setAdventures(prev => prev.map(adv => {
           if (adv.id !== activeAdventureId) return adv;
-          return { 
-              ...adv, 
-              scenes: adv.scenes.map(s => s.id !== sceneId ? s : { 
-                  ...s, 
-                  tokens: s.tokens.filter(t => !idsSet.has(t.id)) 
-              }) 
-          };
+          return { ...adv, scenes: adv.scenes.map(s => s.id !== sceneId ? s : { ...s, tokens: s.tokens.filter(t => !idsSet.has(t.id)) }) };
       }));
   }, [activeAdventureId]);
 
@@ -463,7 +478,7 @@ export const GameProvider = ({ children }) => {
 
   const updatePreset = useCallback((id, updates) => {
     setPresets(prev => prev.map(p => p.id === id ? { ...p, ...updates } : p));
-    }, []);
+  }, []);
   
   const resetAllData = async () => { 
       if (window.electron) {
@@ -476,31 +491,15 @@ export const GameProvider = ({ children }) => {
   };
 
   const value = {
-    // Aventuras
+    isGMWindow, isGMWindowOpen,
     adventures, activeAdventureId, activeAdventure, activeScene,
     createAdventure, deleteAdventure, updateAdventure, duplicateAdventure, setActiveAdventureId,
     exportAdventure, importAdventure,
-    
-    // Cenas
     addScene, updateScene, updateSceneMap, setActiveScene, deleteScene,
-    
-    // Fog of War
-    activeTool, setActiveTool,
-    addFogArea, updateFogArea, deleteFogArea, deleteMultipleFogAreas,
-    
-    // Tokens
-    addTokenToLibrary, removeTokenFromLibrary, addTokenInstance, updateTokenInstance, 
-    deleteTokenInstance, deleteMultipleTokenInstances, importCharacterAsToken,
-    
-    // Personagens
-    gameState: { characters },
-    addCharacter, updateCharacter, deleteCharacter, importCharacters, setAllCharacters,
-    
-    // Presets
-    presets, activePresetId,
-    createPreset, loadPreset, saveToPreset, deletePreset, mergePresets, exitPreset, updatePreset,
-    
-    // Utilitários
+    activeTool, setActiveTool, addFogArea, updateFogArea, deleteFogArea, deleteMultipleFogAreas,
+    addTokenToLibrary, removeTokenFromLibrary, addTokenInstance, updateTokenInstance, deleteTokenInstance, deleteMultipleTokenInstances, importCharacterAsToken,
+    gameState: { characters }, addCharacter, updateCharacter, deleteCharacter, importCharacters, setAllCharacters,
+    presets, activePresetId, createPreset, loadPreset, saveToPreset, deletePreset, mergePresets, exitPreset, updatePreset,
     resetAllData
   };
 

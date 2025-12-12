@@ -1,17 +1,18 @@
-// electron/preload.js
+// electron/preload.cjs
 const { contextBridge, ipcRenderer } = require('electron');
 
-// Expondo a API 'electron' para o código React (Frontend)
 contextBridge.exposeInMainWorld('electron', {
-    // JSON Data API
     readJson: (key) => ipcRenderer.invoke('read-json', key),
     writeJson: (key, data) => ipcRenderer.invoke('write-json', key, data),
-
-    // Image Data API
     saveImage: (id, buffer) => ipcRenderer.invoke('save-image', id, buffer),
     getImage: (id) => ipcRenderer.invoke('get-image', id),
     deleteImage: (id) => ipcRenderer.invoke('delete-image', id),
     
-    // Flag de ambiente
+    // Passa o ID da aventura atual para abrir direto
+    openGMWindow: (adventureId) => ipcRenderer.invoke('open-gm-window', adventureId),
+    
+    // Listener para saber se a janela está aberta (mudar cor do botão)
+    onGMStatusChange: (callback) => ipcRenderer.on('gm-window-status', (_event, isOpen) => callback(isOpen)),
+
     isElectron: true,
 });

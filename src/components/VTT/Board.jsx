@@ -21,7 +21,8 @@ const Board = () => {
     createAdventure, adventures, setActiveAdventureId, deleteAdventure, 
     updateAdventure, duplicateAdventure, 
     resetAllData,
-    exportAdventure, importAdventure 
+    exportAdventure, importAdventure,
+    isGMWindow // <-- ADICIONADO
   } = useGame();
 
   const containerRef = useRef(null);
@@ -534,6 +535,13 @@ const Board = () => {
         onDragOver={e => e.preventDefault()}
         onAuxClick={handleAuxClick} 
     >
+        {/* INDICADOR DE MODO MESTRE */}
+        {isGMWindow && (
+            <div className="absolute top-4 left-4 z-50 bg-neon-green/20 border border-neon-green px-3 py-1 rounded text-neon-green font-bold font-rajdhani text-sm pointer-events-none select-none">
+                VISÃO DO MESTRE
+            </div>
+        )}
+
         <div className="absolute top-0 left-0 w-full h-full origin-top-left"
              style={{ transform: `translate(${view.x}px, ${view.y}px) scale(${view.scale})` }}>
              <div className="absolute -top-[50000px] -left-[50000px] w-[100000px] h-[100000px] opacity-20 pointer-events-none" style={{ backgroundImage: 'radial-gradient(circle, #555 1px, transparent 1px)', backgroundSize: '70px 70px' }} />
@@ -571,7 +579,10 @@ const Board = () => {
                         top: fog.y,
                         width: fog.width,
                         height: fog.height,
-                        backgroundColor: 'rgba(0, 0, 0, 1)',
+                        // --- LÓGICA DE VISIBILIDADE DO FOG ---
+                        backgroundColor: isGMWindow ? 'rgba(0, 0, 0, 0.5)' : 'rgba(0, 0, 0, 1)',
+                        // Permite clicar através do fog se for GM (para pegar tokens embaixo)
+                        pointerEvents: (isGMWindow && activeTool !== 'fogOfWar') ? 'none' : 'auto',
                         zIndex: 15,
                     }}
                     onMouseDown={(e) => handleFogDown(e, fog.id)}
