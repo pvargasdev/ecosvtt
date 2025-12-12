@@ -1,11 +1,14 @@
 import * as EcosRPG from './ecos_rpg';
+import * as Dnd5e from './dnd5e_srd';
 
 export const SYSTEMS = {
     [EcosRPG.SYSTEM_ID]: EcosRPG,
+    [Dnd5e.SYSTEM_ID]: Dnd5e,
 };
 
 export const getSystem = (id) => {
     return SYSTEMS[id] || EcosRPG;
+    
 };
 
 export const getSystemDefaultState = (id) => {
