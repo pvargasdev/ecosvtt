@@ -1,6 +1,6 @@
 // src/systems/dnd5e_srd.jsx
 import React from 'react';
-import { Shield, Zap, Eye, Skull, Footprints, User } from 'lucide-react';
+import { Shield, Zap, Eye, Skull, User } from 'lucide-react';
 
 // --- CONFIGURAÇÃO VISUAL ---
 const THEME_COLOR = "text-amber-400";
@@ -225,7 +225,6 @@ export const Viewer = ({ data, updateData }) => {
                     {/* Deslocamento e Prof */}
                     <div className="flex gap-1 h-[30px]">
                         <div className="flex-1 bg-glass border border-glass-border rounded-lg flex items-center justify-center gap-1" title="Deslocamento">
-                             <Footprints size={10} className="text-gray-400"/>
                              <span className="text-xs font-bold text-white">{data.speed}m</span>
                         </div>
                         <div className="flex-1 bg-glass border border-glass-border rounded-lg flex items-center justify-center flex-col leading-none" title="Bônus de Proficiência">
