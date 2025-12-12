@@ -1,12 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useGame } from '../../context/GameContext';
-import { ArrowLeft, Menu, Edit2, Plus, X, Upload, Download, Trash2, Check } from 'lucide-react';
+import { ArrowLeft, Menu, Edit2, Plus, X, Upload, Download, Trash2, Check, ChevronRight } from 'lucide-react';
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
 import { getSystem, getSystemList, getSystemDefaultState } from '../../systems';
 
-
-// --- CONFIGURAÇÃO DE CORES (Mantidas para o Layout base) ---
+// --- CONFIGURAÇÃO DE CORES ---
 const THEME_PURPLE = "text-[#d084ff]";
 const THEME_BORDER_PURPLE = "border-[#d084ff]";
 const THEME_GLOW = "shadow-[0_0_15px_rgba(208,132,255,0.4)]";
@@ -25,21 +24,20 @@ const FadeInView = ({ children, className }) => (
     </div>
 );
 
-// O formulário agora é um Wrapper que chama o Editor do sistema
+// Wrapper do Formulário
 const CharacterFormWrapper = ({ formData, setFormData, handlePhotoUpload }) => {
-    // Carrega o módulo do sistema baseado no ID do personagem (ou default)
+    // Se não tiver sistema selecionado, não renderiza nada (segurança)
+    if (!formData.systemId) return null;
+
     const SystemModule = getSystem(formData.systemId);
     
-    // Função auxiliar para atualizar dados específicos do sistema
-    // Isso permite que o componente do sistema use "updateData({ karma: 1 })" 
-    // e o wrapper propague isso para o setFormData geral
     const handleSystemUpdate = (updates) => {
         setFormData(prev => ({ ...prev, ...updates }));
     };
 
     return (
-        <div className="space-y-3 pb-4">
-            {/* CABEÇALHO COMUM (FOTO E NOME) - Independente do Sistema */}
+        <div className="space-y-3 pb-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            {/* CABEÇALHO COMUM (FOTO E NOME) */}
             <div className="flex justify-center">
                 <div className="relative group cursor-pointer" onClick={() => document.getElementById('edit-photo-input').click()}>
                     <div className={`w-32 h-32 rounded-full border-2 ${formData.photo ? 'border-white/0' : 'border-glass-border border-dashed'} overflow-hidden bg-black flex items-center justify-center shadow-2xl transition-all group-hover:scale-95`}>
@@ -61,12 +59,13 @@ const CharacterFormWrapper = ({ formData, setFormData, handlePhotoUpload }) => {
                     <label className="text-xs text-text-muted mb-0.5 block">Nome</label>
                     <input className={`w-full bg-black/50 border border-glass-border rounded p-2 text-white outline-none focus:border-white transition-colors`}
                            value={formData.name||''} 
-                           maxLength={40} 
+                           maxLength={40}
+                           placeholder="Nome do Personagem" 
                            onChange={e=>setFormData({...formData, name:e.target.value})}/>
                 </div>
             </div>
 
-            {/* Renderiza o Editor Específico do Sistema (Atributos, Perícias, etc) */}
+            {/* Editor Específico do Sistema */}
             <SystemModule.Editor data={formData} updateData={handleSystemUpdate} />
         </div>
     );
@@ -83,7 +82,8 @@ const CharacterSidebar = ({ isCollapsed, setIsCollapsed }) => {
   const [activeCharId, setActiveCharId] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({});
-  const [isSelectingSystem, setIsSelectingSystem] = useState(false); // NOVO
+  // REMOVIDO: const [isSelectingSystem, setIsSelectingSystem] = useState(false);
+  
   const [newPresetName, setNewPresetName] = useState("");
   const [isCreatingPreset, setIsCreatingPreset] = useState(false);
   const [renamingPresetId, setRenamingPresetId] = useState(null);
@@ -98,7 +98,7 @@ const CharacterSidebar = ({ isCollapsed, setIsCollapsed }) => {
   const activeChar = gameState.characters.find(c => c.id === activeCharId);
   const currentPreset = presets.find(p => p.id === activePresetId);
 
-  // Determina o módulo do sistema do personagem ativo
+  // Módulo do sistema para Visualização (Viewer)
   const ActiveSystemModule = activeChar ? getSystem(activeChar.systemId) : null;
 
   useEffect(() => {
@@ -195,7 +195,6 @@ const CharacterSidebar = ({ isCollapsed, setIsCollapsed }) => {
   const handleSaveChar = () => {
     if (!formData.name) return showAlert("Erro", "Nome é obrigatório");
     if (activeCharId === 'NEW') {
-        // Ao criar, o addCharacter no GameContext vai mesclar com os dados default do sistema
         const newId = addCharacter(formData);
         setActiveCharId(newId);
     } else {
@@ -205,7 +204,14 @@ const CharacterSidebar = ({ isCollapsed, setIsCollapsed }) => {
     activeCharId === 'NEW' ? setView('hub') : setView('details');
   };
 
+  // Lógica inteligente do botão voltar
   const handleCancelEdit = () => {
+    // Se for novo e já tiver selecionado sistema, volta para a seleção
+    if (activeCharId === 'NEW' && formData.systemId) {
+        setFormData(prev => ({ ...prev, systemId: null }));
+        return;
+    }
+    // Caso contrário (ou se for edição de existente), confirma o cancelamento total
     showConfirm(
         "Descartar Alterações?",
         "Se sair agora, as alterações não salvas serão perdidas.",
@@ -220,24 +226,32 @@ const CharacterSidebar = ({ isCollapsed, setIsCollapsed }) => {
       });
   };
 
+  // Inicializa o processo de edição/criação
   const openEdit = (isNew = false, systemId = null) => {
     if (isNew) {
-      const selectedSys = systemId || 'ecos_rpg_v1';
-      
-      // FIX: Carrega os dados padrão do sistema escolhido
-      const defaults = getSystemDefaultState(selectedSys);
-
+      // Ao criar novo, iniciamos SEM systemId para forçar a tela de seleção
       setFormData({ 
-          ...defaults, // Espalha karmaMax, damage, attributes, etc.
           name: "", 
           photo: null, 
-          systemId: selectedSys 
+          systemId: null // Isso ativa a tela de seleção
       }); 
       setActiveCharId('NEW');
     } else {
+      // Editar existente
       setFormData(JSON.parse(JSON.stringify(activeChar)));
     }
     setIsEditing(true);
+  };
+
+  // Quando o usuário escolhe um card de sistema
+  const handleSelectSystem = (sysId) => {
+      const defaults = getSystemDefaultState(sysId);
+      // Mescla os defaults e define o ID, o que fará o FormWrapper renderizar
+      setFormData(prev => ({ 
+          ...prev, 
+          ...defaults,
+          systemId: sysId 
+      }));
   };
 
   const handlePhotoUpload = (e) => {
@@ -270,6 +284,73 @@ const CharacterSidebar = ({ isCollapsed, setIsCollapsed }) => {
       );
   };
 
+  // --- SUB-COMPONENTE: SELEÇÃO DE SISTEMA (In-Line) ---
+  const SystemSelectionScreen = () => (
+      <div className="flex flex-col h-full animate-in fade-in zoom-in-95 duration-300">
+          <div className="p-2 mb-2">
+              <h3 className="text-sm text-text-muted uppercase tracking-widest text-center mb-4">Selecione o Sistema</h3>
+              <div className="grid grid-cols-1 gap-3">
+                  {getSystemList().map(sys => (
+                      <button 
+                          key={sys.id}
+                          onClick={() => handleSelectSystem(sys.id)}
+                          className={`relative p-4 rounded-xl border border-glass-border bg-black/40 text-left transition-all group hover:bg-[#d084ff]/5 hover:border-[#d084ff]`}
+                      >
+                          <div className="flex justify-between items-start mb-2">
+                              <span className={`font-rajdhani font-bold text-lg text-white group-hover:${THEME_PURPLE} transition-colors`}>{sys.name}</span>
+                              {sys.id === 'ecos_rpg_v1' && <span className="text-[9px] px-1.5 py-0.5 rounded border border-[#d084ff]/30 bg-[#d084ff]/10 text-[#d084ff]">PADRÃO</span>}
+                          </div>
+                          <p className="text-xs text-text-muted leading-relaxed pr-6 group-hover:text-gray-300">{sys.description}</p>
+                          <ChevronRight className="absolute right-3 top-1/2 -translate-y-1/2 text-glass-border group-hover:text-[#d084ff] transition-all group-hover:translate-x-1" size={20} />
+                      </button>
+                  ))}
+              </div>
+          </div>
+      </div>
+  );
+
+  // --- RENDERIZAÇÃO DA CAMADA DE EDIÇÃO ---
+  // Esta função renderiza o overlay de edição, seja para selecionar sistema ou preencher ficha
+  const renderEditingOverlay = () => {
+    if (!isEditing) return null;
+
+    // Determina o título baseado no estado
+    const isSelecting = activeCharId === 'NEW' && !formData.systemId;
+    const title = activeCharId === 'NEW' 
+        ? (isSelecting ? "Novo Personagem" : "Criando Personagem")
+        : "Editar Personagem";
+
+    return (
+        <div className="absolute inset-0 bg-[#121216] z-50 flex flex-col overflow-hidden animate-in slide-in-from-bottom-10 fade-in duration-300">
+            {/* Header Fixo */}
+            <div className="flex items-center gap-4 p-4 border-b border-glass-border bg-black/40 shrink-0">
+                <button onClick={handleCancelEdit} className="p-2 rounded-full bg-glass hover:bg-white/10 transition text-text-muted hover:text-white" title="Voltar">
+                    <ArrowLeft size={20}/>
+                </button>
+                <h2 className={`text-lg font-rajdhani font-bold ${THEME_PURPLE} uppercase tracking-wider`}>{title}</h2>
+            </div>
+
+            {/* Conteúdo Variável */}
+            <div className="flex-1 overflow-y-auto scrollbar-thin p-4">
+                {isSelecting ? (
+                    <SystemSelectionScreen />
+                ) : (
+                    <CharacterFormWrapper formData={formData} setFormData={setFormData} handlePhotoUpload={handlePhotoUpload} />
+                )}
+            </div>
+
+            {/* Footer Fixo (Botão de Salvar) - Só aparece se NÃO estiver selecionando sistema */}
+            {!isSelecting && (
+                <div className="p-4 border-t border-glass-border bg-black/40 shrink-0">
+                    <button onClick={handleSaveChar} className={`w-full py-3 bg-[#d084ff]/10 border border-[#d084ff] text-[#d084ff] font-bold rounded hover:bg-[#d084ff] hover:text-black transition-all ${THEME_GLOW} ${THEME_GLOW_HOVER}`}>
+                        {activeCharId === 'NEW' ? "ADICIONAR À MESA" : "SALVAR ALTERAÇÕES"}
+                    </button>
+                </div>
+            )}
+        </div>
+    );
+  };
+
   // ==========================================
   // VIEW: ESTADO COLAPSADO
   // ==========================================
@@ -287,7 +368,7 @@ const CharacterSidebar = ({ isCollapsed, setIsCollapsed }) => {
   }
 
   // ==========================================
-  // VIEW: GERENCIADOR DE GRUPOS (Mantido idêntico)
+  // VIEW: GERENCIADOR DE GRUPOS
   // ==========================================
   if (!activePresetId || view === 'manager') {
       return (
@@ -322,7 +403,7 @@ const CharacterSidebar = ({ isCollapsed, setIsCollapsed }) => {
                         </div>
                     )}
                 </div>
-                {/* ... Restante da lista de presets igual ... */}
+                {/* Lista de presets ... */}
                 <div className="flex items-center gap-2 text-text-muted text-xs uppercase my-2 shrink-0">
                     <div className="h-px bg-glass-border flex-1"></div>
                     <span>Grupos Salvos</span>
@@ -397,63 +478,16 @@ const CharacterSidebar = ({ isCollapsed, setIsCollapsed }) => {
                 </div>
             ))}
             
-            {/* O onClick aqui ativa o isSelectingSystem */}
-            <div onClick={() => setIsSelectingSystem(true)} className="border border-dashed border-glass-border rounded-xl p-4 flex flex-col items-center justify-center cursor-pointer hover:bg-white/5 opacity-50 hover:opacity-100 h-[200px] transition-all gap-3">
+            {/* CARD: NOVO PERSONAGEM */}
+            <div onClick={() => openEdit(true)} className="border border-dashed border-glass-border rounded-xl p-4 flex flex-col items-center justify-center cursor-pointer hover:bg-white/5 opacity-50 hover:opacity-100 h-[200px] transition-all gap-3">
                 <div className="p-4 rounded-full bg-glass-border/20"><Plus size={32} className="text-text-muted"/></div>
                 <span className="text-sm text-text-muted font-rajdhani uppercase tracking-widest truncate max-w-[135px]">Novo personagem</span>
             </div>
         </div>
 
-        {/* --- CORREÇÃO: O Modal agora está AQUI dentro, acessível na view Hub --- */}
-        {isSelectingSystem && (
-            <div className="absolute inset-0 z-[60] bg-black/90 backdrop-blur-md flex items-center justify-center p-6 animate-in fade-in duration-200">
-                <div className="bg-[#15151a] border border-glass-border rounded-xl shadow-2xl w-full max-w-md flex flex-col max-h-[80%]">
-                    <div className="p-4 border-b border-glass-border flex justify-between items-center bg-black/40 rounded-t-xl">
-                        <h3 className="font-rajdhani font-bold text-xl text-white tracking-wider">ESCOLHA O SISTEMA</h3>
-                        <button onClick={() => setIsSelectingSystem(false)} className="text-text-muted hover:text-white transition">
-                            <X size={20}/>
-                        </button>
-                    </div>
-                    <div className="p-4 overflow-y-auto space-y-3 custom-scrollbar">
-                        {getSystemList().map(sys => (
-                            <button 
-                                key={sys.id}
-                                onClick={() => {
-                                    setIsSelectingSystem(false);
-                                    openEdit(true, sys.id); 
-                                }}
-                                className="w-full text-left bg-black/40 border border-glass-border hover:border-[#d084ff] hover:bg-[#d084ff]/10 p-4 rounded-lg group transition-all duration-200"
-                            >
-                                <div className="flex justify-between items-center mb-1">
-                                    <span className="font-bold text-[#d084ff] font-rajdhani text-lg group-hover:text-white transition-colors">
-                                        {sys.name}
-                                    </span>
-                                    {sys.id === 'ecos_rpg_v1' && (
-                                        <span className="text-[10px] bg-[#d084ff]/20 text-[#d084ff] px-2 py-0.5 rounded border border-[#d084ff]/30">PADRÃO</span>
-                                    )}
-                                </div>
-                                <p className="text-xs text-text-muted group-hover:text-gray-300">
-                                    {sys.description}
-                                </p>
-                            </button>
-                        ))}
-                    </div>
-                </div>
-            </div>
-        )}
+        {/* --- RENDERIZAÇÃO DO EDITOR (AGORA INTEGRADO) --- */}
+        {renderEditingOverlay()}
 
-        {isEditing && (
-             <div className="absolute inset-0 bg-ecos-bg z-50 p-4 flex flex-col overflow-hidden" style={{ animation: 'fadeInUp 0.3s ease-out' }}>
-                <div className="flex items-center gap-4 mb-4 p-4 border-b border-glass-border bg-black/40 -mx-4 -mt-4">
-                    <button onClick={handleCancelEdit} className="p-2 rounded-full bg-glass hover:bg-white/10 transition text-text-muted hover:text-white" title="Voltar (Descarta alterações)"><ArrowLeft size={20}/></button>
-                    <h2 className={`text-lg font-rajdhani font-bold ${THEME_PURPLE} uppercase tracking-wider`}>Novo Personagem</h2>
-                </div>
-                <div className="flex-1 overflow-y-auto scrollbar-thin pr-2">
-                    <CharacterFormWrapper formData={formData} setFormData={setFormData} handlePhotoUpload={handlePhotoUpload} />
-                </div>
-                <button onClick={handleSaveChar} className={`mt-4 w-full py-3 bg-[#d084ff]/10 border border-[#d084ff] text-[#d084ff] font-bold rounded hover:bg-[#d084ff] hover:text-black transition-all ${THEME_GLOW} ${THEME_GLOW_HOVER}`}>ADICIONAR À MESA</button>
-             </div>
-        )}
       </FadeInView>
     );
   }
@@ -479,11 +513,9 @@ const CharacterSidebar = ({ isCollapsed, setIsCollapsed }) => {
                         <img draggable onDragStart={(e) => handleDragSortStart(e, -1, activeChar)} onDragEnd={handleDragEnd} src={activeChar.photo || 'https://via.placeholder.com/120'} className="w-[100px] h-[100px] rounded-2xl object-cover shadow-lg cursor-grab active:cursor-grabbing hover:scale-105 transition-transform shrink-0" alt="Avatar"/>
                         <div className="flex-1 flex flex-col justify-center gap-2 h-[100px] min-w-0">
                             <h2 className="text-2xl font-bold leading-none font-rajdhani truncate w-full text-white" title={activeChar.name}>{activeChar.name}</h2>
-                            {/* O nome é global, mas o restante é do sistema */}
                         </div>
                     </div>
 
-                    {/* RENDERIZAÇÃO DA FICHA INTERATIVA (Sistema) */}
                     {ActiveSystemModule && (
                         <ActiveSystemModule.Viewer 
                             data={activeChar} 
@@ -500,19 +532,8 @@ const CharacterSidebar = ({ isCollapsed, setIsCollapsed }) => {
              ))}
         </div>
 
-        {isEditing && (
-             <div className="absolute inset-0 bg-black/90 backdrop-blur-md z-50 p-4 flex flex-col overflow-y-auto" style={{ animation: 'fadeInUp 0.3s ease-out' }}>
-                <div className="flex items-center gap-4 mb-4 p-4 border-b border-glass-border bg-black/40 -mx-4 -mt-4">
-                    <button onClick={handleCancelEdit} className="p-2 rounded-full bg-glass hover:bg-white/10 transition text-text-muted hover:text-white" title="Voltar (Descarta alterações)"><ArrowLeft size={20}/></button>
-                    <h2 className={`text-xl font-rajdhani font-bold ${THEME_PURPLE} uppercase tracking-wider`}>Editar Personagem</h2>
-                </div>
-                <div className="flex-1 overflow-y-auto scrollbar-thin pr-2">
-                    {/* WRAPPER DO FORMULÁRIO */}
-                    <CharacterFormWrapper formData={formData} setFormData={setFormData} handlePhotoUpload={handlePhotoUpload} />
-                </div>
-                <button onClick={handleSaveChar} className={`mt-4 w-full py-3 bg-[#d084ff]/10 border border-[#d084ff] text-[#d084ff] font-bold rounded hover:bg-[#d084ff] hover:text-black transition-all ${THEME_GLOW} ${THEME_GLOW_HOVER}`}>SALVAR ALTERAÇÕES</button>
-             </div>
-        )}
+        {/* --- RENDERIZAÇÃO DO EDITOR TAMBÉM NA VIEW DE DETALHES --- */}
+        {renderEditingOverlay()}
 
     </div>
   );
