@@ -60,7 +60,7 @@ const CharacterFormWrapper = ({ formData, setFormData, handlePhotoUpload }) => {
                     <input className={`w-full bg-black/50 border border-glass-border rounded p-2 text-white outline-none focus:border-white transition-colors`}
                            value={formData.name||''} 
                            maxLength={40}
-                           placeholder="Nome do Personagem" 
+                           placeholder="" 
                            onChange={e=>setFormData({...formData, name:e.target.value})}/>
                 </div>
             </div>

@@ -52,7 +52,7 @@ export const Editor = ({ data, updateData }) => {
                            onChange={e=>updateData({ karmaMax: handleSingleDigit(e.target.value) })}/>
                 </div>
                 <div className="flex-1">
-                    <label className="text-xs text-text-muted mb-0.5 block">Descrição</label>
+                    <label className="text-xs text-text-muted mb-0.5 block">Características</label>
                     <input className={`w-full bg-black/50 border border-glass-border rounded p-2 text-white outline-none focus:border-white transition-colors`}
                            maxLength={100}
                            value={data.description||''} 
@@ -86,7 +86,7 @@ export const Editor = ({ data, updateData }) => {
                 <textarea 
                     className={`w-full bg-black/50 border border-glass-border rounded p-2 text-white text-sm outline-none focus:border-white transition-colors resize-none h-32 max-h-32 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-transparent`}
                     value={data.skills||''} 
-                    placeholder="Liste as perícias..."
+                    placeholder=""
                     onChange={e=>updateData({ skills:e.target.value })}/>
             </div>
 
@@ -96,7 +96,7 @@ export const Editor = ({ data, updateData }) => {
                 <textarea 
                     className="w-full bg-black/50 border border-glass-border rounded p-2 text-white text-sm outline-none focus:border-white transition-colors resize-none h-32 max-h-32 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-transparent" 
                     value={data.traumas||''} 
-                    placeholder="Liste os traumas..."
+                    placeholder=""
                     onChange={e=>updateData({ traumas:e.target.value })}/>
             </div>
             
