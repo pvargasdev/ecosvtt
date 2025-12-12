@@ -47,10 +47,10 @@ const formatMod = (val) => (val >= 0 ? `+${val}` : val);
 // 1. METADADOS E ESTADO PADRÃO
 export const SYSTEM_ID = 'dnd5e_srd';
 export const SYSTEM_NAME = 'D&D 5e';
-export const SYSTEM_DESC = 'Ficha 5e em Português.';
+export const SYSTEM_DESC = '5e em Português.';
 
 export const defaultState = {
-    classLevel: "Guerreiro Nível 1",
+    classLevel: "Guerreiro lvl. 1",
     race: "Humano",
     hp: 10,
     hpMax: 10,

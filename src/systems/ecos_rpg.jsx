@@ -22,7 +22,7 @@ const handleSingleDigit = (value) => {
 // 1. METADADOS E ESTADO PADRÃO
 export const SYSTEM_ID = 'ecos_rpg_v1';
 export const SYSTEM_NAME = 'ECOS RPG';
-export const SYSTEM_DESC = 'Ficha Padrão do Programa.';
+export const SYSTEM_DESC = 'Melhor sistema de todos os tempos!!!';
 
 export const defaultState = {
     // Nota: Name e Photo são gerenciados pelo Core, mas o restante vem daqui

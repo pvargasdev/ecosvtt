@@ -1,0 +1,89 @@
+Atue como um Engenheiro de Software Sênior e Especialista em UX para VTTs (Virtual Tabletop). Sua tarefa é criar um módulo de sistema de RPG em React (formato `.jsx`) seguindo estritamente a arquitetura e o design system do projeto "ECOS VTT".
+
+**INSTRUÇÃO PRINCIPAL:**
+1. **Pesquise** sobre o sistema de RPG solicitado (regras básicas, atributos principais, cálculo de vida, perícias essenciais).
+2. **Determine** os campos vitais que cabem em um "Card de Personagem" (não faça uma ficha completa de 4 páginas, foque no essencial para combate e testes rápidos).
+3. **Gere** o arquivo completo `src/systems/[id_do_sistema].jsx`.
+
+---
+
+### 1. DIRETRIZES DE ESTILO & UI (TAILWIND CSS)
+O visual deve ser "Dark Glassmorphism". Use estas classes e conceitos:
+* **Containers:** `bg-glass border border-glass-border rounded-xl`.
+* **Inputs (Editor):** `bg-black/50 border border-glass-border text-white focus:border-[COR_TEMA]`.
+* **Inputs (Viewer/HP):** Fundo transparente, sem borda, `text-center`, `font-rajdhani`.
+* **Fontes:** Texto geral padrão, Números grandes em `font-rajdhani` (importante para leitura rápida).
+* **Scrollbars:** `scrollbar-thin scrollbar-thumb-gray-600` em áreas de texto longas.
+* **Responsividade:** O Viewer deve caber num card móvel. Use `flex-1`, `overflow-hidden` e `text-ellipsis` para evitar que textos estourem o layout.
+
+### 2. ESTRUTURA OBRIGATÓRIA DO CÓDIGO
+O arquivo deve exportar exatamente estas constantes e componentes:
+
+**A. Metadados:**
+`SYSTEM_ID`, `SYSTEM_NAME`, `SYSTEM_DESC` (Descrição curta).
+`defaultState` (Objeto JSON com valores iniciais seguros).
+
+**B. Componente `Editor` ({ data, updateData }):**
+* Formulário denso para preencher a ficha.
+* Use `onFocus={(e) => e.target.select()}` em todos os inputs numéricos.
+* Trate inputs numéricos para não aceitar letras (`handleNumber`).
+
+**C. Componente `Viewer` ({ data, updateData }):**
+* **Cabeçalho de Identidade:** Uma "pílula" centralizada no topo com `Raça • Classe/Nível` (pequeno e discreto).
+* **Barra de Vida (Padrão Ouro):** Deve ter botão `-`, um Input Central editável (para digitar o valor direto) sobrepondo o texto, e botão `+`.
+* **Atributos:** Grid ou linha mostrando o Valor ou Modificador (destaque o que for mais usado no sistema).
+* **Listas:** Áreas de rolagem para Ataques, Perícias ou Inventário.
+* **Rodapé:** Se o sistema tiver "Death Saves", "Pontos de Sorte" ou "Mana", coloque botões no rodapé.
+
+### 3. REGRAS DE CONTEÚDO
+* **Idioma:** TUDO deve ser em **Português (PT-BR)**. Converta termos (Str -> FOR, Wis -> SAB, Skill -> Perícia).
+* **Cores:** Defina uma `const THEME_COLOR` no topo (ex: Roxo para Sci-fi, Âmbar para Fantasia, Verde para Horror, etc) e use-a para destaques e `shadows`.
+* Valores numéricos para a ficha devem ser adaptados para não terem aquels botoes verticais pra cima e pra baixo que aumentam ou diminuem o numero. valores numeros devem ser na verdade campos de textos com exclusividade para digitar valores numericos. além disso, ao clicar em um valor numero desses, o valor todo é selecionado, facilitando substituição do texto. todos os valores numeros dos formularios devem seguir essa instrução. essa regra se aplica apenas nos formularios. na vizualização da ficha em si pode ter botoes de + e -.
+
+---
+
+### EXEMPLO DE PADRÃO DE CÓDIGO (Use como base lógica):
+
+```jsx
+import React from 'react';
+import { Shield, Zap, Scroll, Heart } from 'lucide-react'; // Ícones Lucide
+
+const THEME_COLOR = "text-cyan-400"; // Ajuste conforme o sistema
+const THEME_BORDER = "border-cyan-400";
+
+// Utilitários
+const handleNumber = (v) => v.replace(/\D/g, '').slice(0, 3);
+
+export const SYSTEM_ID = 'exemplo_id'; 
+// ... exports de NAME, DESC e defaultState
+
+export const Editor = ({ data, updateData }) => {
+   // Retorne o JSX do formulário de edição aqui
+   // Use inputs com onFocus={(e)=>e.target.select()}
+};
+
+export const Viewer = ({ data, updateData }) => {
+   return (
+     <>
+        {/* 1. Identidade */}
+        <div className="flex justify-center mb-2">
+           <span className="text-xs text-gray-400">{data.aca} • {data.classe}</span>
+        </div>
+
+        {/* 2. Header de Vida (Padrão de UX Obrigatório) */}
+        <div className={`flex items-center justify-between bg-[cor]/10 border ${THEME_BORDER} rounded-xl p-1 mb-4`}>
+             <button onClick={() => updateData({ hp: data.hp - 1 })} className="...">-</button>
+             <div className="flex flex-col items-center">
+                 {/* Input direto para evitar clicar 50 vezes */}
+                 <input type="text" value={data.hp} 
+                        onChange={(e) => updateData({ hp: handleNumber(e.target.value) })}
+                        className="bg-transparent text-3xl font-bold text-center w-16 outline-none text-white"/>
+                 <span className="text-[10px] uppercase">PV / {data.hpMax}</span>
+             </div>
+             <button onClick={() => updateData({ hp: data.hp + 1 })} className="...">+</button>
+        </div>
+        
+        {/* 3. Resto da Ficha (Atributos, Ataques, etc) */}
+     </>
+   );
+};
