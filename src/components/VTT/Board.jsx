@@ -3,7 +3,7 @@ import { useGame } from '../../context/GameContext';
 import Token from './Token';
 import { VTTLayout } from './VTTLayout';
 import { imageDB } from '../../context/db';
-import { Plus, Trash2, Download, Upload, Copy, Edit2, X, Check, Search } from 'lucide-react';
+import { Plus, Trash2, Download, Upload, Copy, Edit2, X, Check, Monitor } from 'lucide-react';
 
 const MIN_SCALE = 0.1;
 const MAX_SCALE = 5.0;
@@ -22,7 +22,7 @@ const Board = () => {
     updateAdventure, duplicateAdventure, 
     resetAllData,
     exportAdventure, importAdventure,
-    isGMWindow // <-- ADICIONADO
+    isGMWindow, isGMWindowOpen // <-- Estados para controle da janela
   } = useGame();
 
   const containerRef = useRef(null);
@@ -115,10 +115,9 @@ const Board = () => {
       };
   }, []);
 
-  // Atalhos (CORREÇÃO AQUI)
+  // Atalhos
   useEffect(() => {
     const handleKeyDown = (e) => {
-        // --- FIX CRÍTICO: Bloqueia atalhos se o foco estiver em um input ---
         if (['INPUT', 'TEXTAREA'].includes(document.activeElement?.tagName)) return;
 
         if (e.code === 'Space' && !e.repeat) setIsSpacePressed(true);
@@ -148,11 +147,8 @@ const Board = () => {
     };
     
     const handleKeyUp = (e) => {
-        // Também bloqueia no KeyUp para evitar inconsistência de estado
         if (['INPUT', 'TEXTAREA'].includes(document.activeElement?.tagName)) return;
-
         if (e.code === 'Space') setIsSpacePressed(false);
-        
         if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
             zoomKeyRef.current = 0;
             zoomSpeedRef.current = 0.01;
@@ -161,7 +157,6 @@ const Board = () => {
     
     window.addEventListener('keydown', handleKeyDown); 
     window.addEventListener('keyup', handleKeyUp);
-    
     return () => { 
         window.removeEventListener('keydown', handleKeyDown); 
         window.removeEventListener('keyup', handleKeyUp); 
@@ -443,8 +438,21 @@ const Board = () => {
       } catch(e){ console.error("Drop Error:", e); }
   };
 
+  // --- RENDERIZAÇÃO DO MENU OU TELA DE ESPERA ---
   if (!activeAdventureId || !activeAdventure) {
-      // ... Menu Principal (Preservado) ...
+      
+      // MODO 1: TELA DE ESPERA DA JANELA DO MESTRE
+      if (isGMWindow) {
+          return (
+            <div className="w-full h-full bg-[#15151a] flex flex-col items-center justify-center text-white p-6">
+                <Monitor size={64} className="text-neon-green mb-4 opacity-50 animate-pulse"/>
+                <h1 className="text-2xl font-rajdhani font-bold text-neon-green tracking-widest mb-2">PAINEL DO MESTRE</h1>
+                <p className="text-text-muted">Aguardando seleção de aventura na tela principal...</p>
+            </div>
+          );
+      }
+
+      // MODO 2: MENU DE SELEÇÃO DE AVENTURA (Janela Principal)
       return (
         <div className="w-full h-full bg-ecos-bg flex flex-col items-center justify-center p-6 text-white relative z-50">
             <style>{`
@@ -459,7 +467,28 @@ const Board = () => {
             `}</style>
             <h1 className="text-5xl font-rajdhani font-bold text-neon-green mb-8 tracking-widest">TABULEIRO</h1>
             <div className="bg-glass border border-glass-border rounded-xl p-6 shadow-2xl w-full max-w-lg relative">
-                <h2 className="text-xl font-bold mb-4">Suas Aventuras</h2>
+                
+                {/* HEADER COM BOTÃO DO MONITOR */}
+                <div className="flex justify-between items-center mb-4">
+                    <h2 className="text-xl font-bold">Suas Aventuras</h2>
+                    
+                    {/* BOTÃO DO MESTRE (Só aparece se Electron estiver disponível) */}
+                    {window.electron && (
+                        <button 
+                            onClick={() => window.electron.openGMWindow()}
+                            className={`flex items-center gap-2 px-3 py-1.5 rounded text-xs font-bold transition border ${
+                                isGMWindowOpen 
+                                ? 'bg-neon-green/20 text-neon-green border-neon-green shadow-[0_0_10px_rgba(0,255,0,0.3)]' 
+                                : 'bg-white/5 text-text-muted border-glass-border hover:text-white hover:bg-white/10'
+                            }`}
+                            title="Abrir janela secundária para o Mestre"
+                        >
+                            <Monitor size={14} />
+                            {isGMWindowOpen ? 'MONITOR ATIVO' : 'ABRIR MONITOR'}
+                        </button>
+                    )}
+                </div>
+
                 <div ref={adventuresListRef} className="relative min-h-[120px] max-h-[300px] overflow-y-auto space-y-2 mb-4 scrollbar-thin pr-2 scroll-smooth">
                     {adventures.length === 0 && (
                         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
@@ -488,6 +517,8 @@ const Board = () => {
                         </div>
                     ))}
                 </div>
+                
+                {/* ÁREA DE CRIAÇÃO */}
                 <div className="pt-4 border-t border-glass-border">
                     {!isCreatingAdventure ? (
                         <div className="flex gap-2">
@@ -523,6 +554,7 @@ const Board = () => {
       );
   }
 
+  // --- RENDERIZAÇÃO DO TABULEIRO (VTT) ---
   return (
     <div 
         className={`w-full h-full relative overflow-hidden bg-[#15151a] transition-colors duration-300 ${activeTool === 'fogOfWar' ? 'cursor-crosshair' : 'cursor-default'}`} 

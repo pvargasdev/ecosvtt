@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useGame } from '../../context/GameContext';
-import { Settings, Image as ImageIcon, Box, ArrowLeft, Map, Plus, Trash2, X, ChevronDown, LogOut, Edit2, RotateCcw, Check, Search, Square, MousePointer, AlertTriangle, Monitor } from 'lucide-react';
+import { Settings, Image as ImageIcon, Box, ArrowLeft, Map, Plus, Trash2, X, ChevronDown, LogOut, Edit2, RotateCcw, Check, Search, Square, MousePointer, AlertTriangle } from 'lucide-react';
 import { imageDB } from '../../context/db';
 
 // --- COMPONENTES AUXILIARES ---
@@ -75,8 +75,7 @@ export const VTTLayout = ({ zoomValue, onZoomChange, activeTool, setActiveTool }
   const { 
     activeAdventure, activeScene, 
     addScene, setActiveScene, updateScene, updateSceneMap, deleteScene,
-    addTokenToLibrary, removeTokenFromLibrary, setActiveAdventureId,
-    isGMWindow // <-- IMPORTANTE
+    addTokenToLibrary, removeTokenFromLibrary, setActiveAdventureId
   } = useGame();
 
   const [uiState, setUiState] = useState({ menuOpen: false, libraryOpen: false, mapConfigOpen: false });
@@ -112,15 +111,6 @@ export const VTTLayout = ({ zoomValue, onZoomChange, activeTool, setActiveTool }
       }
       
       event.target.value = ''; 
-  };
-
-  const handleOpenGMWindow = () => {
-      if (window.electron && window.electron.openGMWindow) {
-          // Passa o ID da aventura atual para abrir direto na mesma tela
-          window.electron.openGMWindow(activeAdventureId);
-      } else {
-          setAlertMessage("Funcionalidade disponível apenas na versão Desktop.");
-      }
   };
   
   // ==========================================
@@ -295,11 +285,8 @@ export const VTTLayout = ({ zoomValue, onZoomChange, activeTool, setActiveTool }
       const [renameValue, setRenameValue] = useState("");
       
       const [deletingId, setDeletingId] = useState(null);
-      
-      // VERIFICA SE É A ÚLTIMA CENA
-      const isLastScene = activeAdventure?.scenes.length <= 1;
 
-      // Scroll inteligente
+      // Scroll inteligente: só scrolla para o fundo se a quantidade de cenas AUMENTOU
       useEffect(() => {
         if (activeAdventure?.scenes.length > prevScenesLength.current) {
             if (scenesListRef.current) {
@@ -324,6 +311,18 @@ export const VTTLayout = ({ zoomValue, onZoomChange, activeTool, setActiveTool }
 
       return (
           <WindowWrapper containerRef={sceneRef} className="absolute top-24 right-4 w-72 bg-black/90 border border-glass-border backdrop-blur-sm rounded-xl shadow-2xl z-50 overflow-hidden scale-90 origin-top-right flex flex-col max-h-[60vh]">
+              {/* STYLE TAG PARA ANIMAÇÃO LOCAL */}
+              <style>{`
+                  @keyframes enter-slide {
+                      0% { opacity: 0; transform: translateY(-15px) scale(0.95); max-height: 0; margin-bottom: 0; }
+                      40% { max-height: 60px; margin-bottom: 0.5rem; }
+                      100% { opacity: 1; transform: translateY(0) scale(1); max-height: 60px; margin-bottom: 0.5rem; }
+                  }
+                  .animate-enter {
+                      animation: enter-slide 0.45s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+                  }
+              `}</style>
+
               <div className="p-3 border-b border-glass-border bg-white/5">
                   <h3 className="font-rajdhani font-bold text-white text-sm">Cenas da Aventura</h3>
               </div>
@@ -337,7 +336,7 @@ export const VTTLayout = ({ zoomValue, onZoomChange, activeTool, setActiveTool }
                   )}
 
                   {activeAdventure?.scenes.map(s => {
-                      // 1. MODO DELETAR
+                      // 1. MODO DELETAR (Confirmação Inline)
                       if (deletingId === s.id) {
                           return (
                               <div key={s.id} className="p-2 m-2 rounded bg-red-900/30 border border-red-500/50 flex justify-between items-center animate-in fade-in zoom-in duration-200 mb-2">
@@ -350,7 +349,7 @@ export const VTTLayout = ({ zoomValue, onZoomChange, activeTool, setActiveTool }
                           );
                       }
 
-                      // 2. MODO RENOMEAR
+                      // 2. MODO RENOMEAR (Input Inline)
                       if (renamingId === s.id) {
                           return (
                               <div key={s.id} className="p-2 m-2 rounded bg-white/10 border border-white/30 flex items-center gap-1 animate-in fade-in zoom-in duration-200 mb-2">
@@ -373,22 +372,14 @@ export const VTTLayout = ({ zoomValue, onZoomChange, activeTool, setActiveTool }
                           );
                       }
 
-                      // 3. MODO VISUALIZAÇÃO
+                      // 3. MODO VISUALIZAÇÃO (Padrão)
                       return (
-                          <div key={s.id} onClick={(e) => { e.stopPropagation(); setActiveScene(s.id); /* Menu não fecha */ }}
+                          <div key={s.id} onClick={(e) => { e.stopPropagation(); setActiveScene(s.id); }}
                                className={`animate-enter p-3 flex justify-between items-center cursor-pointer hover:bg-white/5 border-l-2 group transition-colors rounded ${activeScene?.id === s.id ? 'border-neon-green bg-white/5' : 'border-transparent'}`}>
                               <span className={`text-sm font-bold truncate max-w-[150px] ${activeScene?.id === s.id ? 'text-neon-green' : 'text-white'}`}>{s.name}</span>
                               <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                   <button onClick={(e) => { e.stopPropagation(); setRenamingId(s.id); setRenameValue(s.name); setDeletingId(null); }} className="text-text-muted hover:text-yellow-400 p-1 transition"><Edit2 size={14}/></button>
-                                  
-                                  {/* Botão de Excluir com Proteção de Última Cena */}
-                                  <button 
-                                      disabled={isLastScene}
-                                      onClick={(e) => { e.stopPropagation(); setDeletingId(s.id); setRenamingId(null); }} 
-                                      className={`p-1 transition ${isLastScene ? 'text-text-muted opacity-30 cursor-not-allowed' : 'text-text-muted hover:text-red-500'}`}
-                                  >
-                                      <Trash2 size={14}/>
-                                  </button>
+                                  <button onClick={(e) => { e.stopPropagation(); setDeletingId(s.id); setRenamingId(null); }} className="text-text-muted hover:text-red-500 p-1 transition"><Trash2 size={14}/></button>
                               </div>
                           </div>
                       );
@@ -506,7 +497,6 @@ export const VTTLayout = ({ zoomValue, onZoomChange, activeTool, setActiveTool }
                 
                 <button onClick={(e) => toggle('menuOpen', e)} className="flex items-center gap-2 px-3 py-1.5 hover:bg-white/10 rounded text-white transition border border-transparent hover:border-glass-border">
                     <Map size={16} className="text-neon-green"/>
-                    {/* TRUNCAMENTO DE TEXTO (10 CHARS) */}
                     <span className="font-rajdhani font-bold uppercase text-sm">
                         {activeScene?.name ? (activeScene.name.length > 10 ? activeScene.name.substring(0, 10) + '...' : activeScene.name) : "Sem Cena"}
                     </span>
@@ -518,17 +508,6 @@ export const VTTLayout = ({ zoomValue, onZoomChange, activeTool, setActiveTool }
                 <button onClick={(e) => toggle('mapConfigOpen', e)} className={`p-2 rounded hover:bg-white/10 transition ${uiState.mapConfigOpen ? 'text-neon-blue' : 'text-text-muted'}`} title="Configurar Fundo"><ImageIcon size={18}/></button>
                 <button onClick={(e) => toggle('libraryOpen', e)} className={`p-2 rounded hover:bg-white/10 transition ${uiState.libraryOpen ? 'text-neon-blue' : 'text-text-muted'}`} title="Biblioteca"><Box size={18}/></button>
                 
-                {/* NOVO BOTÃO: JANELA DO MESTRE */}
-                {!isGMWindow && window.electron && (
-                    <button 
-                        onClick={handleOpenGMWindow} 
-                        className="p-2 rounded hover:bg-white/10 text-text-muted hover:text-neon-green transition" 
-                        title="Abrir Painel do Mestre"
-                    >
-                        <Monitor size={18}/>
-                    </button>
-                )}
-
                 <div className="w-px h-6 bg-glass-border mx-1"></div>
                 
                 <button onClick={(e) => { 

@@ -5,63 +5,53 @@ const fs = require('fs');
 
 Menu.setApplicationMenu(null); 
 
-// --- CONFIGURAÇÃO DE PATHS ---
+// --- CONFIGURAÇÃO DE PATHS (Blindada) ---
 let BASE_PATH;
 let DATA_PATH;
 
+// Definimos os caminhos, mas NÃO criamos pastas ainda para não travar o script
 try {
     if (app.isPackaged) {
         BASE_PATH = path.dirname(app.getPath('exe'));
     } else {
         BASE_PATH = app.getAppPath();
     }
-
-    if (BASE_PATH.includes('app.asar')) {
-        throw new Error("Caminho ASAR detectado.");
-    }
-    
+    // Proteção contra ASAR
+    if (BASE_PATH.includes('app.asar')) throw new Error("ASAR detectado");
     DATA_PATH = path.join(BASE_PATH, 'ecos_data');
-
-    if (!fs.existsSync(DATA_PATH)) {
-        fs.mkdirSync(DATA_PATH, { recursive: true });
-    }
 } catch (error) {
-    console.warn("Usando fallback (AppData) devido a erro:", error.message);
     DATA_PATH = path.join(app.getPath('userData'), 'ecos_data');
-    if (!fs.existsSync(DATA_PATH)) {
-        fs.mkdirSync(DATA_PATH, { recursive: true });
-    }
 }
 
-// --- FUNÇÕES DE ARQUIVO (MANTIDAS) ---
+// Função auxiliar segura para criar pastas
+const ensureDir = (dir) => {
+    try { if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true }); } 
+    catch (e) { console.error(`Erro criando pasta ${dir}:`, e); }
+};
+
+// Garante pastas agora (mas sem travar execução global se falhar)
+ensureDir(DATA_PATH);
+const IMAGES_PATH = path.join(DATA_PATH, 'images');
+ensureDir(IMAGES_PATH);
+
+
+// --- FUNÇÕES DE ARQUIVO (JSON) ---
 ipcMain.handle('read-json', async (event, key) => {
     try {
         const filePath = path.join(DATA_PATH, `${key}.json`);
-        if (fs.existsSync(filePath)) {
-            return JSON.parse(fs.readFileSync(filePath, 'utf8'));
-        }
-    } catch (e) { console.error("Erro Read JSON:", e); }
+        if (fs.existsSync(filePath)) return JSON.parse(fs.readFileSync(filePath, 'utf8'));
+    } catch (e) { return null; }
     return null;
 });
 
 ipcMain.handle('write-json', async (event, key, data) => {
     try {
-        const filePath = path.join(DATA_PATH, `${key}.json`);
-        fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf8');
+        fs.writeFileSync(path.join(DATA_PATH, `${key}.json`), JSON.stringify(data, null, 2), 'utf8');
         return true;
-    } catch (e) { 
-        console.error("Erro Write JSON:", e);
-        return false; 
-    }
+    } catch (e) { return false; }
 });
 
-const IMAGES_PATH = path.join(DATA_PATH, 'images');
-try {
-    if (!fs.existsSync(IMAGES_PATH)) {
-        fs.mkdirSync(IMAGES_PATH, { recursive: true });
-    }
-} catch (e) { console.error("⚠️ Erro ao criar pasta imagens:", e); }
-
+// --- FUNÇÕES DE ARQUIVO (IMAGENS) ---
 ipcMain.handle('save-image', async (event, id, buffer) => {
     try { fs.writeFileSync(path.join(IMAGES_PATH, id), Buffer.from(buffer)); return true; } 
     catch (e) { return false; }
@@ -83,8 +73,6 @@ ipcMain.handle('delete-image', async (event, id) => {
     return false;
 });
 
-// --- VARIÁVEL GLOBAL PARA O PRELOAD PATH ---
-const PRELOAD_PATH = path.join(app.getAppPath(), 'electron', 'preload.cjs'); // Caminho absoluto para a raiz/electron/preload.cjs
 
 // --- GERENCIAMENTO DE JANELAS ---
 let mainWindow = null;
@@ -92,18 +80,15 @@ let gmWindow = null;
 
 const VITE_DEV_SERVER_URL = 'http://localhost:5173';
 const INDEX_PATH = path.join(app.getAppPath(), 'dist/index.html');
+// Definindo PRELOAD de forma robusta
+const PRELOAD_PATH = path.join(app.getAppPath(), 'electron', 'preload.cjs');
 
 function createWindow() {
     mainWindow = new BrowserWindow({
-        width: 1200,
-        height: 800,
-        minWidth: 800,
-        minHeight: 600,
-        frame: true,
-        autoHideMenuBar: true,
+        width: 1200, height: 800, minWidth: 800, minHeight: 600,
+        frame: true, autoHideMenuBar: true,
         webPreferences: {
-            // FIX CRÍTICO AQUI: USANDO CAMINHO ABSOLUTO DA RAIZ
-            preload: PRELOAD_PATH, 
+            preload: PRELOAD_PATH,
             nodeIntegration: false,
             contextIsolation: true,
         },
@@ -111,8 +96,7 @@ function createWindow() {
 
     if (process.argv[2] === 'electron:start' || process.env.VITE_DEV) {
         mainWindow.loadURL(VITE_DEV_SERVER_URL);
-        // FORÇA DEVTOOLS ABRIR
-        mainWindow.webContents.openDevTools(); 
+        // mainWindow.webContents.openDevTools(); 
     } else {
         mainWindow.loadFile(INDEX_PATH);
     }
@@ -125,15 +109,11 @@ function createGMWindow(startAdventureId) {
     }
 
     gmWindow = new BrowserWindow({
-        width: 1000,
-        height: 700,
-        minWidth: 800,
-        minHeight: 600,
+        width: 1000, height: 700, minWidth: 800, minHeight: 600,
         title: "Painel do Mestre - Ecos VTT",
         autoHideMenuBar: true,
         webPreferences: {
-            // FIX CRÍTICO AQUI: USANDO CAMINHO ABSOLUTO DA RAIZ
-            preload: PRELOAD_PATH, 
+            preload: PRELOAD_PATH,
             nodeIntegration: false,
             contextIsolation: true,
         },
@@ -157,23 +137,14 @@ function createGMWindow(startAdventureId) {
     });
 }
 
-// --- HANDLER IPC PARA O BOTÃO ---
+// --- REGISTRO DE HANDLERS (FUNDAMENTAL) ---
 ipcMain.handle('open-gm-window', (event, adventureId) => {
     createGMWindow(adventureId);
 });
 
 app.on('ready', () => {
     createWindow();
-
-    app.on('activate', () => {
-        if (BrowserWindow.getAllWindows().length === 0) {
-            createWindow();
-        }
-    });
+    app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });
 });
 
-app.on('window-all-closed', () => {
-    if (process.platform !== 'darwin') {
-        app.quit();
-    }
-});
+app.on('window-all-closed', () => { if (process.platform !== 'darwin') app.quit(); });
