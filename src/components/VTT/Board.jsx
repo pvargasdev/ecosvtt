@@ -446,7 +446,7 @@ const Board = () => {
           return (
             <div className="w-full h-full bg-[#15151a] flex flex-col items-center justify-center text-white p-6">
                 <Monitor size={64} className="text-neon-green mb-4 opacity-50 animate-pulse"/>
-                <h1 className="text-2xl font-rajdhani font-bold text-neon-green tracking-widest mb-2">PAINEL DO MESTRE</h1>
+                <h1 className="text-2xl font-rajdhani font-bold text-neon-green tracking-widest mb-2">TELA DO MESTRE</h1>
                 <p className="text-text-muted">Aguardando seleção de aventura na tela principal...</p>
             </div>
           );
@@ -484,7 +484,7 @@ const Board = () => {
                             title="Abrir janela secundária para o Mestre"
                         >
                             <Monitor size={14} />
-                            {isGMWindowOpen ? 'MONITOR ATIVO' : 'ABRIR MONITOR'}
+                            {isGMWindowOpen ? 'TELA DO MESTRE ATIVA' : 'ABRIR TELA DO MESTRE'}
                         </button>
                     )}
                 </div>
