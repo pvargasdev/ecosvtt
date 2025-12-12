@@ -1,28 +1,24 @@
 // electron/preload.cjs
 const { contextBridge, ipcRenderer } = require('electron');
 
-console.log("🔌 Preload Script Carregado com Sucesso!"); // Se não ver isso no Console (F12), o preload falhou.
-
 contextBridge.exposeInMainWorld('electron', {
-    // Dados
+    // ... (readJson, writeJson, saveImage, etc... MANTENHA ELES) ...
     readJson: (key) => ipcRenderer.invoke('read-json', key),
     writeJson: (key, data) => ipcRenderer.invoke('write-json', key, data),
     saveImage: (id, buffer) => ipcRenderer.invoke('save-image', id, buffer),
     getImage: (id) => ipcRenderer.invoke('get-image', id),
     deleteImage: (id) => ipcRenderer.invoke('delete-image', id),
-    
-    // Janela do Mestre (Com Logs)
-    openGMWindow: (adventureId) => {
-        console.log("tentei abrir janela mestre via preload");
-        return ipcRenderer.invoke('open-gm-window', adventureId);
-    },
-    
-    // Listener de Status
+
+    // Janelas
+    openGMWindow: (adventureId) => ipcRenderer.invoke('open-gm-window', adventureId),
     onGMStatusChange: (callback) => {
-        // Remove listeners antigos para evitar duplicação em hot-reload
-        ipcRenderer.removeAllListeners('gm-window-status'); 
+        ipcRenderer.removeAllListeners('gm-window-status');
         ipcRenderer.on('gm-window-status', (_event, isOpen) => callback(isOpen));
     },
+
+    // --- NOVO: SINCRONIZAÇÃO VIA IPC (PARA BUILD .EXE) ---
+    sendSync: (type, data) => ipcRenderer.send('app-sync', { type, data }),
+    onSync: (callback) => ipcRenderer.on('app-sync-receive', (_event, arg) => callback(arg)),
 
     isElectron: true,
 });

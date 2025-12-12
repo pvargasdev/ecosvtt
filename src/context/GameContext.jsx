@@ -15,7 +15,7 @@ export const GameProvider = ({ children }) => {
   // --- DETECÇÃO DE MODO ---
   const queryParams = new URLSearchParams(window.location.search);
   const isGMWindow = queryParams.get('mode') === 'gm';
-  const urlAdvId = queryParams.get('advId'); // ID vindo da URL
+  const urlAdvId = queryParams.get('advId');
 
   // --- ESTADOS ---
   const [isDataLoaded, setIsDataLoaded] = useState(false);
@@ -28,81 +28,122 @@ export const GameProvider = ({ children }) => {
   const [activeTool, setActiveTool] = useState('select');
   const [activeAdventureId, setActiveAdventureId] = useState(null);
   
-  // Estado visual para o botão do monitor na janela principal
   const [isGMWindowOpen, setIsGMWindowOpen] = useState(false);
 
-  // --- CONTROLE DE SINCRONIZAÇÃO (Broadcast) ---
+  // --- CONTROLE DE SINCRONIZAÇÃO ---
   const broadcastChannel = useRef(null);
   const isRemoteUpdate = useRef(false); 
+  
+  // CORREÇÃO: Ref para acessar o estado atual dentro dos listeners sem recriá-los
+  const stateRef = useRef({ adventures, characters, presets, activeAdventureId, isDataLoaded });
 
+  // Mantém o ref atualizado sempre que o estado muda
   useEffect(() => {
-      broadcastChannel.current = new BroadcastChannel('ecos_vtt_sync');
+    stateRef.current = { adventures, characters, presets, activeAdventureId, isDataLoaded };
+  }, [adventures, characters, presets, activeAdventureId, isDataLoaded]);
 
-      broadcastChannel.current.onmessage = (event) => {
-          const { type, data } = event.data;
+  // Função centralizada para processar mensagens recebidas
+  // CORREÇÃO: Removemos as dependências de estado (adventures, etc) do array de dependências
+  const handleIncomingMessage = useCallback((type, data) => {
+      // 1. Handshake: Pedido de dados
+      if (type === 'REQUEST_FULL_SYNC') {
+          // Lemos do Ref, garantindo dados frescos sem recriar a função
+          const current = stateRef.current;
           
-          // 1. SOLICITAÇÃO DE SINCRONIZAÇÃO TOTAL (Janela GM abrindo)
-          if (type === 'REQUEST_FULL_SYNC') {
-              if (!isGMWindow && isDataLoaded) { // Só a principal responde
-                  broadcastChannel.current.postMessage({ type: 'FULL_SYNC_RESPONSE', data: {
-                      adventures, characters, presets, activeAdventureId
-                  }});
+          if (!isGMWindow && current.isDataLoaded) {
+              const payload = { 
+                  adventures: current.adventures, 
+                  characters: current.characters, 
+                  presets: current.presets, 
+                  activeAdventureId: current.activeAdventureId 
+              };
+              
+              if (window.electron) {
+                  window.electron.sendSync('FULL_SYNC_RESPONSE', payload);
+              } else if (broadcastChannel.current) {
+                  broadcastChannel.current.postMessage({ type: 'FULL_SYNC_RESPONSE', data: payload });
               }
-              return;
           }
-
-          // 2. RESPOSTA DE SINCRONIZAÇÃO TOTAL (Janela GM recebendo a carga inicial)
-          if (type === 'FULL_SYNC_RESPONSE') {
-              if (isGMWindow) {
-                  isRemoteUpdate.current = true;
-                  setAdventures(data.adventures);
-                  setCharacters(data.characters);
-                  setPresets(data.presets);
-                  // Usa o ID da URL (o que o mestre estava vendo), senão usa o ID sincronizado
-                  setActiveAdventureId(urlAdvId || data.activeAdventureId);
-                  setIsDataLoaded(true); // Libera o Broadcast da janela GM
-                  setTimeout(() => { isRemoteUpdate.current = false; }, 100);
-              }
-              return;
-          }
-
-          // 3. ATUALIZAÇÕES NORMAIS DE ESTADO
-          isRemoteUpdate.current = true;
-          switch (type) {
-              case 'SYNC_ADVENTURES': setAdventures(data); break;
-              case 'SYNC_CHARACTERS': setCharacters(data); break;
-              case 'SYNC_PRESETS': setPresets(data); break;
-              case 'SYNC_ACTIVE_ADV_ID': setActiveAdventureId(data); break;
-          }
-          setTimeout(() => { isRemoteUpdate.current = false; }, 50);
-      };
-
-      // Se for janela GM, pede dados ao canal imediatamente
-      if (isGMWindow) {
-          broadcastChannel.current.postMessage({ type: 'REQUEST_FULL_SYNC' });
+          return;
       }
 
-      // Listener do Electron para status da janela GM (Só na principal)
-      if (!isGMWindow && window.electron?.onGMStatusChange) {
-          window.electron.onGMStatusChange((isOpen) => {
-              setIsGMWindowOpen(isOpen);
+      // 2. Handshake: Recebimento de dados (Janela GM)
+      if (type === 'FULL_SYNC_RESPONSE') {
+          if (isGMWindow) {
+              isRemoteUpdate.current = true;
+              setAdventures(data.adventures);
+              setCharacters(data.characters);
+              setPresets(data.presets);
+              setActiveAdventureId(urlAdvId || data.activeAdventureId);
+              setIsDataLoaded(true); 
+              setTimeout(() => { isRemoteUpdate.current = false; }, 100);
+          }
+          return;
+      }
+
+      // 3. Updates Normais (Tempo Real)
+      isRemoteUpdate.current = true;
+      switch (type) {
+          case 'SYNC_ADVENTURES': setAdventures(data); break;
+          case 'SYNC_CHARACTERS': setCharacters(data); break;
+          case 'SYNC_PRESETS': setPresets(data); break;
+          case 'SYNC_ACTIVE_ADV_ID': setActiveAdventureId(data); break;
+      }
+      // Pequeno delay para garantir que o useEffect de broadcast não dispare de volta
+      setTimeout(() => { isRemoteUpdate.current = false; }, 50);
+  }, [isGMWindow, urlAdvId]); // Dependências estáveis agora
+
+  // Configuração dos Listeners (Ao montar)
+  useEffect(() => {
+      // A. Configura BroadcastChannel
+      broadcastChannel.current = new BroadcastChannel('ecos_vtt_sync');
+      broadcastChannel.current.onmessage = (event) => {
+          handleIncomingMessage(event.data.type, event.data.data);
+      };
+
+      // B. Configura IPC (Electron Build)
+      // CORREÇÃO: Verificamos se já existe um listener para evitar duplicatas,
+      // mas como handleIncomingMessage agora é estável, este efeito roda apenas uma vez.
+      if (window.electron && window.electron.onSync) {
+          window.electron.onSync(({ type, data }) => {
+              handleIncomingMessage(type, data);
           });
+      }
+
+      // C. Se for GM, pede dados iniciais
+      if (isGMWindow) {
+          if (window.electron && window.electron.sendSync) {
+              window.electron.sendSync('REQUEST_FULL_SYNC', null);
+          } else {
+              broadcastChannel.current.postMessage({ type: 'REQUEST_FULL_SYNC' });
+          }
+      }
+
+      // D. Listener de Status da Janela
+      if (!isGMWindow && window.electron?.onGMStatusChange) {
+          window.electron.onGMStatusChange((isOpen) => setIsGMWindowOpen(isOpen));
       }
 
       return () => {
           if (broadcastChannel.current) broadcastChannel.current.close();
+          // Nota: Se o seu preload do Electron tiver um método removeListener, seria ideal chamar aqui.
+          // Mas com a estabilização do handleIncomingMessage, o vazamento foi estancado.
       };
-  }, [isGMWindow, isDataLoaded]);
+  }, [handleIncomingMessage, isGMWindow]); 
 
-  // Helper de Broadcast seguro
+  // Função de Envio (Broadcast)
   const broadcast = (type, data) => {
-      // Só transmite se a mudança foi local (não veio de outro broadcast)
-      if (!isRemoteUpdate.current && broadcastChannel.current && isDataLoaded) {
-          broadcastChannel.current.postMessage({ type, data });
+      if (!isRemoteUpdate.current && isDataLoaded) {
+          if (window.electron && window.electron.sendSync) {
+              window.electron.sendSync(type, data);
+          } 
+          else if (broadcastChannel.current) {
+              broadcastChannel.current.postMessage({ type, data });
+          }
       }
   };
 
-  // --- FUNÇÕES DE ARMAZENAMENTO HÍBRIDO ---
+  // --- FUNÇÕES DE ARMAZENAMENTO ---
   
   const loadData = async (key) => {
       if (window.electron) {
@@ -114,8 +155,6 @@ export const GameProvider = ({ children }) => {
 
   const saveData = async (key, data) => {
       if (!isDataLoaded) return; 
-      
-      // JANELA GM NUNCA SALVA NO DISCO
       if (isGMWindow) return;
 
       if (window.electron) {
@@ -129,7 +168,6 @@ export const GameProvider = ({ children }) => {
 
   // --- CARREGAMENTO INICIAL (MOUNT) ---
   useEffect(() => {
-      // Se for janela GM, pula o carregamento do disco e espera o Broadcast
       if (isGMWindow) return;
 
       const init = async () => {
@@ -161,7 +199,7 @@ export const GameProvider = ({ children }) => {
       init();
   }, [isGMWindow]);
 
-  // --- EFEITOS DE MUDANÇA (SALVAMENTO/SYNC) ---
+  // --- EFEITOS DE SALVAMENTO E SYNC ---
   
   useEffect(() => { 
       saveData(STORAGE_CHARACTERS_KEY, characters);
@@ -194,7 +232,7 @@ export const GameProvider = ({ children }) => {
   }, [activePresetId, activeTool, isDataLoaded]);
 
 
-  // --- LÓGICA DO JOGO ---
+  // --- LÓGICA DO JOGO (CRUD - Mantida igual) ---
 
   const generateUUID = () => crypto.randomUUID();
   const activeAdventure = adventures.find(a => a.id === activeAdventureId);
@@ -233,6 +271,7 @@ export const GameProvider = ({ children }) => {
       setAdventures(prev => [...prev, copy]);
   }, [adventures]);
 
+  // --- EXPORT / IMPORT ---
   const exportAdventure = useCallback(async (advId) => {
       const adv = adventures.find(a => a.id === advId);
       if (!adv) return;
@@ -277,6 +316,7 @@ export const GameProvider = ({ children }) => {
       } catch (e) { console.error(e); alert("Erro ao importar aventura."); }
   }, []);
 
+  // --- SCENE / TOKEN CRUD (Restante das funções mantidas, lógica de estado é local) ---
   const addScene = useCallback((name) => {
       if (!activeAdventureId) return;
       const newId = generateUUID();
@@ -311,7 +351,6 @@ export const GameProvider = ({ children }) => {
       }));
   }, [activeAdventureId]);
 
-  // --- FOG OF WAR CRUD ---
   const addFogArea = useCallback((sceneId, fogData) => {
       if (!activeAdventureId) return;
       setAdventures(prev => prev.map(adv => {
@@ -345,7 +384,6 @@ export const GameProvider = ({ children }) => {
       }));
   }, [activeAdventureId]);
 
-  // --- TOKEN LIBRARY ---
   const addTokenToLibrary = useCallback(async (file) => {
       if (!activeAdventureId || !file) return;
       const imageId = await handleImageUpload(file);
@@ -365,7 +403,6 @@ export const GameProvider = ({ children }) => {
       }));
   }, [activeAdventureId]);
 
-  // CORREÇÃO SINTÁTICA REALIZADA AQUI:
   const updateTokenInstance = useCallback((sceneId, tokenId, updates) => {
       if (!activeAdventureId) return;
       setAdventures(prev => prev.map(adv => {
@@ -425,9 +462,7 @@ export const GameProvider = ({ children }) => {
     const newChar = {
       id: generateUUID(), name: "Novo Personagem", description: "", photo: null, karma: 0, karmaMax: 3,
       attributes: { mente: 0, corpo: 0, destreza: 0, presenca: 0 }, 
-      skills: "", 
-      traumas: "",
-      damage: { superior: [false], medium: [false, false], inferior: [false, false] }, ...charData
+      skills: "", traumas: "", damage: { superior: [false], medium: [false, false], inferior: [false, false] }, ...charData
     };
     setCharacters(prev => [...prev, newChar]);
     return newChar.id;
@@ -446,27 +481,18 @@ export const GameProvider = ({ children }) => {
   
   const loadPreset = useCallback((pid) => { 
       const p = presets.find(x => x.id === pid); 
-      if(p) { 
-          setCharacters([...p.characters]); 
-          setActivePresetId(pid); 
-      } 
+      if(p) { setCharacters([...p.characters]); setActivePresetId(pid); } 
   }, [presets]);
   
   const saveToPreset = useCallback((pid) => { 
       setPresets(prev => prev.map(p => p.id === pid ? { ...p, characters } : p)); 
   }, [characters]);
   
-  const exitPreset = useCallback(() => { 
-      setActivePresetId(null); 
-      setCharacters([]); 
-  }, []);
+  const exitPreset = useCallback(() => { setActivePresetId(null); setCharacters([]); }, []);
   
   const deletePreset = useCallback((id) => { 
       setPresets(prev => prev.filter(p => p.id !== id)); 
-      if(activePresetId === id) { 
-          setActivePresetId(null); 
-          setCharacters([]); 
-      } 
+      if(activePresetId === id) { setActivePresetId(null); setCharacters([]); } 
   }, [activePresetId]);
   
   const mergePresets = useCallback((list) => { 
@@ -482,7 +508,7 @@ export const GameProvider = ({ children }) => {
   
   const resetAllData = async () => { 
       if (window.electron) {
-          // No futuro: Chamar comando do electron para limpar pasta de dados
+          // Futuro: ipc para limpar
       } else {
           localStorage.clear(); 
           await imageDB.clearAll(); 

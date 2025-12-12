@@ -169,6 +169,24 @@ ipcMain.handle('open-gm-window', (event, adventureId) => {
     createGMWindow(adventureId);
 });
 
+ipcMain.on('app-sync', (event, arg) => {
+    // arg contém { type, data }
+    
+    // Se a mensagem veio da Main, manda para a GM
+    if (mainWindow && event.sender.id === mainWindow.webContents.id) {
+        if (gmWindow && !gmWindow.isDestroyed()) {
+            gmWindow.webContents.send('app-sync-receive', arg);
+        }
+    }
+    
+    // Se a mensagem veio da GM, manda para a Main
+    if (gmWindow && event.sender.id === gmWindow.webContents.id) {
+        if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.webContents.send('app-sync-receive', arg);
+        }
+    }
+});
+
 app.on('ready', () => {
     console.log("🚀 App Ready");
     createWindow();
