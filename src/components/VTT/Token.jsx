@@ -55,8 +55,8 @@ const Token = ({ data, isSelected, onMouseDown, onResizeStart }) => {
     : { filter: 'drop-shadow(0 2px 3px rgba(0,0,0,0.5))' };
 
   return (
-    // 1. CONTAINER EXTERNO: POSIÇÃO (SEM TRANSIÇÃO)
-    // Movimenta o token instantaneamente ao arrastar (translate)
+    // 1. CONTAINER EXTERNO: POSIÇÃO E INTERAÇÃO GERAL
+    // Contém a classe 'group' para controlar o hover da alça
     <div
       onMouseDown={(e) => { 
           if (e.button === 1) return;
@@ -64,23 +64,21 @@ const Token = ({ data, isSelected, onMouseDown, onResizeStart }) => {
           onMouseDown(e, data.id); 
       }}
       style={{
-        transform: `translate(${data.x}px, ${data.y}px)`, // Apenas Translate
+        transform: `translate(${data.x}px, ${data.y}px)`, // Apenas Posição
         width: `${widthPx}px`, 
         height: 'auto',
         position: 'absolute', top: 0, left: 0,
         zIndex: isSelected ? 20 : 10,
-        // IMPORTANTE: Removemos a transition daqui para não suavizar o movimento do mouse
       }}
-      className="select-none relative"
+      className="group select-none relative"
     >
       {/* 2. CONTAINER INTERNO: ROTAÇÃO (COM TRANSIÇÃO) 
-          Gira o conteúdo suavemente sem afetar a posição X/Y */}
+          Apenas a imagem e o loader giram. */}
       <div
-        className="group cursor-grab active:cursor-grabbing w-full h-full flex flex-col relative"
+        className="cursor-grab active:cursor-grabbing w-full h-full flex flex-col relative"
         style={{
-            transform: `rotate(${rotation}deg)`,
+            transform: `rotate(${rotation}deg)`, // Apenas Rotação
             transformOrigin: 'center center',
-            // Aplicamos a transition apenas na rotação e no filtro (seleção)
             transition: `transform ${ANIMATION_SPEED_ROTATION} ${ANIMATION_EASING}, filter 0.2s ease-in-out`,
             ...selectionStyle
         }}
@@ -94,7 +92,7 @@ const Token = ({ data, isSelected, onMouseDown, onResizeStart }) => {
                 src={imageSrc || 'https://via.placeholder.com/70?text=?'} 
                 className="w-full h-auto object-contain pointer-events-none block select-none"
                 style={{
-                    // 3. IMAGEM: FLIP (COM TRANSIÇÃO)
+                    // 3. IMAGEM: FLIP
                     transform: `scaleX(${isFlipped ? -1 : 1})`,
                     transition: `transform ${ANIMATION_SPEED_FLIP} ${ANIMATION_EASING}`
                 }}
@@ -102,22 +100,25 @@ const Token = ({ data, isSelected, onMouseDown, onResizeStart }) => {
                 draggable={false}
               />
           )}
-
-          {/* Alça de Redimensionamento (Gira junto com o token) */}
-          <div 
-            onMouseDown={(e) => { 
-                if (e.button === 1) return;
-                e.stopPropagation(); 
-                onResizeStart(e, data.id); 
-            }}
-            className={`absolute -bottom-2 -right-2 w-6 h-6 bg-white rounded-full flex items-center justify-center cursor-nwse-resize text-black shadow-lg opacity-0 group-hover:opacity-100 transition-opacity z-30 ${isSelected ? 'opacity-100' : ''}`}
-          >
-            <Maximize2 size={12} strokeWidth={3} />
-          </div>
           
+          {/* Indicador de erro gira junto com o token */}
           {!loading && !imageSrc && (
               <div className="absolute inset-0 border-2 border-red-500 bg-red-500/20 flex items-center justify-center">?</div>
           )}
+      </div>
+
+      {/* 3. ALÇA DE REDIMENSIONAMENTO (FORA DA ROTAÇÃO) 
+          Agora ela é filha direta do container de posição, então não gira. */}
+      <div 
+        onMouseDown={(e) => { 
+            if (e.button === 1) return;
+            e.stopPropagation(); 
+            onResizeStart(e, data.id); 
+        }}
+        className={`absolute -bottom-2 -right-2 w-4 h-4 bg-white/10 rounded-full flex items-center justify-center cursor-nwse-resize text-black shadow-lg opacity-0 group-hover:opacity-100 transition-opacity z-30 ${isSelected ? 'opacity-100' : ''}`}
+      >
+        {/* Adicionei o className="rotate-90" aqui */}
+        <Maximize2 size={8} strokeWidth={3} color='white' className="rotate-90" />
       </div>
     </div>
   );
