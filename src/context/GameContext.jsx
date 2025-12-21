@@ -362,17 +362,159 @@ export const GameProvider = ({ children }) => {
       }));
   }, [activeAdventureId]);
 
-  const addTokenToLibrary = useCallback(async (file) => {
+  const addPin = useCallback((sceneId, pinData) => {
+      if (!activeAdventureId) return;
+      setAdventures(prev => prev.map(adv => {
+          if (adv.id !== activeAdventureId) return adv;
+          return { 
+              ...adv, 
+              scenes: adv.scenes.map(s => s.id !== sceneId ? s : { 
+                  ...s, 
+                  pins: [...(s.pins || []), { ...pinData, id: generateUUID() }] 
+              }) 
+          };
+      }));
+  }, [activeAdventureId]);
+
+  const updatePin = useCallback((sceneId, pinId, updates) => {
+      if (!activeAdventureId) return;
+      setAdventures(prev => prev.map(adv => {
+          if (adv.id !== activeAdventureId) return adv;
+          return { 
+              ...adv, 
+              scenes: adv.scenes.map(s => s.id !== sceneId ? s : { 
+                  ...s, 
+                  pins: (s.pins || []).map(p => p.id === pinId ? { ...p, ...updates } : p) 
+              }) 
+          };
+      }));
+  }, [activeAdventureId]);
+
+  const deletePin = useCallback((sceneId, pinId) => {
+      if (!activeAdventureId) return;
+      setAdventures(prev => prev.map(adv => {
+          if (adv.id !== activeAdventureId) return adv;
+          return { 
+              ...adv, 
+              scenes: adv.scenes.map(s => s.id !== sceneId ? s : { 
+                  ...s, 
+                  pins: (s.pins || []).filter(p => p.id !== pinId) 
+              }) 
+          };
+      }));
+  }, [activeAdventureId]);
+
+  const deleteMultiplePins = useCallback((sceneId, pinIdsArray) => {
+      if (!activeAdventureId) return;
+      const idsSet = new Set(pinIdsArray);
+      setAdventures(prev => prev.map(adv => {
+          if (adv.id !== activeAdventureId) return adv;
+          return { 
+              ...adv, 
+              scenes: adv.scenes.map(s => s.id !== sceneId ? s : { 
+                  ...s, 
+                  pins: (s.pins || []).filter(p => !idsSet.has(p.id)) 
+              }) 
+          };
+      }));
+  }, [activeAdventureId]);
+
+  // --- TOKEN LIBRARY & FOLDERS ---
+  
+  // ATUALIZADO: Aceita parentId (para pastas) e define type='token'
+  const addTokenToLibrary = useCallback(async (file, parentId = null) => {
       if (!activeAdventureId || !file) return;
       const imageId = await handleImageUpload(file);
-      setAdventures(prev => prev.map(adv => adv.id !== activeAdventureId ? adv : { ...adv, tokenLibrary: [...(adv.tokenLibrary || []), { id: generateUUID(), imageId }] }));
+      setAdventures(prev => prev.map(adv => adv.id !== activeAdventureId ? adv : { 
+          ...adv, 
+          tokenLibrary: [...(adv.tokenLibrary || []), { 
+              id: generateUUID(), 
+              imageId, 
+              type: 'token', // Define explicitamente como token
+              parentId: parentId || null 
+          }] 
+      }));
   }, [activeAdventureId]);
 
-  const removeTokenFromLibrary = useCallback((tokenId) => {
+  // NOVO: Adicionar Pasta
+  const addFolder = useCallback((name, parentId = null) => {
       if (!activeAdventureId) return;
-      setAdventures(prev => prev.map(adv => adv.id !== activeAdventureId ? adv : { ...adv, tokenLibrary: adv.tokenLibrary.filter(t => t.id !== tokenId) }));
+      setAdventures(prev => prev.map(adv => adv.id !== activeAdventureId ? adv : {
+          ...adv,
+          tokenLibrary: [...(adv.tokenLibrary || []), {
+              id: generateUUID(),
+              name: name || "Nova Pasta",
+              type: 'folder',
+              parentId: parentId || null
+          }]
+      }));
   }, [activeAdventureId]);
 
+  // NOVO: Mover Item (Token ou Pasta)
+  const moveLibraryItem = useCallback((itemId, targetFolderId) => {
+      if (!activeAdventureId) return;
+      setAdventures(prev => prev.map(adv => {
+          if (adv.id !== activeAdventureId) return adv;
+          return {
+              ...adv,
+              tokenLibrary: adv.tokenLibrary.map(item => 
+                  item.id === itemId ? { ...item, parentId: targetFolderId } : item
+              )
+          };
+      }));
+  }, [activeAdventureId]);
+
+  // NOVO: Renomear Item (útil para pastas)
+  const renameLibraryItem = useCallback((itemId, newName) => {
+      if (!activeAdventureId) return;
+      setAdventures(prev => prev.map(adv => {
+          if (adv.id !== activeAdventureId) return adv;
+          return {
+              ...adv,
+              tokenLibrary: adv.tokenLibrary.map(item => 
+                  item.id === itemId ? { ...item, name: newName } : item
+              )
+          };
+      }));
+  }, [activeAdventureId]);
+
+  // ATUALIZADO: Deletar Item (Cascade Delete para pastas)
+  const deleteLibraryItem = useCallback((itemId) => {
+      if (!activeAdventureId) return;
+      
+      setAdventures(prev => {
+          const adv = prev.find(a => a.id === activeAdventureId);
+          if (!adv) return prev;
+
+          let idsToDelete = new Set([itemId]);
+
+          // Função recursiva para encontrar todos os filhos
+          const findChildren = (parentId) => {
+              const children = adv.tokenLibrary.filter(t => t.parentId === parentId);
+              children.forEach(c => {
+                  idsToDelete.add(c.id);
+                  if (c.type === 'folder') findChildren(c.id);
+              });
+          };
+
+          // Verifica se o item alvo é uma pasta e busca seus filhos
+          const targetItem = adv.tokenLibrary.find(t => t.id === itemId);
+          if (targetItem && targetItem.type === 'folder') {
+              findChildren(itemId);
+          }
+
+          return prev.map(a => a.id !== activeAdventureId ? a : {
+              ...a,
+              tokenLibrary: a.tokenLibrary.filter(t => !idsToDelete.has(t.id))
+          });
+      });
+  }, [activeAdventureId]);
+
+  // Função antiga mantida para compatibilidade, redirecionando para deleteLibraryItem
+  const removeTokenFromLibrary = deleteLibraryItem;
+
+
+  // --- TOKEN INSTANCES ON MAP ---
   const addTokenInstance = useCallback((sceneId, tokenData) => {
       if (!activeAdventureId) return;
       setAdventures(prev => prev.map(adv => {
@@ -424,80 +566,18 @@ export const GameProvider = ({ children }) => {
             imageId = await imageDB.saveImage(blob);
         } else { imageId = await imageDB.saveImage(char.photo); }
         if (imageId && activeAdventureId) {
+           // Atualizado para usar type: 'token'
            setAdventures(prev => prev.map(adv => {
                if (adv.id !== activeAdventureId) return adv;
                const exists = adv.tokenLibrary?.some(t => t.imageId === imageId);
                if (exists) return adv;
-               return { ...adv, tokenLibrary: [...(adv.tokenLibrary || []), { id: generateUUID(), imageId }] };
+               return { ...adv, tokenLibrary: [...(adv.tokenLibrary || []), { id: generateUUID(), imageId, type: 'token', parentId: null }] };
            }));
         }
         return imageId;
     } catch (e) { console.error("Erro import char token:", e); return null; }
   }, [characters, activeAdventureId]);
 
-const addPin = useCallback((sceneId, pinData) => {
-      if (!activeAdventureId) return;
-      setAdventures(prev => prev.map(adv => {
-          if (adv.id !== activeAdventureId) return adv;
-          return { 
-              ...adv, 
-              scenes: adv.scenes.map(s => s.id !== sceneId ? s : { 
-                  ...s, 
-                  pins: [
-                      ...(s.pins || []), 
-                      { 
-                          ...pinData,       // 1. Espalha os dados do formulário primeiro (com id: null)
-                          id: generateUUID() // 2. Garante que o ID único sobrescreva qualquer coisa anterior
-                      }
-                  ] 
-              }) 
-          };
-      }));
-  }, [activeAdventureId]);
-
-  const updatePin = useCallback((sceneId, pinId, updates) => {
-      if (!activeAdventureId) return;
-      setAdventures(prev => prev.map(adv => {
-          if (adv.id !== activeAdventureId) return adv;
-          return { 
-              ...adv, 
-              scenes: adv.scenes.map(s => s.id !== sceneId ? s : { 
-                  ...s, 
-                  pins: (s.pins || []).map(p => p.id === pinId ? { ...p, ...updates } : p) 
-              }) 
-          };
-      }));
-  }, [activeAdventureId]);
-
-  const deletePin = useCallback((sceneId, pinId) => {
-      if (!activeAdventureId) return;
-      setAdventures(prev => prev.map(adv => {
-          if (adv.id !== activeAdventureId) return adv;
-          return { 
-              ...adv, 
-              scenes: adv.scenes.map(s => s.id !== sceneId ? s : { 
-                  ...s, 
-                  pins: (s.pins || []).filter(p => p.id !== pinId) 
-              }) 
-          };
-      }));
-  }, [activeAdventureId]);
-
-  // [NOVO] Deletar múltiplos pins de uma vez (Previne erro de deletar todos)
-  const deleteMultiplePins = useCallback((sceneId, pinIdsArray) => {
-      if (!activeAdventureId) return;
-      const idsSet = new Set(pinIdsArray);
-      setAdventures(prev => prev.map(adv => {
-          if (adv.id !== activeAdventureId) return adv;
-          return { 
-              ...adv, 
-              scenes: adv.scenes.map(s => s.id !== sceneId ? s : { 
-                  ...s, 
-                  pins: (s.pins || []).filter(p => !idsSet.has(p.id)) 
-              }) 
-          };
-      }));
-  }, [activeAdventureId]);
 
   // --- CHARACTERS ---
   const addCharacter = useCallback((charData) => {
@@ -520,78 +600,51 @@ const addPin = useCallback((sceneId, pinData) => {
   const deleteCharacter = useCallback((id) => setCharacters(prev => prev.filter(char => char.id !== id)), []);
   const setAllCharacters = useCallback((list) => setCharacters(list), []);
 
-  // --- PRESETS & IMPORT/EXPORT INDIVIDUAL ---
-  
-  // NOVO: Exportar Preset Individual (com imagens)
+  // --- PRESETS ---
   const exportPreset = useCallback(async (presetId) => {
       const preset = presets.find(p => p.id === presetId);
       if (!preset) return;
-
       const zip = new JSZip();
       zip.file("preset.json", JSON.stringify(preset));
       const imgFolder = zip.folder("images");
       const imageIds = new Set();
-
-      // Itera sobre os personagens do preset para encontrar imagens
       preset.characters.forEach(char => {
-          // Se photo for ID (não começa com data:), adiciona à lista
           if (char.photo && !char.photo.startsWith('data:')) {
               imageIds.add(char.photo);
           }
-          // Nota: Se for data: (base64 legado), já vai dentro do JSON, não precisa fazer nada
       });
-
       for (const id of imageIds) {
           const blob = await imageDB.getImage(id);
           if (blob) imgFolder.file(id, blob);
       }
-
       const content = await zip.generateAsync({ type: "blob" });
       saveAs(content, `grupo_${preset.name.replace(/\s+/g, '_')}.zip`);
   }, [presets]);
 
-  // NOVO: Importar Preset Individual
   const importPreset = useCallback(async (file) => {
       if (!file) return;
       try {
           const zip = await JSZip.loadAsync(file);
-          
-          // 1. Ler JSON
           const jsonFile = zip.file("preset.json");
           if (!jsonFile) throw new Error("Arquivo de grupo inválido");
           const presetData = JSON.parse(await jsonFile.async("string"));
-
-          // 2. Salvar imagens extraídas no imageDB
           const imgFolder = zip.folder("images");
           if (imgFolder) {
               const images = [];
               imgFolder.forEach((relativePath, file) => images.push({ id: relativePath, file }));
               for (const img of images) {
                   const blob = await img.file.async("blob");
-                  await imageDB.saveImage(blob, img.id); // Tenta manter o mesmo ID para não quebrar links
+                  await imageDB.saveImage(blob, img.id); 
               }
           }
-
-          // 3. Gerar novos IDs para evitar conflito (Preset e Personagens)
-          // Isso permite importar o mesmo grupo várias vezes
           const newPresetId = generateUUID();
           const newCharacters = presetData.characters.map(char => ({
               ...char,
-              id: generateUUID() // Novo ID para cada char
+              id: generateUUID() 
           }));
-
-          const newPreset = {
-              ...presetData,
-              id: newPresetId,
-              name: `${presetData.name}`, // Pode adicionar (Cópia) se quiser, mas importação direta é melhor limpa
-              characters: newCharacters
-          };
-
+          const newPreset = { ...presetData, id: newPresetId, name: `${presetData.name}`, characters: newCharacters };
           setPresets(prev => [...prev, newPreset]);
-      } catch (e) {
-          console.error(e);
-          alert("Erro ao importar grupo.");
-      }
+      } catch (e) { console.error(e); alert("Erro ao importar grupo."); }
   }, []);
 
   const createPreset = useCallback((name) => {
@@ -615,7 +668,6 @@ const addPin = useCallback((sceneId, pinData) => {
       if(activePresetId === id) { setActivePresetId(null); setCharacters([]); } 
   }, [activePresetId]);
   
-  // Função legada de merge (ainda útil se quiser manter compatibilidade com backups antigos)
   const mergePresets = useCallback((list) => { 
       setPresets(prev => { 
           const ids = new Set(prev.map(p => p.id)); 
@@ -644,10 +696,10 @@ const addPin = useCallback((sceneId, pinData) => {
     addScene, updateScene, updateSceneMap, setActiveScene, deleteScene,
     activeTool, setActiveTool, addFogArea, updateFogArea, deleteFogArea, deleteMultipleFogAreas,
     addTokenToLibrary, removeTokenFromLibrary, addTokenInstance, updateTokenInstance, deleteTokenInstance, deleteMultipleTokenInstances, importCharacterAsToken,
+    addFolder, moveLibraryItem, renameLibraryItem, deleteLibraryItem, // NOVAS FUNÇÕES EXPOSTAS
+    addPin, updatePin, deletePin, deleteMultiplePins,
     gameState: { characters }, addCharacter, updateCharacter, deleteCharacter, setAllCharacters,
-    presets, activePresetId, createPreset, loadPreset, saveToPreset, deletePreset, mergePresets, exitPreset, updatePreset,
-    addPin, updatePin, deletePin, deleteMultiplePins, // [NOVO]
-    exportPreset, importPreset,
+    presets, activePresetId, createPreset, loadPreset, saveToPreset, deletePreset, mergePresets, exitPreset, updatePreset, exportPreset, importPreset,
     resetAllData
   };
 
