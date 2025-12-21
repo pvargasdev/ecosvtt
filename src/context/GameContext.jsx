@@ -226,7 +226,7 @@ export const GameProvider = ({ children }) => {
     const newSceneId = generateUUID();
     const newAdventure = {
         id: generateUUID(), name: name, activeSceneId: newSceneId, tokenLibrary: [], 
-        scenes: [{ id: newSceneId, name: "Cena 1", mapImageId: null, mapScale: 1.0, tokens: [], fogOfWar: [] }]
+        scenes: [{ id: newSceneId, name: "Cena 1", mapImageId: null, mapScale: 1.0, tokens: [], fogOfWar: [], pins: [] }]
     };
     setAdventures(prev => [...prev, newAdventure]);
   }, []);
@@ -279,7 +279,7 @@ export const GameProvider = ({ children }) => {
           const jsonFile = zip.file("adventure.json");
           if (!jsonFile) throw new Error("Arquivo inválido");
           const advData = JSON.parse(await jsonFile.async("string"));
-          advData.scenes = advData.scenes.map(scene => ({ ...scene, fogOfWar: scene.fogOfWar || [] }));
+          advData.scenes = advData.scenes.map(scene => ({ ...scene, fogOfWar: scene.fogOfWar || [], pins: scene.pins || [] }));
           const imgFolder = zip.folder("images");
           if (imgFolder) {
               const images = [];
@@ -298,7 +298,7 @@ export const GameProvider = ({ children }) => {
   const addScene = useCallback((name) => {
       if (!activeAdventureId) return;
       const newId = generateUUID();
-      const newScene = { id: newId, name: name || "Nova Cena", mapImageId: null, mapScale: 1.0, tokens: [], fogOfWar: [] };
+      const newScene = { id: newId, name: name || "Nova Cena", mapImageId: null, mapScale: 1.0, tokens: [], fogOfWar: [], pins: [] };
       setAdventures(prev => prev.map(adv => adv.id !== activeAdventureId ? adv : { ...adv, scenes: [...adv.scenes, newScene] }));
   }, [activeAdventureId]);
 
@@ -434,6 +434,54 @@ export const GameProvider = ({ children }) => {
         return imageId;
     } catch (e) { console.error("Erro import char token:", e); return null; }
   }, [characters, activeAdventureId]);
+
+const addPin = useCallback((sceneId, pinData) => {
+      if (!activeAdventureId) return;
+      setAdventures(prev => prev.map(adv => {
+          if (adv.id !== activeAdventureId) return adv;
+          return { 
+              ...adv, 
+              scenes: adv.scenes.map(s => s.id !== sceneId ? s : { 
+                  ...s, 
+                  pins: [
+                      ...(s.pins || []), 
+                      { 
+                          id: generateUUID(), 
+                          ...pinData // Espera receber { x, y, title, icon, color... }
+                      }
+                  ] 
+              }) 
+          };
+      }));
+  }, [activeAdventureId]);
+
+  const updatePin = useCallback((sceneId, pinId, updates) => {
+      if (!activeAdventureId) return;
+      setAdventures(prev => prev.map(adv => {
+          if (adv.id !== activeAdventureId) return adv;
+          return { 
+              ...adv, 
+              scenes: adv.scenes.map(s => s.id !== sceneId ? s : { 
+                  ...s, 
+                  pins: (s.pins || []).map(p => p.id === pinId ? { ...p, ...updates } : p) 
+              }) 
+          };
+      }));
+  }, [activeAdventureId]);
+
+  const deletePin = useCallback((sceneId, pinId) => {
+      if (!activeAdventureId) return;
+      setAdventures(prev => prev.map(adv => {
+          if (adv.id !== activeAdventureId) return adv;
+          return { 
+              ...adv, 
+              scenes: adv.scenes.map(s => s.id !== sceneId ? s : { 
+                  ...s, 
+                  pins: (s.pins || []).filter(p => p.id !== pinId) 
+              }) 
+          };
+      }));
+  }, [activeAdventureId]);
 
   // --- CHARACTERS ---
   const addCharacter = useCallback((charData) => {
@@ -582,6 +630,7 @@ export const GameProvider = ({ children }) => {
     addTokenToLibrary, removeTokenFromLibrary, addTokenInstance, updateTokenInstance, deleteTokenInstance, deleteMultipleTokenInstances, importCharacterAsToken,
     gameState: { characters }, addCharacter, updateCharacter, deleteCharacter, setAllCharacters,
     presets, activePresetId, createPreset, loadPreset, saveToPreset, deletePreset, mergePresets, exitPreset, updatePreset,
+    addPin, updatePin, deletePin,
     exportPreset, importPreset, // NOVAS FUNÇÕES EXPOSTAS
     resetAllData
   };
