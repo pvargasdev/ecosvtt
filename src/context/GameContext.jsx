@@ -446,8 +446,8 @@ const addPin = useCallback((sceneId, pinData) => {
                   pins: [
                       ...(s.pins || []), 
                       { 
-                          id: generateUUID(), 
-                          ...pinData // Espera receber { x, y, title, icon, color... }
+                          ...pinData,       // 1. Espalha os dados do formulário primeiro (com id: null)
+                          id: generateUUID() // 2. Garante que o ID único sobrescreva qualquer coisa anterior
                       }
                   ] 
               }) 
@@ -478,6 +478,22 @@ const addPin = useCallback((sceneId, pinData) => {
               scenes: adv.scenes.map(s => s.id !== sceneId ? s : { 
                   ...s, 
                   pins: (s.pins || []).filter(p => p.id !== pinId) 
+              }) 
+          };
+      }));
+  }, [activeAdventureId]);
+
+  // [NOVO] Deletar múltiplos pins de uma vez (Previne erro de deletar todos)
+  const deleteMultiplePins = useCallback((sceneId, pinIdsArray) => {
+      if (!activeAdventureId) return;
+      const idsSet = new Set(pinIdsArray);
+      setAdventures(prev => prev.map(adv => {
+          if (adv.id !== activeAdventureId) return adv;
+          return { 
+              ...adv, 
+              scenes: adv.scenes.map(s => s.id !== sceneId ? s : { 
+                  ...s, 
+                  pins: (s.pins || []).filter(p => !idsSet.has(p.id)) 
               }) 
           };
       }));
@@ -630,8 +646,8 @@ const addPin = useCallback((sceneId, pinData) => {
     addTokenToLibrary, removeTokenFromLibrary, addTokenInstance, updateTokenInstance, deleteTokenInstance, deleteMultipleTokenInstances, importCharacterAsToken,
     gameState: { characters }, addCharacter, updateCharacter, deleteCharacter, setAllCharacters,
     presets, activePresetId, createPreset, loadPreset, saveToPreset, deletePreset, mergePresets, exitPreset, updatePreset,
-    addPin, updatePin, deletePin,
-    exportPreset, importPreset, // NOVAS FUNÇÕES EXPOSTAS
+    addPin, updatePin, deletePin, deleteMultiplePins, // [NOVO]
+    exportPreset, importPreset,
     resetAllData
   };
 

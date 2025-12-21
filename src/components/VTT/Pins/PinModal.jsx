@@ -1,18 +1,19 @@
 import React, { useState } from 'react';
 import { useGame } from '../../../context/GameContext';
-import { X, Save, MapPin, AlertCircle, Info, Key, Skull, Star, Flag, MessageCircle, DoorOpen } from 'lucide-react';
+import { X, Save, MapPin, TriangleAlert, Warehouse, Key, Skull, House, MessageCircle, Beer, DollarSign, Star } from 'lucide-react';
 
 // Lista de ícones disponíveis para escolha
 const AVAILABLE_ICONS = [
     { name: 'MapPin', Component: MapPin },
-    { name: 'Info', Component: Info },
-    { name: 'AlertCircle', Component: AlertCircle },
+    { name: 'Star', Component: Star },
+    { name: 'TriangleAlert', Component: TriangleAlert },
+    { name: 'MessageCircle', Component: MessageCircle },
+    { name: 'DollarSign', Component: DollarSign },
     { name: 'Key', Component: Key },
     { name: 'Skull', Component: Skull },
-    { name: 'Star', Component: Star },
-    { name: 'Flag', Component: Flag },
-    { name: 'MessageCircle', Component: MessageCircle },
-    { name: 'DoorOpen', Component: DoorOpen },
+    { name: 'House', Component: House },
+    { name: 'Warehouse', Component: Warehouse },
+    { name: 'Beer', Component: Beer },
 ];
 
 const COLORS = ['#ef4444', '#f97316', '#eab308', '#22c55e', '#06b6d4', '#3b82f6', '#a855f7', '#d946ef', '#ffffff'];
@@ -22,7 +23,7 @@ const PinModal = ({ initialData, position, onSave, onClose }) => {
     
     // Estado do formulário
     const [formData, setFormData] = useState({
-        title: initialData?.title || "Novo Marcador",
+        title: initialData?.title || "Novo Pin",
         description: initialData?.description || "",
         icon: initialData?.icon || "MapPin",
         color: initialData?.color || "#ffffff",
@@ -70,7 +71,7 @@ const PinModal = ({ initialData, position, onSave, onClose }) => {
 
                     {/* Descrição */}
                     <div>
-                        <label className="text-xs text-text-muted block mb-1">Descrição (Hover)</label>
+                        <label className="text-xs text-text-muted block mb-1">Descrição</label>
                         <textarea 
                             rows={3}
                             className="w-full bg-black/50 border border-glass-border rounded p-2 text-white text-sm outline-none focus:border-neon-green resize-none"
@@ -81,7 +82,7 @@ const PinModal = ({ initialData, position, onSave, onClose }) => {
 
                     {/* Link de Cena */}
                     <div>
-                        <label className="text-xs text-text-muted block mb-1">Link para Cena (Opcional)</label>
+                        <label className="text-xs text-text-muted block mb-1">Link para cena (Opcional)</label>
                         <select 
                             className="w-full bg-black/50 border border-glass-border rounded p-2 text-white text-sm outline-none"
                             value={formData.linkedSceneId}
@@ -125,15 +126,17 @@ const PinModal = ({ initialData, position, onSave, onClose }) => {
                         </div>
                     </div>
 
-                    {/* Visibilidade */}
-                    <label className="flex items-center gap-2 cursor-pointer border border-glass-border p-2 rounded hover:bg-white/5">
+                    {/* Visibilidade (Lógica Invertida) */}
+                    <label className="flex items-center gap-2 cursor-pointer border border-glass-border p-2 rounded hover:bg-white/5 transition-colors">
                         <input 
                             type="checkbox" 
-                            checked={formData.visibleToPlayers}
-                            onChange={e => setFormData({...formData, visibleToPlayers: e.target.checked})}
-                            className="accent-neon-green"
+                            // Se visibleToPlayers é TRUE (padrão), Checked é FALSE.
+                            checked={!formData.visibleToPlayers}
+                            // Ao clicar, setamos visibleToPlayers para o inverso do checkbox (Se check=true, visible=false)
+                            onChange={e => setFormData({...formData, visibleToPlayers: !e.target.checked})}
+                            className="accent-neon-green w-4 h-4 cursor-pointer"
                         />
-                        <span className="text-sm text-white">Visível para Jogadores?</span>
+                        <span className="text-sm text-white select-none">Visível apenas na tela do mestre?</span>
                     </label>
 
                     <button 

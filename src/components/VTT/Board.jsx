@@ -29,13 +29,16 @@ const Board = () => {
     exportAdventure, importAdventure,
     isGMWindow, isGMWindowOpen,
     // Funções de Pins
-    addPin, updatePin, deletePin
+    addPin, updatePin, deletePin, deleteMultiplePins
   } = useGame();
 
   const containerRef = useRef(null);
   const importInputRef = useRef(null);
   const adventuresListRef = useRef(null);
   
+  // [NOVO] Referência para a área de transferência (Clipboard interno)
+  const clipboardRef = useRef([]);
+
   const prevAdventuresLength = useRef(adventures.length);
 
   // --- CONTROLE DE CÂMERA ---
@@ -114,6 +117,7 @@ const Board = () => {
         if (['INPUT', 'TEXTAREA'].includes(document.activeElement?.tagName)) return;
         if (e.code === 'Space' && !e.repeat) setIsSpacePressed(true);
 
+        // --- DELETAR ---
         if ((e.key === 'Delete' || e.key === 'Backspace')) {
             if (selectedIds.size > 0 && activeScene) {
                 deleteMultipleTokenInstances(activeScene?.id, Array.from(selectedIds));
@@ -124,10 +128,38 @@ const Board = () => {
                 setSelectedFogIds(new Set());
             }
             if (selectedPinIds.size > 0 && activeScene) {
-                selectedPinIds.forEach(id => deletePin(activeScene.id, id));
+                deleteMultiplePins(activeScene.id, Array.from(selectedPinIds));
                 setSelectedPinIds(new Set());
             }
         }
+
+        // --- [NOVO] COPIAR (Ctrl+C) ---
+        if ((e.ctrlKey || e.metaKey) && e.key === 'c') {
+            if (selectedIds.size > 0 && activeScene) {
+                const tokensToCopy = activeScene.tokens.filter(t => selectedIds.has(t.id));
+                if (tokensToCopy.length > 0) {
+                    clipboardRef.current = tokensToCopy;
+                }
+            }
+        }
+
+        // --- [NOVO] COLAR (Ctrl+V) ---
+        if ((e.ctrlKey || e.metaKey) && e.key === 'v') {
+            if (clipboardRef.current.length > 0 && activeScene) {
+                clipboardRef.current.forEach(token => {
+                    // Remove o ID original para evitar duplicidade
+                    const { id, ...tokenData } = token;
+                    
+                    // Adiciona um pequeno deslocamento (20px) para não ficar exatamente em cima
+                    addTokenInstance(activeScene.id, {
+                        ...tokenData,
+                        x: tokenData.x + 20,
+                        y: tokenData.y + 20
+                    });
+                });
+            }
+        }
+
         if (['ArrowUp', 'ArrowDown'].includes(e.key) && !e.repeat) {
             e.preventDefault();
             zoomKeyRef.current = e.key === 'ArrowUp' ? 1 : -1;
@@ -143,7 +175,7 @@ const Board = () => {
     
     window.addEventListener('keydown', handleKeyDown); window.addEventListener('keyup', handleKeyUp);
     return () => { window.removeEventListener('keydown', handleKeyDown); window.removeEventListener('keyup', handleKeyUp); };
-  }, [selectedIds, selectedFogIds, selectedPinIds, activeScene, deleteMultipleTokenInstances, deleteMultipleFogAreas, deletePin, setActiveTool]);
+  }, [selectedIds, selectedFogIds, selectedPinIds, activeScene, deleteMultipleTokenInstances, deleteMultipleFogAreas, deleteMultiplePins, setActiveTool, addTokenInstance]);
 
   const animateCamera = useCallback(() => {
       const target = targetViewRef.current;
@@ -253,10 +285,6 @@ const Board = () => {
   // ==========================================
 
   const handleBoardDoubleClick = (e) => {
-      // PERMITIR CRIAÇÃO DE PINS NA TELA DO MESTRE:
-      // Removemos a verificação "isGMWindow" que bloqueava a tela principal (Master)
-      // se "isGMWindow" fosse interpretado incorretamente.
-      // Agora, basta estar com a ferramenta de seleção.
       if (activeTool !== 'select') return;
       
       const rect = containerRef.current.getBoundingClientRect();
@@ -327,23 +355,19 @@ const Board = () => {
     if (e.button === 1 || e.button === 2 || activeTool !== 'select') return;
     e.stopPropagation();
 
-    // Lógica de Seleção
-    let newSelection = new Set(selectedPinIds);
     const isMultiSelect = e.ctrlKey || e.metaKey;
+    let newSelection = new Set(selectedPinIds);
+
     if (isMultiSelect) {
         if (newSelection.has(id)) newSelection.delete(id); else newSelection.add(id);
     } else { 
         if (!newSelection.has(id)) newSelection = new Set([id]); 
     }
     
-    // Atualiza o estado visual
     setSelectedPinIds(newSelection);
-    
-    // Limpa outras seleções
     setSelectedIds(new Set());
     setSelectedFogIds(new Set());
 
-    // CRUCIAL: Salvar posições iniciais de TODOS os pins selecionados neste momento
     const initialPositions = {};
     if (activeScene?.pins) {
         newSelection.forEach(pinId => {
@@ -357,7 +381,7 @@ const Board = () => {
         activePinId: id, 
         startX: e.clientX, 
         startY: e.clientY,
-        initialPositions // Guarda o estado inicial para uso no mouseMove
+        initialPositions 
     });
   };
 
@@ -406,13 +430,10 @@ const Board = () => {
         });
         setInteraction(p => ({ ...p, startX: e.clientX, startY: e.clientY }));
     } 
-    // [CORREÇÃO AQUI] Lógica de Drag de Pins Corrigida
     else if (interaction.mode === 'DRAGGING_PIN' && activeScene) {
         const dx = (e.clientX - interaction.startX) / view.scale;
         const dy = (e.clientY - interaction.startY) / view.scale;
         
-        // Iterar sobre as posições SALVAS no interaction, não sobre o estado selectedPinIds
-        // Isso resolve o problema de "não mover" ou bugs de estado atrasado
         Object.keys(interaction.initialPositions).forEach(pinId => {
             const initialPos = interaction.initialPositions[pinId];
             if (initialPos) {
@@ -546,8 +567,8 @@ const Board = () => {
                         key={pin.id} 
                         data={pin} 
                         viewScale={view.scale}
-                        // Z-Index dinâmico para Fog
-                        isPlayerView={isGMWindow} 
+                        isGM={isGMWindow} // CORREÇÃO: Passa isGM como isGM, não isPlayerView
+                        isSelected={selectedPinIds.has(pin.id)} // Feedback de seleção
                         onMouseDown={handlePinDown}
                         onDoubleClick={() => openPinModal(pin)}
                     />
