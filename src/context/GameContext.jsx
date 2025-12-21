@@ -302,6 +302,31 @@ export const GameProvider = ({ children }) => {
       setAdventures(prev => prev.map(adv => adv.id !== activeAdventureId ? adv : { ...adv, scenes: [...adv.scenes, newScene] }));
   }, [activeAdventureId]);
 
+  // NOVO: Duplicar Cena
+  const duplicateScene = useCallback((sceneId) => {
+      if (!activeAdventureId) return;
+      setAdventures(prev => prev.map(adv => {
+          if (adv.id !== activeAdventureId) return adv;
+          
+          const originalScene = adv.scenes.find(s => s.id === sceneId);
+          if (!originalScene) return adv;
+
+          // Cria cópia profunda
+          const copy = JSON.parse(JSON.stringify(originalScene));
+          
+          // Regenera ID da Cena
+          copy.id = generateUUID();
+          copy.name = `${copy.name} (Cópia)`;
+
+          // Regenera IDs internos para evitar conflito de referência
+          copy.tokens = copy.tokens.map(t => ({ ...t, id: generateUUID() }));
+          copy.fogOfWar = copy.fogOfWar.map(f => ({ ...f, id: generateUUID() }));
+          copy.pins = copy.pins.map(p => ({ ...p, id: generateUUID() }));
+
+          return { ...adv, scenes: [...adv.scenes, copy] };
+      }));
+  }, [activeAdventureId]);
+
   const updateSceneMap = useCallback(async (sceneId, file) => {
       if (!activeAdventureId || !file) return;
       const imageId = await handleImageUpload(file);
@@ -421,7 +446,6 @@ export const GameProvider = ({ children }) => {
 
   // --- TOKEN LIBRARY & FOLDERS ---
   
-  // ATUALIZADO: Aceita parentId (para pastas) e define type='token'
   const addTokenToLibrary = useCallback(async (file, parentId = null) => {
       if (!activeAdventureId || !file) return;
       const imageId = await handleImageUpload(file);
@@ -430,13 +454,12 @@ export const GameProvider = ({ children }) => {
           tokenLibrary: [...(adv.tokenLibrary || []), { 
               id: generateUUID(), 
               imageId, 
-              type: 'token', // Define explicitamente como token
+              type: 'token', 
               parentId: parentId || null 
           }] 
       }));
   }, [activeAdventureId]);
 
-  // NOVO: Adicionar Pasta
   const addFolder = useCallback((name, parentId = null) => {
       if (!activeAdventureId) return;
       setAdventures(prev => prev.map(adv => adv.id !== activeAdventureId ? adv : {
@@ -450,7 +473,6 @@ export const GameProvider = ({ children }) => {
       }));
   }, [activeAdventureId]);
 
-  // NOVO: Mover Item (Token ou Pasta)
   const moveLibraryItem = useCallback((itemId, targetFolderId) => {
       if (!activeAdventureId) return;
       setAdventures(prev => prev.map(adv => {
@@ -464,7 +486,6 @@ export const GameProvider = ({ children }) => {
       }));
   }, [activeAdventureId]);
 
-  // NOVO: Renomear Item (útil para pastas)
   const renameLibraryItem = useCallback((itemId, newName) => {
       if (!activeAdventureId) return;
       setAdventures(prev => prev.map(adv => {
@@ -478,7 +499,6 @@ export const GameProvider = ({ children }) => {
       }));
   }, [activeAdventureId]);
 
-  // ATUALIZADO: Deletar Item (Cascade Delete para pastas)
   const deleteLibraryItem = useCallback((itemId) => {
       if (!activeAdventureId) return;
       
@@ -488,7 +508,6 @@ export const GameProvider = ({ children }) => {
 
           let idsToDelete = new Set([itemId]);
 
-          // Função recursiva para encontrar todos os filhos
           const findChildren = (parentId) => {
               const children = adv.tokenLibrary.filter(t => t.parentId === parentId);
               children.forEach(c => {
@@ -497,7 +516,6 @@ export const GameProvider = ({ children }) => {
               });
           };
 
-          // Verifica se o item alvo é uma pasta e busca seus filhos
           const targetItem = adv.tokenLibrary.find(t => t.id === itemId);
           if (targetItem && targetItem.type === 'folder') {
               findChildren(itemId);
@@ -510,7 +528,6 @@ export const GameProvider = ({ children }) => {
       });
   }, [activeAdventureId]);
 
-  // Função antiga mantida para compatibilidade, redirecionando para deleteLibraryItem
   const removeTokenFromLibrary = deleteLibraryItem;
 
 
@@ -566,7 +583,6 @@ export const GameProvider = ({ children }) => {
             imageId = await imageDB.saveImage(blob);
         } else { imageId = await imageDB.saveImage(char.photo); }
         if (imageId && activeAdventureId) {
-           // Atualizado para usar type: 'token'
            setAdventures(prev => prev.map(adv => {
                if (adv.id !== activeAdventureId) return adv;
                const exists = adv.tokenLibrary?.some(t => t.imageId === imageId);
@@ -693,10 +709,10 @@ export const GameProvider = ({ children }) => {
     adventures, activeAdventureId, activeAdventure, activeScene,
     createAdventure, deleteAdventure, updateAdventure, duplicateAdventure, setActiveAdventureId,
     exportAdventure, importAdventure,
-    addScene, updateScene, updateSceneMap, setActiveScene, deleteScene,
+    addScene, duplicateScene, updateScene, updateSceneMap, setActiveScene, deleteScene, // duplicateScene adicionado
     activeTool, setActiveTool, addFogArea, updateFogArea, deleteFogArea, deleteMultipleFogAreas,
     addTokenToLibrary, removeTokenFromLibrary, addTokenInstance, updateTokenInstance, deleteTokenInstance, deleteMultipleTokenInstances, importCharacterAsToken,
-    addFolder, moveLibraryItem, renameLibraryItem, deleteLibraryItem, // NOVAS FUNÇÕES EXPOSTAS
+    addFolder, moveLibraryItem, renameLibraryItem, deleteLibraryItem, 
     addPin, updatePin, deletePin, deleteMultiplePins,
     gameState: { characters }, addCharacter, updateCharacter, deleteCharacter, setAllCharacters,
     presets, activePresetId, createPreset, loadPreset, saveToPreset, deletePreset, mergePresets, exitPreset, updatePreset, exportPreset, importPreset,

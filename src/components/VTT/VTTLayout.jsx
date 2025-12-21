@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useGame } from '../../context/GameContext';
-import { Settings, Image as ImageIcon, Box, ArrowLeft, Map, Plus, Trash2, X, ChevronDown, LogOut, Edit2, RotateCcw, Check, Search, Square, MousePointer, AlertTriangle, Folder, FolderPlus, CornerLeftUp } from 'lucide-react';
+import { Settings, Image as ImageIcon, Box, ArrowLeft, Map, Plus, Trash2, X, ChevronDown, LogOut, Edit2, RotateCcw, Check, Search, Square, MousePointer, AlertTriangle, Folder, FolderPlus, CornerLeftUp, Copy, HelpCircle } from 'lucide-react';
 import { imageDB } from '../../context/db';
 
 // --- COMPONENTES AUXILIARES ---
@@ -106,11 +106,9 @@ const LibraryThumb = React.memo(({ token, onRename, onDelete, moveItem }) => {
 
         return (
             <div className="absolute top-1 right-1 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-10">
-                {/* [ALTERAÇÃO] Botão de Renomear só aparece se for PASTA */}
                 {token.type === 'folder' && (
                     <button onClick={(e) => { e.stopPropagation(); setIsRenaming(true); }} className="p-1 bg-black/60 rounded text-white hover:text-yellow-400 backdrop-blur-sm"><Edit2 size={10}/></button>
                 )}
-                
                 <button onClick={(e) => { e.stopPropagation(); setIsConfirmingDelete(true); }} className="p-1 bg-red-600/80 rounded text-white hover:bg-red-600 backdrop-blur-sm"><Trash2 size={10}/></button>
             </div>
         );
@@ -246,7 +244,7 @@ const AssetDock = ({ isOpen, onClose }) => {
             {/* Header */}
             <div className="p-3 border-b border-glass-border flex justify-between items-center bg-white/5 rounded-t-xl shrink-0 z-20 relative">
                 <h3 className="font-rajdhani font-bold text-white flex items-center gap-2">
-                    <Box size={16}/> Biblioteca
+                    Biblioteca de Tokens
                 </h3>
                 <div className="flex gap-1">
                     <button onClick={() => addFolder("Nova Pasta", currentFolderId)} className="p-1 hover:bg-white/10 rounded text-text-muted hover:text-white" title="Criar Pasta"><FolderPlus size={16}/></button>
@@ -302,7 +300,7 @@ const AssetDock = ({ isOpen, onClose }) => {
 };
 
 const SceneSelector = ({ isOpen }) => {
-    const { activeAdventure, addScene, setActiveScene, updateScene, deleteScene, activeScene } = useGame();
+    const { activeAdventure, addScene, setActiveScene, updateScene, deleteScene, duplicateScene, activeScene } = useGame();
     const sceneRef = useRef(null);
     const scenesListRef = useRef(null);
     const prevScenesLength = useRef(activeAdventure?.scenes.length || 0);
@@ -312,6 +310,9 @@ const SceneSelector = ({ isOpen }) => {
     const [renamingId, setRenamingId] = useState(null);
     const [renameValue, setRenameValue] = useState("");
     const [deletingId, setDeletingId] = useState(null);
+    
+    // [NOVO] Campo de Busca
+    const [searchQuery, setSearchQuery] = useState("");
 
     useEffect(() => {
         if (activeAdventure?.scenes.length > prevScenesLength.current) {
@@ -335,6 +336,17 @@ const SceneSelector = ({ isOpen }) => {
         setRenamingId(null);
     };
 
+    // [NOVO] Helper para normalizar texto (remover acentos, lowercase)
+    const normalizeText = (text) => {
+        return text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+    };
+
+    // [NOVO] Filtragem de cenas
+    const filteredScenes = activeAdventure?.scenes.filter(s => {
+        if (!searchQuery) return true;
+        return normalizeText(s.name).includes(normalizeText(searchQuery));
+    }) || [];
+
     const isOnlyScene = activeAdventure?.scenes.length <= 1;
 
     return (
@@ -343,11 +355,31 @@ const SceneSelector = ({ isOpen }) => {
                 <h3 className="font-rajdhani font-bold text-white text-sm">Cenas da Aventura</h3>
             </div>
             
+            {/* [NOVO] Campo de Busca */}
+            <div className="px-3 py-2 bg-black/20 border-b border-white/5">
+                <div className="flex items-center gap-2 bg-black/40 rounded px-2 py-1.5 border border-transparent focus-within:border-glass-border transition-colors">
+                    <Search size={12} className="text-text-muted"/>
+                    <input 
+                        className="bg-transparent border-none outline-none text-xs text-white placeholder-text-muted w-full"
+                        placeholder="Pesquisar cena..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                    />
+                    {searchQuery && (
+                        <button onClick={() => setSearchQuery("")} className="text-text-muted hover:text-white"><X size={12}/></button>
+                    )}
+                </div>
+            </div>
+
             <div ref={scenesListRef} className="overflow-y-auto scrollbar-thin flex-1 relative min-h-[60px] min-h-0 space-y-1 p-2">
-                {activeAdventure?.scenes.length === 0 && (
-                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none"><p className="text-text-muted italic text-xs opacity-50">Nenhuma cena.</p></div>
+                {filteredScenes.length === 0 && (
+                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                        <p className="text-text-muted italic text-xs opacity-50">
+                            {activeAdventure?.scenes.length === 0 ? "Nenhuma cena." : "Nenhuma cena encontrada."}
+                        </p>
+                    </div>
                 )}
-                {activeAdventure?.scenes.map(s => {
+                {filteredScenes.map(s => {
                     if (deletingId === s.id) {
                         return (
                             <div key={s.id} className="p-3 rounded bg-red-900/30 border border-red-500/50 flex justify-between items-center fade-in duration-200">
@@ -369,10 +401,12 @@ const SceneSelector = ({ isOpen }) => {
                     }
                     return (
                         <div key={s.id} onClick={(e) => { e.stopPropagation(); setActiveScene(s.id); }} className={`p-3 flex justify-between items-center cursor-pointer hover:bg-white/5 border-l-2 group transition-colors rounded ${activeScene?.id === s.id ? 'border-neon-green bg-white/5' : 'border-transparent'}`}>
-                            <span className={`text-sm font-bold truncate max-w-[150px] ${activeScene?.id === s.id ? 'text-neon-green' : 'text-white'}`}>{s.name}</span>
+                            <span className={`text-sm font-bold truncate max-w-[120px] ${activeScene?.id === s.id ? 'text-neon-green' : 'text-white'}`}>{s.name}</span>
                             <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                <button onClick={(e) => { e.stopPropagation(); setRenamingId(s.id); setRenameValue(s.name); setDeletingId(null); }} className="text-text-muted hover:text-yellow-400 p-1"><Edit2 size={14}/></button>
-                                <button onClick={(e) => { e.stopPropagation(); if (!isOnlyScene) { setDeletingId(s.id); setRenamingId(null); } }} className={`p-1 ${isOnlyScene ? 'text-text-muted opacity-30 cursor-not-allowed' : 'text-text-muted hover:text-red-500'}`}><Trash2 size={14}/></button>
+                                <button onClick={(e) => { e.stopPropagation(); setRenamingId(s.id); setRenameValue(s.name); setDeletingId(null); }} className="text-text-muted hover:text-yellow-400 p-1" title="Renomear"><Edit2 size={14}/></button>
+                                {/* [NOVO] Botão Duplicar */}
+                                <button onClick={(e) => { e.stopPropagation(); duplicateScene(s.id); }} className="text-text-muted hover:text-neon-blue p-1" title="Duplicar"><Copy size={14}/></button>
+                                <button onClick={(e) => { e.stopPropagation(); if (!isOnlyScene) { setDeletingId(s.id); setRenamingId(null); } }} className={`p-1 ${isOnlyScene ? 'text-text-muted opacity-30 cursor-not-allowed' : 'text-text-muted hover:text-red-500'}`} title="Excluir"><Trash2 size={14}/></button>
                             </div>
                         </div>
                     );
@@ -409,7 +443,7 @@ const MapConfigModal = ({ isOpen, onClose }) => {
 
     return (
         <WindowWrapper containerRef={mapConfigRef} className="absolute top-24 right-4 bg-black/85 border border-glass-border backdrop-blur-sm p-4 rounded-xl shadow-2xl z-50 w-72 scale-90 origin-top-right">
-            <div className="flex justify-between items-center mb-4"><h3 className="font-rajdhani font-bold text-white">Configurar Fundo</h3><button onClick={onClose}><X size={16} className="text-text-muted hover:text-white"/></button></div>
+            <div className="flex justify-between items-center mb-4"><h3 className="font-rajdhani font-bold text-white">Imagem de Fundo</h3><button onClick={onClose}><X size={16} className="text-text-muted hover:text-white"/></button></div>
             <div className="space-y-4">
                 <div onClick={() => mapInputRef.current?.click()} className="flex items-center justify-center gap-2 p-3 border border-dashed border-glass-border rounded hover:bg-white/5 cursor-pointer text-sm text-neon-blue transition"><ImageIcon size={16}/> {activeScene?.mapImageId ? "Trocar Imagem" : "Upload Imagem"}</div>
                 <input ref={mapInputRef} type="file" className="hidden" accept="image/*" onChange={(e) => { const f = e.target.files[0]; if(f) updateSceneMap(activeScene.id, f); e.target.value = ''; }} />
@@ -424,12 +458,48 @@ const MapConfigModal = ({ isOpen, onClose }) => {
     );
 };
 
+// [NOVO] Janela de Ajuda
+const HelpWindow = ({ isOpen, onClose }) => {
+    const helpRef = useRef(null);
+    if (!isOpen) return null;
+
+    const shortcuts = [
+        { key: "Middle Click", desc: "Mover a tela" },
+        { key: "Scroll", desc: "Zoom In / Zoom Out" },
+        { key: "Click", desc: "Selecionar" },
+        { key: "Ctrl + Click", desc: "Seleção Múltipla" },
+        { key: "Ctrl + C / V", desc: "Copiar e Colar Tokens" },
+        { key: "Ctrl + F", desc: "Flip de Token (Espelhar)" },
+        { key: "Ctrl + Q / E", desc: "Rotacionar Tokens" },
+        { key: "Backspace", desc: "Excluir Seleção" },
+    ];
+
+    return (
+        <WindowWrapper containerRef={helpRef} className="absolute top-24 right-4 w-[280px] bg-black/90 border border-glass-border backdrop-blur-sm rounded-xl flex flex-col z-50 shadow-2xl scale-90 origin-top-right">
+            <div className="p-3 border-b border-glass-border flex justify-between items-center bg-white/5 rounded-t-xl">
+                <h3 className="font-rajdhani font-bold text-white flex items-center gap-2">
+                    <HelpCircle size={16}/> Comandos
+                </h3>
+                <button onClick={onClose} className="p-1 hover:bg-white/10 rounded text-text-muted hover:text-white"><X size={16}/></button>
+            </div>
+            <div className="p-4 space-y-3 text-sm overflow-y-auto max-h-[60vh] scrollbar-thin">
+                {shortcuts.map((item, i) => (
+                    <div key={i} className="flex justify-between items-center border-b border-white/5 pb-2 last:border-0 last:pb-0">
+                        <span className="font-bold text-white">{item.key}</span>
+                        <span className="text-text-muted text-xs text-right">{item.desc}</span>
+                    </div>
+                ))}
+            </div>
+        </WindowWrapper>
+    );
+};
+
 // --- COMPONENTE PRINCIPAL ---
 
 export const VTTLayout = ({ zoomValue, onZoomChange, activeTool, setActiveTool }) => {
   const { activeAdventure, activeScene, setActiveAdventureId } = useGame();
 
-  const [uiState, setUiState] = useState({ menuOpen: false, libraryOpen: false, mapConfigOpen: false });
+  const [uiState, setUiState] = useState({ menuOpen: false, libraryOpen: false, mapConfigOpen: false, helpOpen: false });
   const [confirmModal, setConfirmModal] = useState({ open: false, message: '', onConfirm: null });
   const [alertMessage, setAlertMessage] = useState(null); 
   const clearAlert = useCallback(() => setAlertMessage(null), []);
@@ -437,8 +507,8 @@ export const VTTLayout = ({ zoomValue, onZoomChange, activeTool, setActiveTool }
 
   const closeAllMenus = useCallback(() => {
       setUiState(prev => {
-          if (prev.menuOpen || prev.libraryOpen || prev.mapConfigOpen) {
-              return { menuOpen: false, libraryOpen: false, mapConfigOpen: false };
+          if (prev.menuOpen || prev.libraryOpen || prev.mapConfigOpen || prev.helpOpen) {
+              return { menuOpen: false, libraryOpen: false, mapConfigOpen: false, helpOpen: false };
           }
           return prev;
       });
@@ -448,7 +518,7 @@ export const VTTLayout = ({ zoomValue, onZoomChange, activeTool, setActiveTool }
       const handleOutsideInteraction = (event) => {
           if (headerRef.current && headerRef.current.contains(event.target)) return;
           if (event.target.closest('[data-ecos-window="true"]')) return;
-          if (uiState.menuOpen || uiState.libraryOpen || uiState.mapConfigOpen) closeAllMenus();
+          if (uiState.menuOpen || uiState.libraryOpen || uiState.mapConfigOpen || uiState.helpOpen) closeAllMenus();
       };
       
       const handleKeyDown = (e) => { if (e.key === 'ArrowUp' || e.key === 'ArrowDown') closeAllMenus(); };
@@ -467,6 +537,7 @@ export const VTTLayout = ({ zoomValue, onZoomChange, activeTool, setActiveTool }
         menuOpen: key === 'menuOpen' ? !prev.menuOpen : false,
         libraryOpen: key === 'libraryOpen' ? !prev.libraryOpen : false,
         mapConfigOpen: key === 'mapConfigOpen' ? !prev.mapConfigOpen : false,
+        helpOpen: key === 'helpOpen' ? !prev.helpOpen : false,
     }));
   };
 
@@ -514,6 +585,8 @@ export const VTTLayout = ({ zoomValue, onZoomChange, activeTool, setActiveTool }
 
               <div className="flex items-center gap-2 p-1.5">
                 
+                {/* [NOVO] Botão de Ajuda */}
+
                 <button onClick={() => { setActiveTool('select'); closeAllMenus(); }} className={`p-2 rounded hover:bg-white/10 transition ${activeTool === 'select' ? 'bg-white/20 text-neon-green' : 'text-text-muted'}`} title="Modo Seleção"><MousePointer size={18}/></button>
                 <button onClick={() => { setActiveTool('fogOfWar'); closeAllMenus(); }} className={`p-2 rounded hover:bg-white/10 transition ${activeTool === 'fogOfWar' ? 'bg-white/20 text-neon-purple' : 'text-text-muted'}`} title="Fog of War"><Square size={18}/></button>
                 
@@ -530,9 +603,11 @@ export const VTTLayout = ({ zoomValue, onZoomChange, activeTool, setActiveTool }
                 <div className="w-px h-6 bg-glass-border mx-1"></div>
                 
                 <button onClick={(e) => toggle('mapConfigOpen', e)} className={`p-2 rounded hover:bg-white/10 transition ${uiState.mapConfigOpen ? 'text-neon-blue' : 'text-text-muted'}`} title="Configurar Fundo"><ImageIcon size={18}/></button>
-                <button onClick={(e) => toggle('libraryOpen', e)} className={`p-2 rounded hover:bg-white/10 transition ${uiState.libraryOpen ? 'text-neon-blue' : 'text-text-muted'}`} title="Biblioteca"><Box size={18}/></button>
+                <button onClick={(e) => toggle('libraryOpen', e)} className={`p-2 rounded hover:bg-white/10 transition ${uiState.libraryOpen ? 'text-yellow-500' : 'text-text-muted'}`} title="Biblioteca"><Box size={18}/></button>
                 
                 <div className="w-px h-6 bg-glass-border mx-1"></div>
+
+                                <button onClick={(e) => toggle('helpOpen', e)} className={`p-2 rounded hover:bg-white/10 transition ${uiState.helpOpen ? 'text-white' : 'text-text-muted'}`} title="Ajuda / Comandos"><HelpCircle size={18}/></button>
                 
                 <button onClick={(e) => { 
                     e.stopPropagation(); 
@@ -545,6 +620,7 @@ export const VTTLayout = ({ zoomValue, onZoomChange, activeTool, setActiveTool }
           <MapConfigModal isOpen={uiState.mapConfigOpen} onClose={() => setUiState(p => ({...p, mapConfigOpen: false}))} />
           <AssetDock isOpen={uiState.libraryOpen} onClose={() => setUiState(p => ({...p, libraryOpen: false}))} />
           <SceneSelector isOpen={uiState.menuOpen} />
+          <HelpWindow isOpen={uiState.helpOpen} onClose={() => setUiState(p => ({...p, helpOpen: false}))} />
           <ConfirmationModal />
       </div>
   );

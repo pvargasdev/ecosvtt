@@ -51,7 +51,7 @@ const Token = ({ data, isSelected, onMouseDown, onResizeStart }) => {
   }, [data.imageId, data.imageSrc]);
 
   const selectionStyle = isSelected 
-    ? { filter: 'drop-shadow(0 0 1px #ffffffff) drop-shadow(0 0 2px #ffffffff)' } 
+    ? { filter: 'drop-shadow(0 0 0.25px #ffffffff) drop-shadow(0 0 0.5px #ffffffff)' } 
     : { filter: 'drop-shadow(0 2px 3px rgba(0,0,0,0.5))' };
 
   return (
