@@ -10,11 +10,15 @@ import Pin from './Pins/Pin';
 import PinModal from './Pins/PinModal';
 import ContextMenu from './Pins/ContextMenu';
 
+// --- CONFIGURAÇÕES DE CONTROLE ---
 const MIN_SCALE = 0.1;
 const MAX_SCALE = 5.0;
 const PAN_LIMIT = 3000; 
 const CAMERA_SMOOTHING = 0.2; 
 const ZOOM_SPEED_FACTOR = 0.001; 
+
+// Configurações de Manipulação de Token
+const TOKEN_ROTATION_STEP = 45; // Quantos graus rotaciona por vez (Ctrl+Q/E)
 
 const Board = () => {
   const { 
@@ -36,10 +40,7 @@ const Board = () => {
   const importInputRef = useRef(null);
   const adventuresListRef = useRef(null);
   
-  // Referência para a área de transferência (Clipboard interno)
   const clipboardRef = useRef([]);
-  
-  // [NOVO] Rastreamento do mouse para o "Colar no Cursor"
   const mousePosRef = useRef({ x: 0, y: 0 });
   const isMouseOverRef = useRef(false);
 
@@ -71,11 +72,9 @@ const Board = () => {
   const [isSpacePressed, setIsSpacePressed] = useState(false);
   const [mapParams, setMapParams] = useState({ url: null, id: null });
 
-  // UI de Pins
+  // UI
   const [contextMenu, setContextMenu] = useState(null);
   const [pinModal, setPinModal] = useState({ open: false, data: null, position: { x: 0, y: 0 } });
-
-  // UI Geral (Restaurada do Antigo)
   const [newAdvName, setNewAdvName] = useState("");
   const [deleteModal, setDeleteModal] = useState(null); 
   const [renamingId, setRenamingId] = useState(null);
@@ -116,11 +115,48 @@ const Board = () => {
 
   useEffect(() => { return () => { if (animationRef.current) cancelAnimationFrame(animationRef.current); }; }, []);
 
-  // Lógica de Teclado (Com Copy/Paste Inteligente)
+  // Lógica de Teclado
   useEffect(() => {
     const handleKeyDown = (e) => {
         if (['INPUT', 'TEXTAREA'].includes(document.activeElement?.tagName)) return;
         if (e.code === 'Space' && !e.repeat) setIsSpacePressed(true);
+
+        // --- MANIPULAÇÃO DE TOKENS (Ctrl + Tecla) ---
+        if (selectedIds.size > 0 && activeScene && (e.ctrlKey || e.metaKey)) {
+            
+            // FLIP HORIZONTAL (Ctrl + F)
+            if (e.key === 'f' || e.key === 'F') {
+                e.preventDefault();
+                selectedIds.forEach(id => {
+                    const t = activeScene.tokens.find(token => token.id === id);
+                    if (t) updateTokenInstance(activeScene.id, id, { mirrorX: !t.mirrorX });
+                });
+            }
+
+            // ROTACIONAR ANTI-HORÁRIO (Ctrl + Q)
+            if (e.key === 'q' || e.key === 'Q') {
+                e.preventDefault();
+                selectedIds.forEach(id => {
+                    const t = activeScene.tokens.find(token => token.id === id);
+                    if (t) {
+                        const currentRot = t.rotation || 0;
+                        updateTokenInstance(activeScene.id, id, { rotation: currentRot - TOKEN_ROTATION_STEP });
+                    }
+                });
+            }
+
+            // ROTACIONAR HORÁRIO (Ctrl + E)
+            if (e.key === 'e' || e.key === 'E') {
+                e.preventDefault();
+                selectedIds.forEach(id => {
+                    const t = activeScene.tokens.find(token => token.id === id);
+                    if (t) {
+                        const currentRot = t.rotation || 0;
+                        updateTokenInstance(activeScene.id, id, { rotation: currentRot + TOKEN_ROTATION_STEP });
+                    }
+                });
+            }
+        }
 
         // --- DELETAR ---
         if ((e.key === 'Delete' || e.key === 'Backspace')) {
@@ -142,56 +178,37 @@ const Board = () => {
         if ((e.ctrlKey || e.metaKey) && e.key === 'c') {
             if (selectedIds.size > 0 && activeScene) {
                 const tokensToCopy = activeScene.tokens.filter(t => selectedIds.has(t.id));
-                if (tokensToCopy.length > 0) {
-                    clipboardRef.current = tokensToCopy;
-                }
+                if (tokensToCopy.length > 0) clipboardRef.current = tokensToCopy;
             }
         }
 
         // --- COLAR (Ctrl+V) ---
         if ((e.ctrlKey || e.metaKey) && e.key === 'v') {
             if (clipboardRef.current.length > 0 && activeScene) {
-                
-                // [NOVO] Lógica Inteligente de Colar
                 if (isMouseOverRef.current && containerRef.current) {
-                    // 1. Calcular coordenadas do mouse no mundo
                     const rect = containerRef.current.getBoundingClientRect();
                     const mouseX = mousePosRef.current.x - rect.left;
                     const mouseY = mousePosRef.current.y - rect.top;
-                    
                     const worldMouseX = (mouseX - targetViewRef.current.x) / targetViewRef.current.scale;
                     const worldMouseY = (mouseY - targetViewRef.current.y) / targetViewRef.current.scale;
 
-                    // 2. Calcular o centro do grupo copiado (Centróide)
                     let sumX = 0, sumY = 0;
                     clipboardRef.current.forEach(t => { sumX += t.x; sumY += t.y; });
                     const centerX = sumX / clipboardRef.current.length;
                     const centerY = sumY / clipboardRef.current.length;
 
-                    // 3. Colar mantendo a formação, centralizada no mouse
                     clipboardRef.current.forEach(token => {
                         const { id, ...tokenData } = token;
-                        
-                        // Deslocamento deste token em relação ao centro do grupo
-                        const offsetX = tokenData.x - centerX;
-                        const offsetY = tokenData.y - centerY;
-
                         addTokenInstance(activeScene.id, {
                             ...tokenData,
-                            x: worldMouseX + offsetX,
-                            y: worldMouseY + offsetY
+                            x: worldMouseX + (tokenData.x - centerX),
+                            y: worldMouseY + (tokenData.y - centerY)
                         });
                     });
-
                 } else {
-                    // Fallback: Colar na posição original com offset (se mouse estiver fora)
                     clipboardRef.current.forEach(token => {
                         const { id, ...tokenData } = token;
-                        addTokenInstance(activeScene.id, {
-                            ...tokenData,
-                            x: tokenData.x + 20,
-                            y: tokenData.y + 20
-                        });
+                        addTokenInstance(activeScene.id, { ...tokenData, x: tokenData.x + 20, y: tokenData.y + 20 });
                     });
                 }
             }
@@ -212,36 +229,28 @@ const Board = () => {
     
     window.addEventListener('keydown', handleKeyDown); window.addEventListener('keyup', handleKeyUp);
     return () => { window.removeEventListener('keydown', handleKeyDown); window.removeEventListener('keyup', handleKeyUp); };
-  }, [selectedIds, selectedFogIds, selectedPinIds, activeScene, deleteMultipleTokenInstances, deleteMultipleFogAreas, deleteMultiplePins, setActiveTool, addTokenInstance]);
+  }, [selectedIds, selectedFogIds, selectedPinIds, activeScene, deleteMultipleTokenInstances, deleteMultipleFogAreas, deleteMultiplePins, setActiveTool, addTokenInstance, updateTokenInstance]);
 
+  // ... (RESTO DO CÓDIGO DA CÂMERA IGUAL AO ANTERIOR) ...
   const animateCamera = useCallback(() => {
       const target = targetViewRef.current;
       const current = viewRef.current;
       const diffScale = target.scale - current.scale;
       const diffX = target.x - current.x;
       const diffY = target.y - current.y;
-
       if (Math.abs(diffScale) < 0.0001 && Math.abs(diffX) < 0.1 && Math.abs(diffY) < 0.1) {
           animationRef.current = null;
           viewRef.current = target;
           setView(target);
           return;
       }
-
-      const nextState = { 
-          scale: current.scale + (diffScale * CAMERA_SMOOTHING), 
-          x: current.x + (diffX * CAMERA_SMOOTHING), 
-          y: current.y + (diffY * CAMERA_SMOOTHING) 
-      };
+      const nextState = { scale: current.scale + (diffScale * CAMERA_SMOOTHING), x: current.x + (diffX * CAMERA_SMOOTHING), y: current.y + (diffY * CAMERA_SMOOTHING) };
       viewRef.current = nextState;
       setView(nextState);
       animationRef.current = requestAnimationFrame(animateCamera);
   }, []);
 
-  const startAnimation = useCallback(() => {
-      if (animationRef.current) cancelAnimationFrame(animationRef.current);
-      animationRef.current = requestAnimationFrame(animateCamera);
-  }, [animateCamera]);
+  const startAnimation = useCallback(() => { if (animationRef.current) cancelAnimationFrame(animationRef.current); animationRef.current = requestAnimationFrame(animateCamera); }, [animateCamera]);
 
   const applyKeyboardZoom = useCallback(() => {
     if (zoomKeyRef.current === 0) return;
@@ -250,9 +259,7 @@ const Board = () => {
     const zoomAmount = zoomKeyRef.current * zoomSpeedRef.current;
     const currentTarget = targetViewRef.current;
     const rawNewScale = Math.min(Math.max(MIN_SCALE, currentTarget.scale * (1 + zoomAmount)), MAX_SCALE);
-    
     if (Math.abs(rawNewScale - currentTarget.scale) < 0.001) return;
-    
     const node = containerRef.current;
     if (node) {
         const rect = node.getBoundingClientRect();
@@ -267,12 +274,7 @@ const Board = () => {
     lastZoomTimeRef.current = now;
   }, [startAnimation]);
 
-  useEffect(() => {
-    let frameId;
-    const loop = () => { if (zoomKeyRef.current !== 0) applyKeyboardZoom(); frameId = requestAnimationFrame(loop); };
-    frameId = requestAnimationFrame(loop);
-    return () => cancelAnimationFrame(frameId);
-  }, [applyKeyboardZoom]);
+  useEffect(() => { let frameId; const loop = () => { if (zoomKeyRef.current !== 0) applyKeyboardZoom(); frameId = requestAnimationFrame(loop); }; frameId = requestAnimationFrame(loop); return () => cancelAnimationFrame(frameId); }, [applyKeyboardZoom]);
 
   const handleSliderZoom = (e) => {
       const val = parseFloat(e.target.value);
@@ -317,37 +319,27 @@ const Board = () => {
 
   const handleAuxClick = (e) => { if (e.button === 1) e.preventDefault(); };
 
-  // ==========================================
-  // HANDLERS DE MOUSE
-  // ==========================================
-
+  // Handlers de Mouse
   const handleBoardDoubleClick = (e) => {
       if (activeTool !== 'select') return;
-      
       const rect = containerRef.current.getBoundingClientRect();
       const worldX = (e.clientX - rect.left - view.x) / view.scale;
       const worldY = (e.clientY - rect.top - view.y) / view.scale;
-      const menuX = e.clientX - rect.left;
-      const menuY = e.clientY - rect.top;
-
-      setContextMenu({ x: menuX, y: menuY, worldX, worldY });
+      setContextMenu({ x: e.clientX - rect.left, y: e.clientY - rect.top, worldX, worldY });
   };
 
   const handleMouseDown = (e) => {
     if (e.target.closest('.vtt-ui-layer')) return;
     if (contextMenu) setContextMenu(null);
-
     if (e.button === 1 || (isSpacePressed && e.button === 0)) {
         setInteraction({ mode: 'PANNING', startX: e.clientX, startY: e.clientY, initialViewX: targetViewRef.current.x, initialViewY: targetViewRef.current.y });
         return;
     }
-    
     const isClickingElement = e.target.closest('.token') || e.target.closest('.fog-area') || e.target.closest('.pin-marker');
     if (!isClickingElement && (!e.ctrlKey && !e.metaKey)) {
         if (activeTool === 'select') { setSelectedIds(new Set()); setSelectedFogIds(new Set()); setSelectedPinIds(new Set()); }
         else if (activeTool === 'fogOfWar') { setSelectedFogIds(new Set()); setSelectedIds(new Set()); }
     }
-
     if (activeTool === 'fogOfWar' && e.button === 0 && !isClickingElement) {
         const rect = containerRef.current.getBoundingClientRect();
         const wX = (e.clientX - rect.left - view.x) / view.scale;
@@ -359,67 +351,41 @@ const Board = () => {
   const handleTokenDown = (e, id) => {
     if (e.button === 1 || e.button === 2 || isSpacePressed || activeTool !== 'select') return;
     e.stopPropagation();
-    
     const isMultiSelect = e.ctrlKey || e.metaKey;
     if (isMultiSelect) {
         const newSelection = new Set(selectedIds);
         if (newSelection.has(id)) newSelection.delete(id); else newSelection.add(id);
         setSelectedIds(newSelection);
     } else { if (!selectedIds.has(id)) setSelectedIds(new Set([id])); }
-    
-    setSelectedFogIds(new Set());
-    setSelectedPinIds(new Set());
+    setSelectedFogIds(new Set()); setSelectedPinIds(new Set());
     setInteraction({ mode: 'DRAGGING', activeTokenId: id, startX: e.clientX, startY: e.clientY });
   };
 
   const handleFogDown = (e, id) => {
     if (e.button === 1 || e.button === 2 || activeTool !== 'select') return;
     e.stopPropagation();
-    
     const isMultiSelect = e.ctrlKey || e.metaKey;
     if (isMultiSelect) {
         const newSelection = new Set(selectedFogIds);
         if (newSelection.has(id)) newSelection.delete(id); else newSelection.add(id);
         setSelectedFogIds(newSelection);
     } else { if (!selectedFogIds.has(id)) setSelectedFogIds(new Set([id])); }
-    
-    setSelectedIds(new Set());
-    setSelectedPinIds(new Set());
+    setSelectedIds(new Set()); setSelectedPinIds(new Set());
     setInteraction({ mode: 'DRAGGING_FOG', activeFogId: id, startX: e.clientX, startY: e.clientY });
   };
 
   const handlePinDown = (e, id) => {
     if (e.button === 1 || e.button === 2 || activeTool !== 'select') return;
     e.stopPropagation();
-
     const isMultiSelect = e.ctrlKey || e.metaKey;
     let newSelection = new Set(selectedPinIds);
-
-    if (isMultiSelect) {
-        if (newSelection.has(id)) newSelection.delete(id); else newSelection.add(id);
-    } else { 
-        if (!newSelection.has(id)) newSelection = new Set([id]); 
-    }
-    
-    setSelectedPinIds(newSelection);
-    setSelectedIds(new Set());
-    setSelectedFogIds(new Set());
-
+    if (isMultiSelect) { if (newSelection.has(id)) newSelection.delete(id); else newSelection.add(id); } else { if (!newSelection.has(id)) newSelection = new Set([id]); }
+    setSelectedPinIds(newSelection); setSelectedIds(new Set()); setSelectedFogIds(new Set());
     const initialPositions = {};
     if (activeScene?.pins) {
-        newSelection.forEach(pinId => {
-            const pin = activeScene.pins.find(p => p.id === pinId);
-            if (pin) initialPositions[pinId] = { x: pin.x, y: pin.y };
-        });
+        newSelection.forEach(pinId => { const pin = activeScene.pins.find(p => p.id === pinId); if (pin) initialPositions[pinId] = { x: pin.x, y: pin.y }; });
     }
-
-    setInteraction({ 
-        mode: 'DRAGGING_PIN', 
-        activePinId: id, 
-        startX: e.clientX, 
-        startY: e.clientY,
-        initialPositions 
-    });
+    setInteraction({ mode: 'DRAGGING_PIN', activePinId: id, startX: e.clientX, startY: e.clientY, initialPositions });
   };
 
   const handleTokenResizeStart = (e, id) => {
@@ -430,9 +396,7 @@ const Board = () => {
   };
 
   const handleMouseMove = (e) => {
-    // [NOVO] Atualiza a posição global do mouse para o Copy/Paste
     mousePosRef.current = { x: e.clientX, y: e.clientY };
-
     if (fogDrawing.isDrawing && activeTool === 'fogOfWar') {
         const rect = containerRef.current.getBoundingClientRect();
         const wX = (e.clientX - rect.left - view.x) / view.scale;
@@ -440,51 +404,27 @@ const Board = () => {
         setFogDrawing(prev => ({ ...prev, currentX: wX, currentY: wY }));
         return;
     }
-    
     if (interaction.mode === 'PANNING') {
         const dX = e.clientX - interaction.startX;
         const dY = e.clientY - interaction.startY;
         const limit = PAN_LIMIT * targetViewRef.current.scale;
-        targetViewRef.current = { 
-            ...targetViewRef.current, 
-            x: Math.min(Math.max(interaction.initialViewX + dX, -limit), limit), 
-            y: Math.min(Math.max(interaction.initialViewY + dY, -limit), limit) 
-        };
+        targetViewRef.current = { ...targetViewRef.current, x: Math.min(Math.max(interaction.initialViewX + dX, -limit), limit), y: Math.min(Math.max(interaction.initialViewY + dY, -limit), limit) };
         startAnimation();
-    } 
-    else if (interaction.mode === 'DRAGGING' && activeScene) {
+    } else if (interaction.mode === 'DRAGGING' && activeScene) {
         const dx = (e.clientX - interaction.startX) / view.scale;
         const dy = (e.clientY - interaction.startY) / view.scale;
-        selectedIds.forEach(id => {
-            const t = activeScene.tokens.find(x => x.id === id);
-            if (t) updateTokenInstance(activeScene.id, id, { x: t.x + dx, y: t.y + dy });
-        });
+        selectedIds.forEach(id => { const t = activeScene.tokens.find(x => x.id === id); if (t) updateTokenInstance(activeScene.id, id, { x: t.x + dx, y: t.y + dy }); });
         setInteraction(p => ({ ...p, startX: e.clientX, startY: e.clientY }));
-    } 
-    else if (interaction.mode === 'DRAGGING_FOG' && activeScene) {
+    } else if (interaction.mode === 'DRAGGING_FOG' && activeScene) {
         const dx = (e.clientX - interaction.startX) / view.scale;
         const dy = (e.clientY - interaction.startY) / view.scale;
-        selectedFogIds.forEach(fogId => {
-            const fog = activeScene.fogOfWar?.find(f => f.id === fogId);
-            if (fog) updateFogArea(activeScene.id, fogId, { x: fog.x + dx, y: fog.y + dy });
-        });
+        selectedFogIds.forEach(fogId => { const fog = activeScene.fogOfWar?.find(f => f.id === fogId); if (fog) updateFogArea(activeScene.id, fogId, { x: fog.x + dx, y: fog.y + dy }); });
         setInteraction(p => ({ ...p, startX: e.clientX, startY: e.clientY }));
-    } 
-    else if (interaction.mode === 'DRAGGING_PIN' && activeScene) {
+    } else if (interaction.mode === 'DRAGGING_PIN' && activeScene) {
         const dx = (e.clientX - interaction.startX) / view.scale;
         const dy = (e.clientY - interaction.startY) / view.scale;
-        
-        Object.keys(interaction.initialPositions).forEach(pinId => {
-            const initialPos = interaction.initialPositions[pinId];
-            if (initialPos) {
-                updatePin(activeScene.id, pinId, { 
-                    x: initialPos.x + dx, 
-                    y: initialPos.y + dy 
-                });
-            }
-        });
-    }
-    else if (interaction.mode === 'RESIZING' && activeScene) {
+        Object.keys(interaction.initialPositions).forEach(pinId => { const initialPos = interaction.initialPositions[pinId]; if (initialPos) { updatePin(activeScene.id, pinId, { x: initialPos.x + dx, y: initialPos.y + dy }); } });
+    } else if (interaction.mode === 'RESIZING' && activeScene) {
         const deltaX = (e.clientX - interaction.startX);
         const newScale = Math.max(0.5, interaction.initialVal + (deltaX / 100));
         updateTokenInstance(activeScene.id, interaction.activeTokenId, { scale: newScale });
@@ -532,9 +472,7 @@ const Board = () => {
       setContextMenu(null);
   };
 
-  // ==========================================
-  // VIEW: TELA DE SELEÇÃO DE AVENTURA
-  // ==========================================
+  // --- RENDER ---
   if (!activeAdventureId || !activeAdventure) {
       if (isGMWindow) {
           return (
@@ -545,61 +483,23 @@ const Board = () => {
             </div>
           );
       }
-
       return (
         <div className="w-full h-full bg-ecos-bg flex flex-col items-center justify-center p-6 text-white relative z-50">
-            <style>{`
-                @keyframes enter-slide {
-                    0% { opacity: 0; transform: translateY(-15px) scale(0.95); max-height: 0; margin-bottom: 0; }
-                    40% { max-height: 60px; margin-bottom: 0.5rem; }
-                    100% { opacity: 1; transform: translateY(0) scale(1); max-height: 60px; margin-bottom: 0.5rem; }
-                }
-                .animate-enter {
-                    animation: enter-slide 0.45s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
-                }
-            `}</style>
+            <style>{`@keyframes enter-slide { 0% { opacity: 0; transform: translateY(-15px) scale(0.95); max-height: 0; margin-bottom: 0; } 40% { max-height: 60px; margin-bottom: 0.5rem; } 100% { opacity: 1; transform: translateY(0) scale(1); max-height: 60px; margin-bottom: 0.5rem; } } .animate-enter { animation: enter-slide 0.45s cubic-bezier(0.2, 0.8, 0.2, 1) forwards; }`}</style>
             <h1 className="text-5xl font-rajdhani font-bold text-neon-green mb-8 tracking-widest">TABULEIRO</h1>
             <div className="bg-glass border border-glass-border rounded-xl p-6 shadow-2xl w-full max-w-lg relative">
-                
                 <div className="flex justify-between items-center mb-4">
                     <h2 className="text-xl font-bold">Suas Aventuras</h2>
-                    {window.electron && (
-                        <button 
-                            onClick={() => window.electron.openGMWindow()}
-                            className={`flex items-center gap-2 px-3 py-1.5 rounded text-xs font-bold transition border ${
-                                isGMWindowOpen 
-                                ? 'bg-neon-green/20 text-neon-green border-neon-green shadow-[0_0_10px_rgba(0,255,0,0.3)]' 
-                                : 'bg-white/5 text-text-muted border-glass-border hover:text-white hover:bg-white/10'
-                            }`}
-                            title="Abrir janela secundária para o Mestre"
-                        >
-                            <Monitor size={14} />
-                            {isGMWindowOpen ? 'TELA DO MESTRE ATIVA' : 'ABRIR TELA DO MESTRE'}
-                        </button>
-                    )}
+                    {window.electron && ( <button onClick={() => window.electron.openGMWindow()} className={`flex items-center gap-2 px-3 py-1.5 rounded text-xs font-bold transition border ${isGMWindowOpen ? 'bg-neon-green/20 text-neon-green border-neon-green shadow-[0_0_10px_rgba(0,255,0,0.3)]' : 'bg-white/5 text-text-muted border-glass-border hover:text-white hover:bg-white/10'}`} title="Abrir janela secundária para o Mestre"><Monitor size={14} />{isGMWindowOpen ? 'TELA DO MESTRE ATIVA' : 'ABRIR TELA DO MESTRE'}</button> )}
                 </div>
-
                 <div ref={adventuresListRef} className="relative min-h-[120px] max-h-[300px] overflow-y-auto space-y-2 mb-4 scrollbar-thin pr-2 scroll-smooth">
-                    {adventures.length === 0 && (
-                        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                            <p className="text-text-muted text-sm animate-pulse">Nenhuma aventura criada.</p>
-                        </div>
-                    )}
+                    {adventures.length === 0 && ( <div className="absolute inset-0 flex items-center justify-center pointer-events-none"><p className="text-text-muted text-sm animate-pulse">Nenhuma aventura criada.</p></div> )}
                     {adventures.map(adv => (
                         <div key={adv.id} onClick={() => { if(renamingId !== adv.id) setActiveAdventureId(adv.id); }} className={`animate-enter group flex justify-between items-center p-3 rounded bg-white/5 border border-transparent transition-all ${renamingId === adv.id ? 'bg-white/10' : 'hover:bg-neon-green/10 hover:border-neon-green/30 cursor-pointer'}`}>
                             {renamingId === adv.id ? (
                                 <div className="flex flex-1 items-center gap-2 animate-in fade-in duration-200" onClick={(e) => e.stopPropagation()}>
-                                    <input 
-                                        autoFocus 
-                                        className="flex-1 bg-black/50 border border-white/50 rounded px-2 py-1 text-white text-sm outline-none" 
-                                        value={renameValue} 
-                                        onChange={(e) => setRenameValue(e.target.value)} 
-                                        onKeyDown={(e) => { 
-                                            if (e.key === 'Enter') { updateAdventure(adv.id, { name: renameValue }); setRenamingId(null); } 
-                                            if (e.key === 'Escape') setRenamingId(null); 
-                                        }} 
-                                    />
-                                    <button onClick={() => setRenamingId(null)} className="p-1 rounded bg-black/40 hover:bg-white/20 text-text-muted hover:text-white transition"><ArrowLeft size={16}/></button>
+                                    <input autoFocus className="flex-1 bg-black/50 border border-white/50 rounded px-2 py-1 text-white text-sm outline-none" value={renameValue} onChange={(e) => setRenameValue(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { updateAdventure(adv.id, { name: renameValue }); setRenamingId(null); } if (e.key === 'Escape') setRenamingId(null); }} />
+                                    <button onClick={() => setRenamingId(null)} className="p-1 rounded bg-black/40 hover:bg-white/20 text-text-muted hover:text-white transition"><X size={16}/></button>
                                     <button onClick={() => { updateAdventure(adv.id, { name: renameValue }); setRenamingId(null); }} className="p-1 rounded bg-neon-green hover:bg-white text-black transition"><Check size={16}/></button>
                                 </div>
                             ) : (
@@ -616,7 +516,6 @@ const Board = () => {
                         </div>
                     ))}
                 </div>
-                
                 <div className="pt-4 border-t border-glass-border">
                     {!isCreatingAdventure ? (
                         <div className="flex gap-2">
@@ -656,12 +555,11 @@ const Board = () => {
     <div 
         className={`w-full h-full relative overflow-hidden bg-[#15151a] transition-colors duration-300 ${activeTool === 'fogOfWar' ? 'cursor-crosshair' : 'cursor-default'}`} 
         ref={containerRef}
-        // [NOVO] Handlers para detecção de Mouse Over e Position
         onMouseDown={handleMouseDown} 
         onMouseMove={handleMouseMove} 
         onMouseUp={handleMouseUp} 
-        onMouseLeave={(e) => { isMouseOverRef.current = false; handleMouseUp(e); }} // Saiu do board = não está em cima
-        onMouseEnter={() => { isMouseOverRef.current = true; }} // Entrou no board = está em cima
+        onMouseLeave={(e) => { isMouseOverRef.current = false; handleMouseUp(e); }} 
+        onMouseEnter={() => { isMouseOverRef.current = true; }} 
         onDoubleClick={handleBoardDoubleClick} 
         onDrop={handleDrop} 
         onDragOver={e => e.preventDefault()}
@@ -675,7 +573,6 @@ const Board = () => {
             
             {activeScene?.tokens.map(t => <Token key={t.id} data={t} isSelected={selectedIds.has(t.id)} onMouseDown={handleTokenDown} onResizeStart={handleTokenResizeStart}/>)}
             
-            {/* RENDERIZAÇÃO DE PINS */}
             {activeScene?.pins?.map(pin => {
                 if (!isGMWindow && pin.visibleToPlayers === false) return null;
                 return (
@@ -683,15 +580,14 @@ const Board = () => {
                         key={pin.id} 
                         data={pin} 
                         viewScale={view.scale}
-                        isGM={isGMWindow} // CORREÇÃO: Passa isGM como isGM, não isPlayerView
-                        isSelected={selectedPinIds.has(pin.id)} // Feedback de seleção
+                        isGM={isGMWindow} 
+                        isSelected={selectedPinIds.has(pin.id)} 
                         onMouseDown={handlePinDown}
                         onDoubleClick={() => openPinModal(pin)}
                     />
                 );
             })}
 
-            {/* FOG DE GUERRA - Z-INDEX 15 */}
             {fogDrawing.isDrawing && (
                 <div className="absolute pointer-events-none fog-area" style={{ left: Math.min(fogDrawing.startX, fogDrawing.currentX), top: Math.min(fogDrawing.startY, fogDrawing.currentY), width: Math.abs(fogDrawing.currentX - fogDrawing.startX), height: Math.abs(fogDrawing.currentY - fogDrawing.startY), backgroundColor: 'rgba(0, 0, 0, 0.7)', border: '2px dashed rgba(255, 255, 255, 0.3)', zIndex: 15 }} />
             )}
@@ -709,8 +605,8 @@ const Board = () => {
             ))}
         </div>
         
-        {/* [CORREÇÃO Z-INDEX UI] Adicionei z-[50] para garantir que o menu flutue sobre tudo no mapa */}
-        <div className="vtt-ui-layer absolute inset-0 pointer-events-none z-[50]" onMouseDown={(e) => e.stopPropagation()} onMouseUp={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()} onDoubleClick={(e) => e.stopPropagation()}>\r\n            <VTTLayout zoomValue={sliderValue} onZoomChange={handleSliderZoom} activeTool={activeTool} setActiveTool={setActiveTool} />
+        <div className="vtt-ui-layer absolute inset-0 pointer-events-none z-[50]" onMouseDown={(e) => e.stopPropagation()} onMouseUp={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()} onDoubleClick={(e) => e.stopPropagation()}>
+            <VTTLayout zoomValue={sliderValue} onZoomChange={handleSliderZoom} activeTool={activeTool} setActiveTool={setActiveTool} />
             {contextMenu && <ContextMenu x={contextMenu.x} y={contextMenu.y} onOptionClick={(opt) => { if (opt === 'add_pin') openPinModal(null, { x: contextMenu.worldX, y: contextMenu.worldY }); setContextMenu(null); }} onClose={() => setContextMenu(null)} />}
             {pinModal.open && <PinModal initialData={pinModal.data} position={pinModal.position} onSave={handlePinSave} onClose={() => setPinModal({ open: false, data: null, position: { x: 0, y: 0 } })} />}
         </div>

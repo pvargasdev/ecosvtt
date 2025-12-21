@@ -2,12 +2,18 @@ import React, { useState, useEffect } from 'react';
 import { Maximize2, Loader2 } from 'lucide-react';
 import { imageDB } from '../../context/db';
 
+// CONFIGURAÇÕES DE ANIMAÇÃO
+const ANIMATION_SPEED_ROTATION = '0.4s'; // Tempo da rotação (suave)
+const ANIMATION_SPEED_FLIP = '0.3s';     // Tempo do flip (rápido)
+const ANIMATION_EASING = 'cubic-bezier(0.25, 0.46, 0.45, 0.94)'; // Curva suave
+
 const Token = ({ data, isSelected, onMouseDown, onResizeStart }) => {
-  // A BASE_SIZE agora controla a LARGURA de referência.
-  // A altura será proporcional à imagem.
   const BASE_SIZE = 70;
   const widthPx = BASE_SIZE * (data.scale || 1);
   
+  const rotation = data.rotation || 0;
+  const isFlipped = data.mirrorX || false;
+
   const [imageSrc, setImageSrc] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -19,13 +25,11 @@ const Token = ({ data, isSelected, onMouseDown, onResizeStart }) => {
               return;
           }
           
-          // Legado (Base64 antigo)
           if (data.imageSrc && data.imageSrc.startsWith('data:')) {
               if(isMounted) { setImageSrc(data.imageSrc); setLoading(false); }
               return;
           }
 
-          // Novo (IndexedDB)
           if (data.imageId) {
               const blob = await imageDB.getImage(data.imageId);
               if (isMounted && blob) {
@@ -46,70 +50,75 @@ const Token = ({ data, isSelected, onMouseDown, onResizeStart }) => {
       };
   }, [data.imageId, data.imageSrc]);
 
-  // Estilo de Seleção:
-  // Se selecionado, aplica um Drop Shadow Neon que segue o contorno da imagem (transparência).
-  // Se não, aplica um drop shadow suave padrão para destacar do fundo.
   const selectionStyle = isSelected 
     ? { filter: 'drop-shadow(0 0 1px #ffffffff) drop-shadow(0 0 2px #ffffffff)' } 
-    : { filter: 'drop-shadow(0 4px 6px rgba(0,0,0,0.5))' };
+    : { filter: 'drop-shadow(0 2px 3px rgba(0,0,0,0.5))' };
 
   return (
+    // 1. CONTAINER EXTERNO: POSIÇÃO (SEM TRANSIÇÃO)
+    // Movimenta o token instantaneamente ao arrastar (translate)
     <div
       onMouseDown={(e) => { 
-          // [CORREÇÃO] Permite Pan (botão do meio) através do Token
           if (e.button === 1) return;
           e.stopPropagation(); 
           onMouseDown(e, data.id); 
       }}
       style={{
-        transform: `translate(${data.x}px, ${data.y}px)`,
+        transform: `translate(${data.x}px, ${data.y}px)`, // Apenas Translate
         width: `${widthPx}px`, 
-        // Height auto permite que a imagem dite a altura (aspect ratio correto)
         height: 'auto',
         position: 'absolute', top: 0, left: 0,
         zIndex: isSelected ? 20 : 10,
-        // Aplica o filtro no container para afetar a imagem dentro (mantendo transparência)
-        ...selectionStyle,
-        transition: 'filter 0.2s ease-in-out'
+        // IMPORTANTE: Removemos a transition daqui para não suavizar o movimento do mouse
       }}
-      className="group cursor-grab active:cursor-grabbing select-none flex flex-col relative"
+      className="select-none relative"
     >
-      {loading ? (
-          // Placeholder enquanto carrega (mantém quadrado para não colapsar)
-          <div className="w-full aspect-square bg-black/50 rounded-lg flex items-center justify-center border border-white/20">
-             <Loader2 className="animate-spin text-neon-blue" size={24} />
-          </div>
-      ) : (
-          <img 
-            src={imageSrc || 'https://via.placeholder.com/70?text=?'} 
-            className="w-full h-auto object-contain pointer-events-none block select-none"
-            alt="token"
-            draggable={false}
-          />
-      )}
-
-      {/* Alça de redimensionamento.
-         Posicionada no canto inferior direito da imagem.
-         O translate ajuda a centralizar a bolinha no vértice.
-      */}
-      <div 
-        onMouseDown={(e) => { 
-            // Permite pan também ao clicar na alça
-            if (e.button === 1) return;
-            e.stopPropagation(); 
-            onResizeStart(e, data.id); 
+      {/* 2. CONTAINER INTERNO: ROTAÇÃO (COM TRANSIÇÃO) 
+          Gira o conteúdo suavemente sem afetar a posição X/Y */}
+      <div
+        className="group cursor-grab active:cursor-grabbing w-full h-full flex flex-col relative"
+        style={{
+            transform: `rotate(${rotation}deg)`,
+            transformOrigin: 'center center',
+            // Aplicamos a transition apenas na rotação e no filtro (seleção)
+            transition: `transform ${ANIMATION_SPEED_ROTATION} ${ANIMATION_EASING}, filter 0.2s ease-in-out`,
+            ...selectionStyle
         }}
-        className={`absolute -bottom-2 -right-2 w-6 h-6 bg-white rounded-full flex items-center justify-center cursor-nwse-resize text-black shadow-lg opacity-0 group-hover:opacity-100 transition-opacity z-30 ${isSelected ? 'opacity-100' : ''}`}
       >
-        <Maximize2 size={12} strokeWidth={3} />
-      </div>
-      
-      {/* Indicador visual simples se a imagem falhar ou for nula */}
-      {!loading && !imageSrc && (
-          <div className="absolute inset-0 border-2 border-red-500 bg-red-500/20 flex items-center justify-center">
-              ?
+          {loading ? (
+              <div className="w-full aspect-square bg-black/50 rounded-lg flex items-center justify-center border border-white/20">
+                 <Loader2 className="animate-spin text-neon-blue" size={24} />
+              </div>
+          ) : (
+              <img 
+                src={imageSrc || 'https://via.placeholder.com/70?text=?'} 
+                className="w-full h-auto object-contain pointer-events-none block select-none"
+                style={{
+                    // 3. IMAGEM: FLIP (COM TRANSIÇÃO)
+                    transform: `scaleX(${isFlipped ? -1 : 1})`,
+                    transition: `transform ${ANIMATION_SPEED_FLIP} ${ANIMATION_EASING}`
+                }}
+                alt="token"
+                draggable={false}
+              />
+          )}
+
+          {/* Alça de Redimensionamento (Gira junto com o token) */}
+          <div 
+            onMouseDown={(e) => { 
+                if (e.button === 1) return;
+                e.stopPropagation(); 
+                onResizeStart(e, data.id); 
+            }}
+            className={`absolute -bottom-2 -right-2 w-6 h-6 bg-white rounded-full flex items-center justify-center cursor-nwse-resize text-black shadow-lg opacity-0 group-hover:opacity-100 transition-opacity z-30 ${isSelected ? 'opacity-100' : ''}`}
+          >
+            <Maximize2 size={12} strokeWidth={3} />
           </div>
-      )}
+          
+          {!loading && !imageSrc && (
+              <div className="absolute inset-0 border-2 border-red-500 bg-red-500/20 flex items-center justify-center">?</div>
+          )}
+      </div>
     </div>
   );
 };
