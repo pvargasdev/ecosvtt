@@ -94,18 +94,11 @@ const LibraryThumb = React.memo(({ token, onRename, onDelete, moveItem }) => {
             return (
                 <div className="absolute top-1 right-1 flex gap-1 z-20 animate-in fade-in zoom-in duration-200">
                     <button 
-                        onClick={(e) => { e.stopPropagation(); setIsConfirmingDelete(false); }} 
-                        className="p-1.5 bg-black/80 rounded text-white hover:bg-white/20 transition shadow-lg"
-                        title="Cancelar"
-                    >
-                        <X size={12} strokeWidth={3}/>
-                    </button>
-                    <button 
                         onClick={(e) => { e.stopPropagation(); onDelete(token.id); }} 
-                        className="p-1.5 bg-red-600 rounded text-white hover:bg-red-500 transition shadow-lg shadow-red-900/50"
+                        className="p-1 bg-red-600 rounded text-white hover:bg-red-500 transition shadow-lg shadow-red-900/50"
                         title="Confirmar Exclusão"
                     >
-                        <Trash2 size={12} strokeWidth={3}/>
+                        <Check size={10} strokeWidth={3}/>
                     </button>
                 </div>
             );
@@ -137,7 +130,7 @@ const LibraryThumb = React.memo(({ token, onRename, onDelete, moveItem }) => {
                 onDrop={(e) => { e.currentTarget.style.backgroundColor = ''; handleDropOnFolder(e); }}
                 onMouseLeave={handleMouseLeave}
                 className="aspect-square bg-white/5 rounded-xl border border-glass-border hover:border-white transition-all group relative flex flex-col items-center justify-center cursor-pointer h-full w-full select-none"
-                onDoubleClick={() => !isRenaming && !isConfirmingDelete && token.onEnter()} 
+                onClick={() => !isRenaming && !isConfirmingDelete && token.onEnter()} 
             >
                 {confirmOverlay}
                 <Folder size={32} className={`mb-1 transition-colors ${isConfirmingDelete ? 'text-red-400' : 'text-yellow-500'}`} fill={isConfirmingDelete ? "rgba(248, 113, 113, 0.2)" : "rgba(234, 179, 8, 0.2)"}/>
@@ -163,7 +156,7 @@ const LibraryThumb = React.memo(({ token, onRename, onDelete, moveItem }) => {
 
     return (
         <div draggable onDragStart={handleDragStart} onMouseLeave={handleMouseLeave}
-             className={`aspect-square bg-black rounded-xl border-2 overflow-hidden cursor-grab active:cursor-grabbing transition-all group relative h-full w-full select-none ${isConfirmingDelete ? 'border-red-500 shadow-[0_0_10px_rgba(239,68,68,0.3)]' : 'border-glass-border hover:border-white hover:scale-105'}`}>
+             className={`aspect-square bg-black rounded-xl border-2 overflow-hidden cursor-grab active:cursor-grabbing transition-all group relative h-full w-full select-none ${isConfirmingDelete ? 'border-red-500 shadow-[0_0_10px_rgba(239,68,68,0.3)]' : 'border-glass-border hover:border-white'}`}>
             {confirmOverlay}
             {src && <img src={src} className={`w-full h-full object-cover pointer-events-none transition-opacity ${isConfirmingDelete ? 'opacity-50 grayscale' : ''}`} alt="token"/>}
             {renderActions()}
@@ -244,7 +237,7 @@ const AssetDock = ({ isOpen, onClose }) => {
 
     const currentFolderName = currentFolderId 
         ? activeAdventure?.tokenLibrary?.find(t => t.id === currentFolderId)?.name || "Pasta"
-        : "Raiz";
+        : "";
 
     const showBreadcrumb = currentFolderId !== null;
 
@@ -303,10 +296,6 @@ const AssetDock = ({ isOpen, onClose }) => {
                         />
                     ))}
                 </div>
-                
-                {currentItems.length === 0 && (
-                    <div className="text-xs text-text-muted flex items-center justify-center h-20 opacity-50">Pasta Vazia</div>
-                )}
             </div>
         </WindowWrapper>
     );
