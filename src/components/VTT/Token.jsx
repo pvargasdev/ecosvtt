@@ -55,7 +55,12 @@ const Token = ({ data, isSelected, onMouseDown, onResizeStart }) => {
 
   return (
     <div
-      onMouseDown={(e) => { e.stopPropagation(); onMouseDown(e, data.id); }}
+      onMouseDown={(e) => { 
+          // [CORREÇÃO] Permite Pan (botão do meio) através do Token
+          if (e.button === 1) return;
+          e.stopPropagation(); 
+          onMouseDown(e, data.id); 
+      }}
       style={{
         transform: `translate(${data.x}px, ${data.y}px)`,
         width: `${widthPx}px`, 
@@ -63,7 +68,7 @@ const Token = ({ data, isSelected, onMouseDown, onResizeStart }) => {
         height: 'auto',
         position: 'absolute', top: 0, left: 0,
         zIndex: isSelected ? 20 : 10,
-        // Aplica o filtro no container para afetar a imagem dentro
+        // Aplica o filtro no container para afetar a imagem dentro (mantendo transparência)
         ...selectionStyle,
         transition: 'filter 0.2s ease-in-out'
       }}
@@ -88,7 +93,12 @@ const Token = ({ data, isSelected, onMouseDown, onResizeStart }) => {
          O translate ajuda a centralizar a bolinha no vértice.
       */}
       <div 
-        onMouseDown={(e) => { e.stopPropagation(); onResizeStart(e, data.id); }}
+        onMouseDown={(e) => { 
+            // Permite pan também ao clicar na alça
+            if (e.button === 1) return;
+            e.stopPropagation(); 
+            onResizeStart(e, data.id); 
+        }}
         className={`absolute -bottom-2 -right-2 w-6 h-6 bg-white rounded-full flex items-center justify-center cursor-nwse-resize text-black shadow-lg opacity-0 group-hover:opacity-100 transition-opacity z-30 ${isSelected ? 'opacity-100' : ''}`}
       >
         <Maximize2 size={12} strokeWidth={3} />

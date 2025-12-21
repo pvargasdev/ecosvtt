@@ -9,10 +9,7 @@ const Pin = ({ data, viewScale, onMouseDown, onDoubleClick, isGM, isSelected }) 
     const IconComponent = Icons[data.icon] || Icons.MapPin;
     const inverseScale = Math.max(0.5, 1 / (viewScale || 1)); 
 
-    // [CORREÇÃO Z-INDEX]
     // Fog of War tem z-index: 15
-    // Tela do Mestre (isGM=true): Z=25 (Acima do Fog)
-    // Tela do Jogador (isGM=false): Z=5 (Abaixo do Fog)
     const baseZ = isGM ? 25 : 5;
     const zIndex = isSelected ? baseZ + 10 : baseZ;
 
@@ -35,7 +32,12 @@ const Pin = ({ data, viewScale, onMouseDown, onDoubleClick, isGM, isSelected }) 
                 cursor: 'pointer',
                 zIndex: zIndex
             }}
-            onMouseDown={(e) => { e.stopPropagation(); onMouseDown(e, data.id); }}
+            onMouseDown={(e) => { 
+                // [CORREÇÃO] Permite Pan (botão do meio) através do Pin
+                if (e.button === 1) return;
+                e.stopPropagation(); 
+                onMouseDown(e, data.id); 
+            }}
             onDoubleClick={(e) => { e.stopPropagation(); onDoubleClick(data); }}
             onMouseEnter={() => setIsHovered(true)}
             onMouseLeave={() => setIsHovered(false)}
@@ -63,7 +65,11 @@ const Pin = ({ data, viewScale, onMouseDown, onDoubleClick, isGM, isSelected }) 
                 <div 
                     className="absolute bottom-full pb-2 w-48 animate-in fade-in slide-in-from-bottom-2 cursor-default"
                     style={{ zIndex: 100 }}
-                    onMouseDown={(e) => e.stopPropagation()}
+                    // [CORREÇÃO] Permite Pan através do Tooltip também
+                    onMouseDown={(e) => {
+                        if (e.button === 1) return;
+                        e.stopPropagation();
+                    }}
                 >
                     <div className="bg-black/90 border border-glass-border p-3 rounded-lg shadow-2xl text-left">
                         <h4 className="font-rajdhani font-bold text-white text-sm border-b border-white/10 pb-1 mb-1">{data.title}</h4>
