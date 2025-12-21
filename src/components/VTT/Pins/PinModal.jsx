@@ -23,28 +23,32 @@ const PinModal = ({ initialData, position, onSave, onClose }) => {
     
     // Estado do formulário
     const [formData, setFormData] = useState({
-        title: initialData?.title || "Novo Pin",
+        // [ALTERAÇÃO 1] Começa vazio se for novo pin
+        title: initialData?.title || "", 
         description: initialData?.description || "",
         icon: initialData?.icon || "MapPin",
         color: initialData?.color || "#ffffff",
         linkedSceneId: initialData?.linkedSceneId || "",
-        visibleToPlayers: initialData?.visibleToPlayers ?? true, // Default true
+        visibleToPlayers: initialData?.visibleToPlayers ?? true, 
         x: initialData ? initialData.x : position.x,
         y: initialData ? initialData.y : position.y,
-        id: initialData?.id || null // Se tiver ID é edição, senão é criação
+        id: initialData?.id || null 
     });
 
     const handleSave = () => {
-        if (!formData.title.trim()) return;
-        onSave(formData);
+        // [ALTERAÇÃO 2] Se vazio, define padrão como "Novo Pin"
+        const finalTitle = formData.title.trim() === "" ? "Novo Pin" : formData.title;
+
+        onSave({
+            ...formData,
+            title: finalTitle
+        });
         onClose();
     };
 
     return (
         <div 
-            // CORREÇÃO AQUI: Adicionado 'pointer-events-auto' para permitir cliques e interação
             className="absolute inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm pointer-events-auto" 
-            onClick={onClose}
         >
             <div 
                 className="bg-ecos-bg border border-glass-border p-5 rounded-xl shadow-2xl w-full max-w-sm relative"
@@ -54,7 +58,7 @@ const PinModal = ({ initialData, position, onSave, onClose }) => {
                     <h3 className="font-rajdhani font-bold text-white text-lg">
                         {formData.id ? "Editar Pin" : "Novo Pin"}
                     </h3>
-                    <button onClick={onClose} className="text-text-muted hover:text-white"><X size={20} /></button>
+                    <button onClick={onClose} className="text-text-muted hover:text-white" title="Cancelar"><X size={20} /></button>
                 </div>
 
                 <div className="space-y-4">
@@ -63,7 +67,8 @@ const PinModal = ({ initialData, position, onSave, onClose }) => {
                         <label className="text-xs text-text-muted block mb-1">Título</label>
                         <input 
                             autoFocus
-                            className="w-full bg-black/50 border border-glass-border rounded p-2 text-white text-sm outline-none focus:border-neon-green"
+                            placeholder="Novo Pin" // Placeholder visual para indicar o valor padrão
+                            className="w-full bg-black/50 border border-glass-border rounded p-2 text-white text-sm outline-none focus:border-neon-green placeholder-white/20"
                             value={formData.title}
                             onChange={e => setFormData({...formData, title: e.target.value})}
                         />
@@ -71,7 +76,7 @@ const PinModal = ({ initialData, position, onSave, onClose }) => {
 
                     {/* Descrição */}
                     <div>
-                        <label className="text-xs text-text-muted block mb-1">Descrição</label>
+                        <label className="text-xs text-text-muted block mb-1">Descrição (Hover)</label>
                         <textarea 
                             rows={3}
                             className="w-full bg-black/50 border border-glass-border rounded p-2 text-white text-sm outline-none focus:border-neon-green resize-none"
@@ -82,7 +87,7 @@ const PinModal = ({ initialData, position, onSave, onClose }) => {
 
                     {/* Link de Cena */}
                     <div>
-                        <label className="text-xs text-text-muted block mb-1">Link para cena (Opcional)</label>
+                        <label className="text-xs text-text-muted block mb-1">Link para Cena (Opcional)</label>
                         <select 
                             className="w-full bg-black/50 border border-glass-border rounded p-2 text-white text-sm outline-none"
                             value={formData.linkedSceneId}
@@ -126,13 +131,11 @@ const PinModal = ({ initialData, position, onSave, onClose }) => {
                         </div>
                     </div>
 
-                    {/* Visibilidade (Lógica Invertida) */}
+                    {/* Visibilidade */}
                     <label className="flex items-center gap-2 cursor-pointer border border-glass-border p-2 rounded hover:bg-white/5 transition-colors">
                         <input 
                             type="checkbox" 
-                            // Se visibleToPlayers é TRUE (padrão), Checked é FALSE.
                             checked={!formData.visibleToPlayers}
-                            // Ao clicar, setamos visibleToPlayers para o inverso do checkbox (Se check=true, visible=false)
                             onChange={e => setFormData({...formData, visibleToPlayers: !e.target.checked})}
                             className="accent-neon-green w-4 h-4 cursor-pointer"
                         />

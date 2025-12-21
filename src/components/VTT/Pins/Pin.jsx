@@ -9,8 +9,23 @@ const Pin = ({ data, viewScale, onMouseDown, onDoubleClick, isGM, isSelected }) 
     const IconComponent = Icons[data.icon] || Icons.MapPin;
     const inverseScale = Math.max(0.5, 1 / (viewScale || 1)); 
 
-    // Fog of War tem z-index: 15
-    const baseZ = isGM ? 25 : 5;
+    // [CORREÇÃO FINAL DE Z-INDEX]
+    // Hierarquia do Tabuleiro:
+    // 10: Token (Normal)
+    // 12: Pin Jogador (Normal) --> ACIMA de tokens, ABAIXO da Névoa
+    // 15: Névoa de Guerra (Fog)
+    // 20: Token (Selecionado)
+    // 22: Pin Jogador (Selecionado) --> ACIMA de tokens selecionados
+    // 30: Pin Mestre (Sempre visível)
+    
+    let baseZ;
+    if (isGM) { // Visão do Mestre
+        baseZ = 18; 
+    } else {    // Visão do Jogador
+        baseZ = 12; 
+    }
+    
+    // Se selecionado, sobe +10 para garantir destaque sobre outros elementos da mesma camada
     const zIndex = isSelected ? baseZ + 10 : baseZ;
 
     const handleLinkClick = (e) => {
@@ -33,7 +48,6 @@ const Pin = ({ data, viewScale, onMouseDown, onDoubleClick, isGM, isSelected }) 
                 zIndex: zIndex
             }}
             onMouseDown={(e) => { 
-                // [CORREÇÃO] Permite Pan (botão do meio) através do Pin
                 if (e.button === 1) return;
                 e.stopPropagation(); 
                 onMouseDown(e, data.id); 
@@ -65,7 +79,6 @@ const Pin = ({ data, viewScale, onMouseDown, onDoubleClick, isGM, isSelected }) 
                 <div 
                     className="absolute bottom-full pb-2 w-48 animate-in fade-in slide-in-from-bottom-2 cursor-default"
                     style={{ zIndex: 100 }}
-                    // [CORREÇÃO] Permite Pan através do Tooltip também
                     onMouseDown={(e) => {
                         if (e.button === 1) return;
                         e.stopPropagation();

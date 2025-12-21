@@ -36,7 +36,6 @@ const Board = () => {
   const importInputRef = useRef(null);
   const adventuresListRef = useRef(null);
   
-  // [NOVO] Referência para a área de transferência (Clipboard interno)
   const clipboardRef = useRef([]);
 
   const prevAdventuresLength = useRef(adventures.length);
@@ -133,7 +132,7 @@ const Board = () => {
             }
         }
 
-        // --- [NOVO] COPIAR (Ctrl+C) ---
+        // --- COPIAR (Ctrl+C) ---
         if ((e.ctrlKey || e.metaKey) && e.key === 'c') {
             if (selectedIds.size > 0 && activeScene) {
                 const tokensToCopy = activeScene.tokens.filter(t => selectedIds.has(t.id));
@@ -143,14 +142,11 @@ const Board = () => {
             }
         }
 
-        // --- [NOVO] COLAR (Ctrl+V) ---
+        // --- COLAR (Ctrl+V) ---
         if ((e.ctrlKey || e.metaKey) && e.key === 'v') {
             if (clipboardRef.current.length > 0 && activeScene) {
                 clipboardRef.current.forEach(token => {
-                    // Remove o ID original para evitar duplicidade
                     const { id, ...tokenData } = token;
-                    
-                    // Adiciona um pequeno deslocamento (20px) para não ficar exatamente em cima
                     addTokenInstance(activeScene.id, {
                         ...tokenData,
                         x: tokenData.x + 20,
@@ -567,8 +563,8 @@ const Board = () => {
                         key={pin.id} 
                         data={pin} 
                         viewScale={view.scale}
-                        isGM={isGMWindow} // CORREÇÃO: Passa isGM como isGM, não isPlayerView
-                        isSelected={selectedPinIds.has(pin.id)} // Feedback de seleção
+                        isGM={isGMWindow} 
+                        isSelected={selectedPinIds.has(pin.id)} 
                         onMouseDown={handlePinDown}
                         onDoubleClick={() => openPinModal(pin)}
                     />
@@ -593,7 +589,8 @@ const Board = () => {
             ))}
         </div>
         
-        <div className="vtt-ui-layer absolute inset-0 pointer-events-none" onMouseDown={(e) => e.stopPropagation()} onMouseUp={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()} onDoubleClick={(e) => e.stopPropagation()}>
+        {/* [CORREÇÃO Z-INDEX UI] Adicionei z-[50] para garantir que o menu flutue sobre tudo no mapa */}
+        <div className="vtt-ui-layer absolute inset-0 pointer-events-none z-[50]" onMouseDown={(e) => e.stopPropagation()} onMouseUp={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()} onDoubleClick={(e) => e.stopPropagation()}>
             <VTTLayout zoomValue={sliderValue} onZoomChange={handleSliderZoom} activeTool={activeTool} setActiveTool={setActiveTool} />
             {contextMenu && <ContextMenu x={contextMenu.x} y={contextMenu.y} onOptionClick={(opt) => { if (opt === 'add_pin') openPinModal(null, { x: contextMenu.worldX, y: contextMenu.worldY }); setContextMenu(null); }} onClose={() => setContextMenu(null)} />}
             {pinModal.open && <PinModal initialData={pinModal.data} position={pinModal.position} onSave={handlePinSave} onClose={() => setPinModal({ open: false, data: null, position: { x: 0, y: 0 } })} />}
