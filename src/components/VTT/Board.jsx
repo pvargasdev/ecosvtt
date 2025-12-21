@@ -19,7 +19,7 @@ const ZOOM_SPEED_FACTOR = 0.001;
 
 // Configurações de Manipulação de Token
 const TOKEN_ROTATION_STEP = 30; 
-const FADE_DURATION = 500; 
+const FADE_DURATION = 600; 
 
 const Board = () => {
   const { 
@@ -30,7 +30,6 @@ const Board = () => {
     importCharacterAsToken, 
     createAdventure, adventures, setActiveAdventureId, deleteAdventure, 
     updateAdventure, duplicateAdventure, 
-    // [IMPORTANTE] Precisamos do updateScene aqui
     updateScene, 
     resetAllData,
     exportAdventure, importAdventure,
@@ -91,7 +90,7 @@ const Board = () => {
   const [transitionOpacity, setTransitionOpacity] = useState(1); 
   const [displayScene, setDisplayScene] = useState(null); 
 
-  // [NOVO] Helper para aplicar view imediatamente (evita glitch visual)
+  // Helper para aplicar view imediatamente
   const forceSetView = (newView) => {
       setView(newView);
       targetViewRef.current = newView;
@@ -99,19 +98,18 @@ const Board = () => {
       setSliderValue(Math.round(newView.scale * 100));
   };
 
-  // [NOVO] Auto-Save da Câmera (Debounced)
-  // Salva a posição enquanto o usuário navega na mesma cena
+  // [MODIFICADO] Auto-Save da Câmera (Debounced)
+  // Agora só salva se NÃO for a janela do Mestre
   useEffect(() => {
-      if (!displayScene) return;
+      // Se for janela do mestre, aborta o salvamento
+      if (!displayScene || isGMWindow) return;
       
       const saveTimer = setTimeout(() => {
-          // Só salva se mudou algo significativo para evitar spam
-          // Mas como updateScene provavelmente é leve, salvamos direto
           updateScene(displayScene.id, { savedView: view });
-      }, 1000); // Salva 1 segundo após parar de mover
+      }, 1000); 
 
       return () => clearTimeout(saveTimer);
-  }, [view, displayScene?.id]); // Dependência na view e no ID
+  }, [view, displayScene?.id, isGMWindow]); 
 
   // Efeito principal de Sincronização e Transição
   useEffect(() => {
@@ -119,7 +117,7 @@ const Board = () => {
       if (!displayScene && activeScene) {
           setDisplayScene(activeScene);
           
-          // [NOVO] Carrega a posição salva ao abrir a primeira vez
+          // Carrega a posição salva (jogadores ou mestre leem daqui, mas só jogadores escrevem)
           if (activeScene.savedView) {
               forceSetView(activeScene.savedView);
           } else {
@@ -137,9 +135,10 @@ const Board = () => {
 
       // 2. Detecção de TROCA DE CENA
       if (displayScene && activeScene.id !== displayScene.id) {
-          // [NOVO] Antes de trocar, SALVA a posição da cena anterior
-          // Isso garante que a posição exata antes do clique seja preservada
-          updateScene(displayScene.id, { savedView: view });
+          // [MODIFICADO] Antes de trocar, SALVA a posição da cena anterior APENAS se for JOGADOR
+          if (!isGMWindow) {
+              updateScene(displayScene.id, { savedView: view });
+          }
 
           // Inicia o Fade Out
           setTransitionOpacity(1);
@@ -147,11 +146,10 @@ const Board = () => {
           const timer = setTimeout(() => {
               setDisplayScene(activeScene);
               
-              // [NOVO] CARREGA A POSIÇÃO DA NOVA CENA (enquanto a tela está preta)
+              // Carrega a posição da nova cena (vale tanto para Mestre quanto Jogador)
               if (activeScene.savedView) {
                   forceSetView(activeScene.savedView);
               } else {
-                  // Se não tiver posição salva, reseta para o centro (ou outra lógica)
                   forceSetView({ x: 0, y: 0, scale: 1 });
               }
 
@@ -163,11 +161,11 @@ const Board = () => {
           return () => clearTimeout(timer);
       } 
       
-      // 3. Atualizações Normais (sem troca de ID)
+      // 3. Atualizações Normais
       else {
           setDisplayScene(activeScene);
       }
-  }, [activeScene, displayScene]); // Removemos 'view' das dependências aqui para evitar loop
+  }, [activeScene, displayScene]); 
 
   useEffect(() => {
     if (adventures.length > prevAdventuresLength.current && adventuresListRef.current) {
@@ -435,6 +433,20 @@ const Board = () => {
   const handleTokenDown = (e, id) => {
     if (e.button === 1 || e.button === 2 || isSpacePressed || activeTool !== 'select') return;
     e.stopPropagation();
+
+    if (activeScene && activeScene.tokens) {
+        const currentIndex = activeScene.tokens.findIndex(t => t.id === id);
+        // Só executa se o token existir e NÃO for o último da lista
+        if (currentIndex !== -1 && currentIndex !== activeScene.tokens.length - 1) {
+            const newTokens = [...activeScene.tokens];
+            const [movedToken] = newTokens.splice(currentIndex, 1); // Remove da posição atual
+            newTokens.push(movedToken); // Adiciona no final
+            
+            // Atualiza a cena com a nova ordem de tokens
+            updateScene(activeScene.id, { tokens: newTokens });
+        }
+    }
+    
     const isMultiSelect = e.ctrlKey || e.metaKey;
     if (isMultiSelect) {
         const newSelection = new Set(selectedIds);
