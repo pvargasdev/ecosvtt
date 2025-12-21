@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { Maximize2, Loader2 } from 'lucide-react';
-import { imageDB } from '../../context/db'; // Caminho corrigido
+import { imageDB } from '../../context/db';
 
 const Token = ({ data, isSelected, onMouseDown, onResizeStart }) => {
+  // A BASE_SIZE agora controla a LARGURA de referência.
+  // A altura será proporcional à imagem.
   const BASE_SIZE = 70;
-  const sizePx = BASE_SIZE * (data.scale || 1);
+  const widthPx = BASE_SIZE * (data.scale || 1);
   
   const [imageSrc, setImageSrc] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -44,35 +46,60 @@ const Token = ({ data, isSelected, onMouseDown, onResizeStart }) => {
       };
   }, [data.imageId, data.imageSrc]);
 
+  // Estilo de Seleção:
+  // Se selecionado, aplica um Drop Shadow Neon que segue o contorno da imagem (transparência).
+  // Se não, aplica um drop shadow suave padrão para destacar do fundo.
+  const selectionStyle = isSelected 
+    ? { filter: 'drop-shadow(0 0 1px #ffffffff) drop-shadow(0 0 2px #ffffffff)' } 
+    : { filter: 'drop-shadow(0 4px 6px rgba(0,0,0,0.5))' };
+
   return (
     <div
       onMouseDown={(e) => { e.stopPropagation(); onMouseDown(e, data.id); }}
       style={{
         transform: `translate(${data.x}px, ${data.y}px)`,
-        width: `${sizePx}px`, height: `${sizePx}px`,
+        width: `${widthPx}px`, 
+        // Height auto permite que a imagem dite a altura (aspect ratio correto)
+        height: 'auto',
         position: 'absolute', top: 0, left: 0,
-        zIndex: isSelected ? 20 : 10
+        zIndex: isSelected ? 20 : 10,
+        // Aplica o filtro no container para afetar a imagem dentro
+        ...selectionStyle,
+        transition: 'filter 0.2s ease-in-out'
       }}
-      className="group cursor-grab active:cursor-grabbing select-none"
+      className="group cursor-grab active:cursor-grabbing select-none flex flex-col relative"
     >
-      <div className={`w-full h-full rounded-full overflow-hidden shadow-black/50 shadow-md transition-all bg-black flex items-center justify-center ${isSelected ? 'ring-2 ring-white shadow-[0_0_15px_rgba(0,243,255,0.5)]' : ''}`}>
-         {loading ? (
-             <Loader2 className="animate-spin text-neon-blue" size={20} />
-         ) : (
-             <img 
-                src={imageSrc || 'https://via.placeholder.com/70?text=?'} 
-                className="w-full h-full object-cover pointer-events-none block"
-                alt=""
-             />
-         )}
-      </div>
+      {loading ? (
+          // Placeholder enquanto carrega (mantém quadrado para não colapsar)
+          <div className="w-full aspect-square bg-black/50 rounded-lg flex items-center justify-center border border-white/20">
+             <Loader2 className="animate-spin text-neon-blue" size={24} />
+          </div>
+      ) : (
+          <img 
+            src={imageSrc || 'https://via.placeholder.com/70?text=?'} 
+            className="w-full h-auto object-contain pointer-events-none block select-none"
+            alt="token"
+            draggable={false}
+          />
+      )}
 
+      {/* Alça de redimensionamento.
+         Posicionada no canto inferior direito da imagem.
+         O translate ajuda a centralizar a bolinha no vértice.
+      */}
       <div 
         onMouseDown={(e) => { e.stopPropagation(); onResizeStart(e, data.id); }}
-        className={`absolute -bottom-1 -right-1 w-5 h-5 bg-white rounded-full flex items-center justify-center cursor-nwse-resize text-black shadow-lg opacity-0 group-hover:opacity-100 transition-opacity z-30 ${isSelected ? 'opacity-100' : ''}`}
+        className={`absolute -bottom-2 -right-2 w-6 h-6 bg-white rounded-full flex items-center justify-center cursor-nwse-resize text-black shadow-lg opacity-0 group-hover:opacity-100 transition-opacity z-30 ${isSelected ? 'opacity-100' : ''}`}
       >
-        <Maximize2 size={10} strokeWidth={3} />
+        <Maximize2 size={12} strokeWidth={3} />
       </div>
+      
+      {/* Indicador visual simples se a imagem falhar ou for nula */}
+      {!loading && !imageSrc && (
+          <div className="absolute inset-0 border-2 border-red-500 bg-red-500/20 flex items-center justify-center">
+              ?
+          </div>
+      )}
     </div>
   );
 };
