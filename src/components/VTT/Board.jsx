@@ -38,6 +38,10 @@ const Board = () => {
   
   // Referência para a área de transferência (Clipboard interno)
   const clipboardRef = useRef([]);
+  
+  // [NOVO] Rastreamento do mouse para o "Colar no Cursor"
+  const mousePosRef = useRef({ x: 0, y: 0 });
+  const isMouseOverRef = useRef(false);
 
   const prevAdventuresLength = useRef(adventures.length);
 
@@ -112,7 +116,7 @@ const Board = () => {
 
   useEffect(() => { return () => { if (animationRef.current) cancelAnimationFrame(animationRef.current); }; }, []);
 
-  // Lógica de Teclado (Com Copy/Paste e Delete Multiplo)
+  // Lógica de Teclado (Com Copy/Paste Inteligente)
   useEffect(() => {
     const handleKeyDown = (e) => {
         if (['INPUT', 'TEXTAREA'].includes(document.activeElement?.tagName)) return;
@@ -147,14 +151,49 @@ const Board = () => {
         // --- COLAR (Ctrl+V) ---
         if ((e.ctrlKey || e.metaKey) && e.key === 'v') {
             if (clipboardRef.current.length > 0 && activeScene) {
-                clipboardRef.current.forEach(token => {
-                    const { id, ...tokenData } = token;
-                    addTokenInstance(activeScene.id, {
-                        ...tokenData,
-                        x: tokenData.x + 20,
-                        y: tokenData.y + 20
+                
+                // [NOVO] Lógica Inteligente de Colar
+                if (isMouseOverRef.current && containerRef.current) {
+                    // 1. Calcular coordenadas do mouse no mundo
+                    const rect = containerRef.current.getBoundingClientRect();
+                    const mouseX = mousePosRef.current.x - rect.left;
+                    const mouseY = mousePosRef.current.y - rect.top;
+                    
+                    const worldMouseX = (mouseX - targetViewRef.current.x) / targetViewRef.current.scale;
+                    const worldMouseY = (mouseY - targetViewRef.current.y) / targetViewRef.current.scale;
+
+                    // 2. Calcular o centro do grupo copiado (Centróide)
+                    let sumX = 0, sumY = 0;
+                    clipboardRef.current.forEach(t => { sumX += t.x; sumY += t.y; });
+                    const centerX = sumX / clipboardRef.current.length;
+                    const centerY = sumY / clipboardRef.current.length;
+
+                    // 3. Colar mantendo a formação, centralizada no mouse
+                    clipboardRef.current.forEach(token => {
+                        const { id, ...tokenData } = token;
+                        
+                        // Deslocamento deste token em relação ao centro do grupo
+                        const offsetX = tokenData.x - centerX;
+                        const offsetY = tokenData.y - centerY;
+
+                        addTokenInstance(activeScene.id, {
+                            ...tokenData,
+                            x: worldMouseX + offsetX,
+                            y: worldMouseY + offsetY
+                        });
                     });
-                });
+
+                } else {
+                    // Fallback: Colar na posição original com offset (se mouse estiver fora)
+                    clipboardRef.current.forEach(token => {
+                        const { id, ...tokenData } = token;
+                        addTokenInstance(activeScene.id, {
+                            ...tokenData,
+                            x: tokenData.x + 20,
+                            y: tokenData.y + 20
+                        });
+                    });
+                }
             }
         }
 
@@ -391,6 +430,9 @@ const Board = () => {
   };
 
   const handleMouseMove = (e) => {
+    // [NOVO] Atualiza a posição global do mouse para o Copy/Paste
+    mousePosRef.current = { x: e.clientX, y: e.clientY };
+
     if (fogDrawing.isDrawing && activeTool === 'fogOfWar') {
         const rect = containerRef.current.getBoundingClientRect();
         const wX = (e.clientX - rect.left - view.x) / view.scale;
@@ -491,7 +533,7 @@ const Board = () => {
   };
 
   // ==========================================
-  // VIEW: TELA DE SELEÇÃO DE AVENTURA (RESTAURADA)
+  // VIEW: TELA DE SELEÇÃO DE AVENTURA
   // ==========================================
   if (!activeAdventureId || !activeAdventure) {
       if (isGMWindow) {
@@ -614,8 +656,16 @@ const Board = () => {
     <div 
         className={`w-full h-full relative overflow-hidden bg-[#15151a] transition-colors duration-300 ${activeTool === 'fogOfWar' ? 'cursor-crosshair' : 'cursor-default'}`} 
         ref={containerRef}
-        onMouseDown={handleMouseDown} onMouseMove={handleMouseMove} onMouseUp={handleMouseUp} onMouseLeave={handleMouseUp}
-        onDoubleClick={handleBoardDoubleClick} onDrop={handleDrop} onDragOver={e => e.preventDefault()} onAuxClick={handleAuxClick} 
+        // [NOVO] Handlers para detecção de Mouse Over e Position
+        onMouseDown={handleMouseDown} 
+        onMouseMove={handleMouseMove} 
+        onMouseUp={handleMouseUp} 
+        onMouseLeave={(e) => { isMouseOverRef.current = false; handleMouseUp(e); }} // Saiu do board = não está em cima
+        onMouseEnter={() => { isMouseOverRef.current = true; }} // Entrou no board = está em cima
+        onDoubleClick={handleBoardDoubleClick} 
+        onDrop={handleDrop} 
+        onDragOver={e => e.preventDefault()}
+        onAuxClick={handleAuxClick} 
     >
         {isGMWindow && <div className="absolute top-4 left-4 z-50 bg-neon-green/20 border border-neon-green px-3 py-1 rounded text-neon-green font-bold font-rajdhani text-sm pointer-events-none select-none">VISÃO DO MESTRE</div>}
 
@@ -660,8 +710,7 @@ const Board = () => {
         </div>
         
         {/* [CORREÇÃO Z-INDEX UI] Adicionei z-[50] para garantir que o menu flutue sobre tudo no mapa */}
-        <div className="vtt-ui-layer absolute inset-0 pointer-events-none z-[50]" onMouseDown={(e) => e.stopPropagation()} onMouseUp={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()} onDoubleClick={(e) => e.stopPropagation()}>
-            <VTTLayout zoomValue={sliderValue} onZoomChange={handleSliderZoom} activeTool={activeTool} setActiveTool={setActiveTool} />
+        <div className="vtt-ui-layer absolute inset-0 pointer-events-none z-[50]" onMouseDown={(e) => e.stopPropagation()} onMouseUp={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()} onDoubleClick={(e) => e.stopPropagation()}>\r\n            <VTTLayout zoomValue={sliderValue} onZoomChange={handleSliderZoom} activeTool={activeTool} setActiveTool={setActiveTool} />
             {contextMenu && <ContextMenu x={contextMenu.x} y={contextMenu.y} onOptionClick={(opt) => { if (opt === 'add_pin') openPinModal(null, { x: contextMenu.worldX, y: contextMenu.worldY }); setContextMenu(null); }} onClose={() => setContextMenu(null)} />}
             {pinModal.open && <PinModal initialData={pinModal.data} position={pinModal.position} onSave={handlePinSave} onClose={() => setPinModal({ open: false, data: null, position: { x: 0, y: 0 } })} />}
         </div>
