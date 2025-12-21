@@ -36,6 +36,7 @@ const Board = () => {
   const importInputRef = useRef(null);
   const adventuresListRef = useRef(null);
   
+  // Referência para a área de transferência (Clipboard interno)
   const clipboardRef = useRef([]);
 
   const prevAdventuresLength = useRef(adventures.length);
@@ -70,7 +71,7 @@ const Board = () => {
   const [contextMenu, setContextMenu] = useState(null);
   const [pinModal, setPinModal] = useState({ open: false, data: null, position: { x: 0, y: 0 } });
 
-  // UI Geral
+  // UI Geral (Restaurada do Antigo)
   const [newAdvName, setNewAdvName] = useState("");
   const [deleteModal, setDeleteModal] = useState(null); 
   const [renamingId, setRenamingId] = useState(null);
@@ -111,6 +112,7 @@ const Board = () => {
 
   useEffect(() => { return () => { if (animationRef.current) cancelAnimationFrame(animationRef.current); }; }, []);
 
+  // Lógica de Teclado (Com Copy/Paste e Delete Multiplo)
   useEffect(() => {
     const handleKeyDown = (e) => {
         if (['INPUT', 'TEXTAREA'].includes(document.activeElement?.tagName)) return;
@@ -277,7 +279,7 @@ const Board = () => {
   const handleAuxClick = (e) => { if (e.button === 1) e.preventDefault(); };
 
   // ==========================================
-  // HANDLERS DE MOUSE (Interação)
+  // HANDLERS DE MOUSE
   // ==========================================
 
   const handleBoardDoubleClick = (e) => {
@@ -488,7 +490,9 @@ const Board = () => {
       setContextMenu(null);
   };
 
-  // --- RENDERIZAÇÃO ---
+  // ==========================================
+  // VIEW: TELA DE SELEÇÃO DE AVENTURA (RESTAURADA)
+  // ==========================================
   if (!activeAdventureId || !activeAdventure) {
       if (isGMWindow) {
           return (
@@ -499,42 +503,108 @@ const Board = () => {
             </div>
           );
       }
+
       return (
         <div className="w-full h-full bg-ecos-bg flex flex-col items-center justify-center p-6 text-white relative z-50">
+            <style>{`
+                @keyframes enter-slide {
+                    0% { opacity: 0; transform: translateY(-15px) scale(0.95); max-height: 0; margin-bottom: 0; }
+                    40% { max-height: 60px; margin-bottom: 0.5rem; }
+                    100% { opacity: 1; transform: translateY(0) scale(1); max-height: 60px; margin-bottom: 0.5rem; }
+                }
+                .animate-enter {
+                    animation: enter-slide 0.45s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+                }
+            `}</style>
             <h1 className="text-5xl font-rajdhani font-bold text-neon-green mb-8 tracking-widest">TABULEIRO</h1>
             <div className="bg-glass border border-glass-border rounded-xl p-6 shadow-2xl w-full max-w-lg relative">
+                
                 <div className="flex justify-between items-center mb-4">
                     <h2 className="text-xl font-bold">Suas Aventuras</h2>
                     {window.electron && (
-                        <button onClick={() => window.electron.openGMWindow()} className={`flex items-center gap-2 px-3 py-1.5 rounded text-xs font-bold transition border ${isGMWindowOpen ? 'bg-neon-green/20 text-neon-green border-neon-green' : 'bg-white/5 text-text-muted border-glass-border hover:text-white'}`}>
-                            <Monitor size={14} /> {isGMWindowOpen ? 'TELA DO MESTRE ATIVA' : 'ABRIR TELA DO MESTRE'}
+                        <button 
+                            onClick={() => window.electron.openGMWindow()}
+                            className={`flex items-center gap-2 px-3 py-1.5 rounded text-xs font-bold transition border ${
+                                isGMWindowOpen 
+                                ? 'bg-neon-green/20 text-neon-green border-neon-green shadow-[0_0_10px_rgba(0,255,0,0.3)]' 
+                                : 'bg-white/5 text-text-muted border-glass-border hover:text-white hover:bg-white/10'
+                            }`}
+                            title="Abrir janela secundária para o Mestre"
+                        >
+                            <Monitor size={14} />
+                            {isGMWindowOpen ? 'TELA DO MESTRE ATIVA' : 'ABRIR TELA DO MESTRE'}
                         </button>
                     )}
                 </div>
+
                 <div ref={adventuresListRef} className="relative min-h-[120px] max-h-[300px] overflow-y-auto space-y-2 mb-4 scrollbar-thin pr-2 scroll-smooth">
-                    {adventures.length === 0 && <p className="text-text-muted text-sm text-center pt-10">Nenhuma aventura.</p>}
+                    {adventures.length === 0 && (
+                        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                            <p className="text-text-muted text-sm animate-pulse">Nenhuma aventura criada.</p>
+                        </div>
+                    )}
                     {adventures.map(adv => (
-                        <div key={adv.id} onClick={() => setActiveAdventureId(adv.id)} className="group flex justify-between items-center p-3 rounded bg-white/5 hover:bg-neon-green/10 cursor-pointer transition border border-transparent hover:border-neon-green/30">
-                            <span className="truncate font-medium">{adv.name}</span>
-                            <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                <button onClick={(e)=>{e.stopPropagation(); duplicateAdventure(adv.id)}} className="p-1.5 hover:text-white"><Copy size={14}/></button>
-                                <button onClick={(e)=>{e.stopPropagation(); deleteAdventure(adv.id)}} className="p-1.5 hover:text-red-500"><Trash2 size={14}/></button>
-                            </div>
+                        <div key={adv.id} onClick={() => { if(renamingId !== adv.id) setActiveAdventureId(adv.id); }} className={`animate-enter group flex justify-between items-center p-3 rounded bg-white/5 border border-transparent transition-all ${renamingId === adv.id ? 'bg-white/10' : 'hover:bg-neon-green/10 hover:border-neon-green/30 cursor-pointer'}`}>
+                            {renamingId === adv.id ? (
+                                <div className="flex flex-1 items-center gap-2 animate-in fade-in duration-200" onClick={(e) => e.stopPropagation()}>
+                                    <input 
+                                        autoFocus 
+                                        className="flex-1 bg-black/50 border border-white/50 rounded px-2 py-1 text-white text-sm outline-none" 
+                                        value={renameValue} 
+                                        onChange={(e) => setRenameValue(e.target.value)} 
+                                        onKeyDown={(e) => { 
+                                            if (e.key === 'Enter') { updateAdventure(adv.id, { name: renameValue }); setRenamingId(null); } 
+                                            if (e.key === 'Escape') setRenamingId(null); 
+                                        }} 
+                                    />
+                                    <button onClick={() => setRenamingId(null)} className="p-1 rounded bg-black/40 hover:bg-white/20 text-text-muted hover:text-white transition"><ArrowLeft size={16}/></button>
+                                    <button onClick={() => { updateAdventure(adv.id, { name: renameValue }); setRenamingId(null); }} className="p-1 rounded bg-neon-green hover:bg-white text-black transition"><Check size={16}/></button>
+                                </div>
+                            ) : (
+                                <>
+                                    <span className="truncate font-medium">{adv.name}</span>
+                                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <button onClick={(e)=>{e.stopPropagation(); exportAdventure(adv.id)}} className="p-1.5 rounded hover:bg-white/20 text-text-muted hover:text-neon-blue transition"><Upload size={14}/></button>
+                                        <button onClick={(e)=>{e.stopPropagation(); duplicateAdventure(adv.id)}} className="p-1.5 rounded hover:bg-white/20 text-text-muted hover:text-white transition"><Copy size={14}/></button>
+                                        <button onClick={(e)=>{e.stopPropagation(); setRenamingId(adv.id); setRenameValue(adv.name);}} className="p-1.5 rounded hover:bg-white/20 text-text-muted hover:text-yellow-400 transition"><Edit2 size={14}/></button>
+                                        <button onClick={(e)=>{e.stopPropagation(); setDeleteModal(adv.id);}} className="p-1.5 rounded hover:bg-red-500/20 text-text-muted hover:text-red-500 transition"><Trash2 size={14}/></button>
+                                    </div>
+                                </>
+                            )}
                         </div>
                     ))}
                 </div>
+                
                 <div className="pt-4 border-t border-glass-border">
                     {!isCreatingAdventure ? (
                         <div className="flex gap-2">
-                             <button onClick={() => setIsCreatingAdventure(true)} className="flex-1 py-3 bg-neon-green/10 border border-neon-green/40 text-neon-green font-bold rounded-lg hover:bg-neon-green hover:text-black transition flex items-center justify-center gap-2"><Plus size={18}/> NOVA AVENTURA</button>
+                            <button onClick={() => setIsCreatingAdventure(true)} className="flex-1 py-3 bg-neon-green/10 border border-neon-green/40 text-neon-green font-bold rounded-lg hover:bg-neon-green hover:text-black hover:shadow-[0_0_15px_rgba(0,255,0,0.4)] transition-all flex items-center justify-center gap-2 group"><Plus size={18} strokeWidth={3} className="group-hover:scale-110 transition-transform"/> NOVA AVENTURA</button>
+                            <div className="relative">
+                                <button onClick={() => importInputRef.current?.click()} className="h-full px-4 bg-glass border border-glass-border text-text-muted hover:text-white rounded-lg hover:bg-white/10 transition flex items-center justify-center"><Download size={20}/></button>
+                                <input ref={importInputRef} type="file" accept=".zip" className="hidden" onChange={(e) => { const file = e.target.files[0]; if(file) importAdventure(file); e.target.value = null; }}/>
+                            </div>
                         </div>
                     ) : (
-                        <div className="flex flex-col gap-3">
-                            <input autoFocus placeholder="Nome..." className="w-full bg-[#15151a] border border-neon-green text-white rounded-lg p-3" value={newAdvName} onChange={e => setNewAdvName(e.target.value)} onKeyDown={(e) => { if(e.key === 'Enter') { createAdventure(newAdvName || "Nova"); setIsCreatingAdventure(false); } }} />
-                            <div className="flex justify-end gap-3"><button onClick={() => setIsCreatingAdventure(false)} className="text-xs text-zinc-500">CANCELAR</button><button onClick={() => { createAdventure(newAdvName || "Nova"); setIsCreatingAdventure(false); }} className="px-5 py-1.5 bg-neon-green text-black font-bold rounded text-xs">CRIAR</button></div>
+                        <div className="flex flex-col gap-3 animate-in fade-in slide-in-from-bottom-2 duration-200">
+                            <input autoFocus placeholder="Nome da Aventura..." className="w-full bg-[#15151a] border border-neon-green text-white placeholder-white/20 rounded-lg p-3 outline-none" value={newAdvName} onChange={e => setNewAdvName(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { const finalName = newAdvName.trim() === "" ? "Nova Aventura" : newAdvName; createAdventure(finalName); setNewAdvName(""); setIsCreatingAdventure(false); } if (e.key === 'Escape') setIsCreatingAdventure(false); }} />
+                            <div className="flex items-center justify-end gap-3 px-1">
+                                <button onClick={() => setIsCreatingAdventure(false)} className="text-xs font-medium text-zinc-500 hover:text-white transition-colors px-2 py-1">CANCELAR</button>
+                                <button onClick={() => { const finalName = newAdvName.trim() === "" ? "Nova Aventura" : newAdvName; createAdventure(finalName); setNewAdvName(""); setIsCreatingAdventure(false); }} className="flex items-center gap-2 px-5 py-1.5 bg-neon-green text-black font-bold rounded-md text-xs hover:bg-white hover:scale-105 active:scale-95 transition-all"><Check size={14} strokeWidth={3}/> CRIAR</button>
+                            </div>
                         </div>
                     )}
                 </div>
+                {deleteModal && (
+                    <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm rounded-xl animate-in fade-in">
+                        <div className="bg-ecos-bg border border-glass-border p-5 rounded-lg shadow-2xl w-3/4 max-w-sm text-center">
+                            <h3 className="text-lg font-bold text-white mb-2">Excluir Aventura?</h3>
+                            <div className="flex gap-2 justify-center mt-4">
+                                <button onClick={() => setDeleteModal(null)} className="px-4 py-2 rounded bg-glass border border-glass-border text-white hover:bg-white/10 text-sm">Cancelar</button>
+                                <button onClick={() => { deleteAdventure(deleteModal); setDeleteModal(null); }} className="px-4 py-2 rounded bg-red-600 text-white font-bold hover:bg-red-500 text-sm">Confirmar</button>
+                            </div>
+                        </div>
+                    </div>
+                )}
             </div>
         </div>
       );
@@ -563,8 +633,8 @@ const Board = () => {
                         key={pin.id} 
                         data={pin} 
                         viewScale={view.scale}
-                        isGM={isGMWindow} 
-                        isSelected={selectedPinIds.has(pin.id)} 
+                        isGM={isGMWindow} // CORREÇÃO: Passa isGM como isGM, não isPlayerView
+                        isSelected={selectedPinIds.has(pin.id)} // Feedback de seleção
                         onMouseDown={handlePinDown}
                         onDoubleClick={() => openPinModal(pin)}
                     />
