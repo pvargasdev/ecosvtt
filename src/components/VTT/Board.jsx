@@ -18,7 +18,8 @@ const CAMERA_SMOOTHING = 0.2;
 const ZOOM_SPEED_FACTOR = 0.001; 
 
 // Configurações de Manipulação de Token
-const TOKEN_ROTATION_STEP = 45; // Quantos graus rotaciona por vez (Ctrl+Q/E)
+const TOKEN_ROTATION_STEP = 30; 
+const FADE_DURATION = 500; 
 
 const Board = () => {
   const { 
@@ -29,10 +30,11 @@ const Board = () => {
     importCharacterAsToken, 
     createAdventure, adventures, setActiveAdventureId, deleteAdventure, 
     updateAdventure, duplicateAdventure, 
+    // [IMPORTANTE] Precisamos do updateScene aqui
+    updateScene, 
     resetAllData,
     exportAdventure, importAdventure,
     isGMWindow, isGMWindowOpen,
-    // Funções de Pins
     addPin, updatePin, deletePin, deleteMultiplePins
   } = useGame();
 
@@ -70,6 +72,7 @@ const Board = () => {
   
   const [fogDrawing, setFogDrawing] = useState({ isDrawing: false, startX: 0, startY: 0, currentX: 0, currentY: 0 });
   const [isSpacePressed, setIsSpacePressed] = useState(false);
+  
   const [mapParams, setMapParams] = useState({ url: null, id: null });
 
   // UI
@@ -84,7 +87,88 @@ const Board = () => {
   const zoomSpeedRef = useRef(0.01); 
   const lastZoomTimeRef = useRef(0); 
 
-  // --- EFFECTS ---
+  // --- CONTROLE DE TRANSIÇÃO (BUFFER) ---
+  const [transitionOpacity, setTransitionOpacity] = useState(1); 
+  const [displayScene, setDisplayScene] = useState(null); 
+
+  // [NOVO] Helper para aplicar view imediatamente (evita glitch visual)
+  const forceSetView = (newView) => {
+      setView(newView);
+      targetViewRef.current = newView;
+      viewRef.current = newView;
+      setSliderValue(Math.round(newView.scale * 100));
+  };
+
+  // [NOVO] Auto-Save da Câmera (Debounced)
+  // Salva a posição enquanto o usuário navega na mesma cena
+  useEffect(() => {
+      if (!displayScene) return;
+      
+      const saveTimer = setTimeout(() => {
+          // Só salva se mudou algo significativo para evitar spam
+          // Mas como updateScene provavelmente é leve, salvamos direto
+          updateScene(displayScene.id, { savedView: view });
+      }, 1000); // Salva 1 segundo após parar de mover
+
+      return () => clearTimeout(saveTimer);
+  }, [view, displayScene?.id]); // Dependência na view e no ID
+
+  // Efeito principal de Sincronização e Transição
+  useEffect(() => {
+      // 1. Caso Inicial: Aplica view salva ou default
+      if (!displayScene && activeScene) {
+          setDisplayScene(activeScene);
+          
+          // [NOVO] Carrega a posição salva ao abrir a primeira vez
+          if (activeScene.savedView) {
+              forceSetView(activeScene.savedView);
+          } else {
+              forceSetView({ x: 0, y: 0, scale: 1 });
+          }
+
+          setTimeout(() => setTransitionOpacity(0), 100); 
+          return;
+      }
+
+      if (!activeScene) {
+          setDisplayScene(null);
+          return;
+      }
+
+      // 2. Detecção de TROCA DE CENA
+      if (displayScene && activeScene.id !== displayScene.id) {
+          // [NOVO] Antes de trocar, SALVA a posição da cena anterior
+          // Isso garante que a posição exata antes do clique seja preservada
+          updateScene(displayScene.id, { savedView: view });
+
+          // Inicia o Fade Out
+          setTransitionOpacity(1);
+
+          const timer = setTimeout(() => {
+              setDisplayScene(activeScene);
+              
+              // [NOVO] CARREGA A POSIÇÃO DA NOVA CENA (enquanto a tela está preta)
+              if (activeScene.savedView) {
+                  forceSetView(activeScene.savedView);
+              } else {
+                  // Se não tiver posição salva, reseta para o centro (ou outra lógica)
+                  forceSetView({ x: 0, y: 0, scale: 1 });
+              }
+
+              setTimeout(() => {
+                  setTransitionOpacity(0);
+              }, 100);
+          }, FADE_DURATION);
+
+          return () => clearTimeout(timer);
+      } 
+      
+      // 3. Atualizações Normais (sem troca de ID)
+      else {
+          setDisplayScene(activeScene);
+      }
+  }, [activeScene, displayScene]); // Removemos 'view' das dependências aqui para evitar loop
+
   useEffect(() => {
     if (adventures.length > prevAdventuresLength.current && adventuresListRef.current) {
         adventuresListRef.current.scrollTop = adventuresListRef.current.scrollHeight;
@@ -99,19 +183,19 @@ const Board = () => {
   }, [view.scale, view.x, view.y]);
 
   useEffect(() => {
-      if (!activeScene) return;
+      if (!displayScene) return;
       const loadMap = async () => {
-          if (activeScene.mapImageId !== mapParams.id) {
-              if (activeScene.mapImageId) {
-                  const blob = await imageDB.getImage(activeScene.mapImageId);
-                  if (blob) setMapParams({ url: URL.createObjectURL(blob), id: activeScene.mapImageId });
+          if (displayScene.mapImageId !== mapParams.id) {
+              if (displayScene.mapImageId) {
+                  const blob = await imageDB.getImage(displayScene.mapImageId);
+                  if (blob) setMapParams({ url: URL.createObjectURL(blob), id: displayScene.mapImageId });
               } else setMapParams({ url: null, id: null });
-          } else if (activeScene.mapImage && !activeScene.mapImageId && !mapParams.url) {
-               setMapParams({ url: activeScene.mapImage, id: 'legacy' });
+          } else if (displayScene.mapImage && !displayScene.mapImageId && !mapParams.url) {
+               setMapParams({ url: displayScene.mapImage, id: 'legacy' });
           }
       };
       loadMap();
-  }, [activeScene, mapParams.id, mapParams.url]);
+  }, [displayScene, mapParams.id, mapParams.url]);
 
   useEffect(() => { return () => { if (animationRef.current) cancelAnimationFrame(animationRef.current); }; }, []);
 
@@ -231,7 +315,7 @@ const Board = () => {
     return () => { window.removeEventListener('keydown', handleKeyDown); window.removeEventListener('keyup', handleKeyUp); };
   }, [selectedIds, selectedFogIds, selectedPinIds, activeScene, deleteMultipleTokenInstances, deleteMultipleFogAreas, deleteMultiplePins, setActiveTool, addTokenInstance, updateTokenInstance]);
 
-  // ... (RESTO DO CÓDIGO DA CÂMERA IGUAL AO ANTERIOR) ...
+  // ... (RESTO DO CÓDIGO DA CÂMERA MANTIDO) ...
   const animateCamera = useCallback(() => {
       const target = targetViewRef.current;
       const current = viewRef.current;
@@ -569,11 +653,15 @@ const Board = () => {
 
         <div className="absolute top-0 left-0 w-full h-full origin-top-left" style={{ transform: `translate(${view.x}px, ${view.y}px) scale(${view.scale})` }}>
              <div className="absolute -top-[50000px] -left-[50000px] w-[100000px] h-[100000px] opacity-20 pointer-events-none" style={{ backgroundImage: 'radial-gradient(circle, #555 1px, transparent 1px)', backgroundSize: '70px 70px' }} />
-            {mapParams.url && <div style={{ transform: `scale(${activeScene.mapScale || 1})`, transformOrigin: '0 0' }}><img src={mapParams.url} className="max-w-none pointer-events-none select-none opacity-90 shadow-2xl" alt="Map Layer"/></div>}
             
-            {activeScene?.tokens.map(t => <Token key={t.id} data={t} isSelected={selectedIds.has(t.id)} onMouseDown={handleTokenDown} onResizeStart={handleTokenResizeStart}/>)}
+            {/* [MODIFICADO] Renderiza MAPA baseado em displayScene */}
+            {mapParams.url && <div style={{ transform: `scale(${displayScene?.mapScale || 1})`, transformOrigin: '0 0' }}><img src={mapParams.url} className="max-w-none pointer-events-none select-none opacity-90 shadow-2xl" alt="Map Layer"/></div>}
             
-            {activeScene?.pins?.map(pin => {
+            {/* [MODIFICADO] Renderiza TOKENS baseado em displayScene */}
+            {displayScene?.tokens.map(t => <Token key={t.id} data={t} isSelected={selectedIds.has(t.id)} onMouseDown={handleTokenDown} onResizeStart={handleTokenResizeStart}/>)}
+            
+            {/* [MODIFICADO] Renderiza PINS baseado em displayScene */}
+            {displayScene?.pins?.map(pin => {
                 if (!isGMWindow && pin.visibleToPlayers === false) return null;
                 return (
                     <Pin 
@@ -592,7 +680,8 @@ const Board = () => {
                 <div className="absolute pointer-events-none fog-area" style={{ left: Math.min(fogDrawing.startX, fogDrawing.currentX), top: Math.min(fogDrawing.startY, fogDrawing.currentY), width: Math.abs(fogDrawing.currentX - fogDrawing.startX), height: Math.abs(fogDrawing.currentY - fogDrawing.startY), backgroundColor: 'rgba(0, 0, 0, 0.7)', border: '2px dashed rgba(255, 255, 255, 0.3)', zIndex: 15 }} />
             )}
             
-            {activeScene?.fogOfWar?.map(fog => (
+            {/* [MODIFICADO] Renderiza FOG OF WAR baseado em displayScene */}
+            {displayScene?.fogOfWar?.map(fog => (
                 <div key={fog.id} className={`fog-area absolute ${selectedFogIds.has(fog.id) ? 'ring-2 ring-yellow-400' : ''} ${activeTool === 'select' ? 'cursor-move' : 'cursor-default'}`}
                     style={{
                         left: fog.x, top: fog.y, width: fog.width, height: fog.height,
@@ -605,6 +694,15 @@ const Board = () => {
             ))}
         </div>
         
+        {/* Overlay de Transição Fade to Black */}
+        <div 
+            className="absolute inset-0 bg-black pointer-events-none z-40"
+            style={{ 
+                opacity: transitionOpacity, 
+                transition: `opacity ${FADE_DURATION}ms ease-in-out` // Usa constante
+            }}
+        />
+
         <div className="vtt-ui-layer absolute inset-0 pointer-events-none z-[50]" onMouseDown={(e) => e.stopPropagation()} onMouseUp={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()} onDoubleClick={(e) => e.stopPropagation()}>
             <VTTLayout zoomValue={sliderValue} onZoomChange={handleSliderZoom} activeTool={activeTool} setActiveTool={setActiveTool} />
             {contextMenu && <ContextMenu x={contextMenu.x} y={contextMenu.y} onOptionClick={(opt) => { if (opt === 'add_pin') openPinModal(null, { x: contextMenu.worldX, y: contextMenu.worldY }); setContextMenu(null); }} onClose={() => setContextMenu(null)} />}

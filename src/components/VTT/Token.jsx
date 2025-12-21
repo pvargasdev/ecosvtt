@@ -115,7 +115,7 @@ const Token = ({ data, isSelected, onMouseDown, onResizeStart }) => {
             e.stopPropagation(); 
             onResizeStart(e, data.id); 
         }}
-        className={`absolute -bottom-2 -right-2 w-4 h-4 bg-white/10 rounded-full flex items-center justify-center cursor-nwse-resize text-black shadow-lg opacity-0 group-hover:opacity-100 transition-opacity z-30 ${isSelected ? 'opacity-100' : ''}`}
+        className={`absolute -bottom-2 -right-2 w-4 h-4 bg-black/50 rounded-full flex items-center justify-center cursor-nwse-resize text-black shadow-lg opacity-0 group-hover:opacity-100 transition-opacity z-30 ${isSelected ? 'opacity-100' : ''}`}
       >
         {/* Adicionei o className="rotate-90" aqui */}
         <Maximize2 size={8} strokeWidth={3} color='white' className="rotate-90" />

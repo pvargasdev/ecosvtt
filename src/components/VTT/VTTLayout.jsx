@@ -601,7 +601,7 @@ const HelpWindow = ({ isOpen, onClose }) => {
     const shortcuts = [
         { key: "Middle Click", desc: "Mover a tela" },
         { key: "Scroll", desc: "Zoom In / Zoom Out" },
-        { key: "Click", desc: "Selecionar" },
+        { key: "Double Click", desc: "Criar/Editar Pin" },
         { key: "Ctrl + Click", desc: "Seleção Múltipla" },
         { key: "Ctrl + C / V", desc: "Copiar e Colar Tokens" },
         { key: "Ctrl + F", desc: "Flip de Token (Espelhar)" },
