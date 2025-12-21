@@ -3,7 +3,7 @@ import { useGame } from '../../context/GameContext';
 import Token from './Token';
 import { VTTLayout } from './VTTLayout';
 import { imageDB } from '../../context/db';
-import { Plus, Trash2, Download, Upload, Copy, Edit2, X, Check, Monitor, ArrowLeft } from 'lucide-react';
+import { Plus, Trash2, Import, Upload, Copy, Edit2, X, Check, Monitor, ArrowLeft } from 'lucide-react';
 
 // Importando componentes de Pins
 import Pin from './Pins/Pin';
@@ -521,7 +521,7 @@ const Board = () => {
                         <div className="flex gap-2">
                             <button onClick={() => setIsCreatingAdventure(true)} className="flex-1 py-3 bg-neon-green/10 border border-neon-green/40 text-neon-green font-bold rounded-lg hover:bg-neon-green hover:text-black hover:shadow-[0_0_15px_rgba(0,255,0,0.4)] transition-all flex items-center justify-center gap-2 group"><Plus size={18} strokeWidth={3} className="group-hover:scale-110 transition-transform"/> NOVA AVENTURA</button>
                             <div className="relative">
-                                <button onClick={() => importInputRef.current?.click()} className="h-full px-4 bg-glass border border-glass-border text-text-muted hover:text-white rounded-lg hover:bg-white/10 transition flex items-center justify-center"><Download size={20}/></button>
+                                <button onClick={() => importInputRef.current?.click()} className="h-full px-4 bg-glass border border-glass-border text-text-muted hover:text-white rounded-lg hover:bg-white/10 transition flex items-center justify-center"><Import size={20}/></button>
                                 <input ref={importInputRef} type="file" accept=".zip" className="hidden" onChange={(e) => { const file = e.target.files[0]; if(file) importAdventure(file); e.target.value = null; }}/>
                             </div>
                         </div>

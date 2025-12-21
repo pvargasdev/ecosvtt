@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useGame } from '../../context/GameContext';
-import { ArrowLeft, Menu, Edit2, Plus, X, Upload, Download, Trash2, Check, ChevronRight } from 'lucide-react';
+import { ArrowLeft, Menu, Edit2, Plus, X, Upload, Import, Trash2, Check, ChevronRight } from 'lucide-react';
 import { getSystem, getSystemList, getSystemDefaultState } from '../../systems';
 
 // --- CONFIGURAÇÃO DE CORES ---
@@ -333,7 +333,7 @@ const CharacterSidebar = ({ isCollapsed, setIsCollapsed }) => {
                             {/* BOTÃO IMPORTAR GRUPO (NOVO) */}
                             <div className="relative">
                                 <button onClick={() => importInputRef.current?.click()} className="h-full px-4 bg-glass border border-glass-border text-text-muted hover:text-white rounded-lg hover:bg-white/10 transition flex items-center justify-center" title="Importar Grupo (.zip)">
-                                    <Download size={20}/>
+                                    <Import size={20}/>
                                 </button>
                                 <input ref={importInputRef} type="file" className="hidden" accept=".zip" onChange={(e) => { const file = e.target.files[0]; if(file) importPreset(file); e.target.value = null; }}/>
                             </div>

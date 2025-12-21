@@ -1,7 +1,12 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useGame } from '../../context/GameContext';
-import { Settings, Image as ImageIcon, Box, ArrowLeft, Map, Plus, Trash2, X, ChevronDown, LogOut, Edit2, RotateCcw, Check, Search, Square, MousePointer, AlertTriangle, Folder, FolderPlus, CornerLeftUp, Copy, HelpCircle } from 'lucide-react';
+import { Settings, Image as ImageIcon, Box, ArrowLeft, Map, Plus, Trash2, X, ChevronDown, LogOut, Edit2, RotateCcw, Check, Search, Square, MousePointer, AlertTriangle, Folder, FolderPlus, CornerLeftUp, Copy, HelpCircle, Import} from 'lucide-react';
 import { imageDB } from '../../context/db';
+
+// --- VARIÁVEL DE CONTROLE DE DRAG ---
+// Permite que os componentes saibam quem está sendo arrastado 
+// para evitar que uma pasta "aceite" a si mesma.
+let currentDraggingId = null;
 
 // --- COMPONENTES AUXILIARES ---
 
@@ -13,16 +18,25 @@ const WindowWrapper = ({ children, className, containerRef }) => (
         onMouseDown={e => e.stopPropagation()} 
         onClick={e => e.stopPropagation()} 
         onWheel={e => e.stopPropagation()}
+        // [CORREÇÃO] Impede que o "drop" atravesse a janela e vá para o Board
+        onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
+        onDrop={(e) => { e.preventDefault(); e.stopPropagation(); }}
     >
         {children}
     </div>
 );
 
+// Componente LibraryThumb atualizado com UX melhorada
 const LibraryThumb = React.memo(({ token, onRename, onDelete, moveItem }) => {
     const [src, setSrc] = useState(null);
     const [isRenaming, setIsRenaming] = useState(false);
     const [renameVal, setRenameVal] = useState(token.name || "");
     const [isConfirmingDelete, setIsConfirmingDelete] = useState(false); 
+    
+    // Estado para controle visual do Drag & Drop (Recebendo item)
+    const [isDragOver, setIsDragOver] = useState(false);
+    // [NOVO] Estado para controle visual quando ESTE item está sendo arrastado
+    const [isDragging, setIsDragging] = useState(false);
 
     useEffect(() => {
         let isMounted = true;
@@ -56,6 +70,10 @@ const LibraryThumb = React.memo(({ token, onRename, onDelete, moveItem }) => {
             e.preventDefault();
             return;
         }
+
+        // [NOVO] Define quem está sendo arrastado e ativa o visual de "fantasma"
+        currentDraggingId = token.id;
+        setIsDragging(true);
         
         const payload = { type: 'library_item', id: token.id };
         if (token.type === 'token') {
@@ -70,6 +88,7 @@ const LibraryThumb = React.memo(({ token, onRename, onDelete, moveItem }) => {
              e.dataTransfer.setData('application/json', JSON.stringify(payload));
         }
         
+        // Payload unificado para movimentação interna
         const unifiedPayload = {
             type: token.type === 'token' ? 'library_token' : 'library_folder', 
             libraryId: token.id,
@@ -79,10 +98,50 @@ const LibraryThumb = React.memo(({ token, onRename, onDelete, moveItem }) => {
         e.dataTransfer.setData('application/json', JSON.stringify(unifiedPayload));
     };
 
+    // [NOVO] Limpa o estado global e local ao terminar o drag
+    const handleDragEnd = () => {
+        currentDraggingId = null;
+        setIsDragging(false);
+        setIsDragOver(false);
+    };
+
+    // Handlers de Drag & Drop Melhorados
+    const handleDragEnter = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        // [CORREÇÃO] Se eu sou o item sendo arrastado, ignoro o evento.
+        // Isso impede a animação de "receber" a si mesmo.
+        if (currentDraggingId === token.id) return;
+
+        // Não permitir drop se for a própria pasta
+        if (token.type === 'folder') {
+            setIsDragOver(true);
+        }
+    };
+
+    const handleDragLeave = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        // [UX] Previne "flicker"
+        if (e.currentTarget.contains(e.relatedTarget)) return;
+
+        setIsDragOver(false);
+    };
+
     const handleDropOnFolder = (e) => {
         e.preventDefault();
         e.stopPropagation();
-        const data = JSON.parse(e.dataTransfer.getData('application/json'));
+        setIsDragOver(false); // Reseta visual
+
+        // [CORREÇÃO] Segurança extra no drop
+        if (currentDraggingId === token.id) return;
+
+        const dataString = e.dataTransfer.getData('application/json');
+        if (!dataString) return;
+        
+        const data = JSON.parse(dataString);
         if (data.libraryId && data.libraryId !== token.id) {
             moveItem(data.libraryId, token.id);
         }
@@ -105,7 +164,7 @@ const LibraryThumb = React.memo(({ token, onRename, onDelete, moveItem }) => {
         }
 
         return (
-            <div className="absolute top-1 right-1 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+            <div className={`absolute top-1 right-1 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-10 ${isDragging ? 'hidden' : ''}`}>
                 {token.type === 'folder' && (
                     <button onClick={(e) => { e.stopPropagation(); setIsRenaming(true); }} className="p-1 bg-black/60 rounded text-white hover:text-yellow-400 backdrop-blur-sm"><Edit2 size={10}/></button>
                 )}
@@ -123,15 +182,40 @@ const LibraryThumb = React.memo(({ token, onRename, onDelete, moveItem }) => {
             <div 
                 draggable 
                 onDragStart={handleDragStart}
-                onDragOver={(e) => { e.preventDefault(); e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.1)'; }}
-                onDragLeave={(e) => { e.currentTarget.style.backgroundColor = ''; }}
-                onDrop={(e) => { e.currentTarget.style.backgroundColor = ''; handleDropOnFolder(e); }}
+                onDragEnd={handleDragEnd}
+                // Eventos atualizados
+                onDragEnter={handleDragEnter}
+                onDragOver={(e) => { 
+                    e.preventDefault(); 
+                    /* Só permite drop se não for ele mesmo */ 
+                    if(currentDraggingId !== token.id) e.dataTransfer.dropEffect = "move"; 
+                }}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDropOnFolder}
                 onMouseLeave={handleMouseLeave}
-                className="aspect-square bg-white/5 rounded-xl border border-glass-border hover:border-white transition-all group relative flex flex-col items-center justify-center cursor-pointer h-full w-full select-none"
-                onClick={() => !isRenaming && !isConfirmingDelete && token.onEnter()} 
+                onClick={() => !isRenaming && !isConfirmingDelete && token.onEnter()}
+                // [NOVO] Visual de "Fantasma" (opacity-40 grayscale) e verificação de DragOver
+                className={`
+                    aspect-square rounded-xl border-2 transition-all duration-200 
+                    group relative flex flex-col items-center justify-center cursor-pointer h-full w-full select-none
+                    ${isDragging ? 'opacity-40 grayscale border-dashed border-white/30 scale-95' : ''} 
+                    ${isDragOver && !isDragging
+                        ? 'bg-neon-green/20 border-neon-green scale-105 shadow-[0_0_15px_rgba(74,222,128,0.4)] z-10' // Estilo quando arrastando em cima
+                        : 'bg-white/5 border-glass-border hover:border-white' // Estilo normal
+                    }
+                `}
             >
                 {confirmOverlay}
-                <Folder size={32} className={`mb-1 transition-colors ${isConfirmingDelete ? 'text-red-400' : 'text-yellow-500'}`} fill={isConfirmingDelete ? "rgba(248, 113, 113, 0.2)" : "rgba(234, 179, 8, 0.2)"}/>
+                
+                {/* Ícone muda de cor se estiver recebendo drop */}
+                <Folder 
+                    size={32} 
+                    className={`mb-1 transition-colors duration-200 ${
+                        isConfirmingDelete ? 'text-red-400' : 
+                        (isDragOver && !isDragging) ? 'text-neon-green scale-110' : 'text-yellow-500'
+                    }`} 
+                    fill={isConfirmingDelete ? "rgba(248, 113, 113, 0.2)" : ((isDragOver && !isDragging) ? "rgba(74, 222, 128, 0.2)" : "rgba(234, 179, 8, 0.2)")}
+                />
                 
                 {isRenaming ? (
                     <input 
@@ -144,17 +228,29 @@ const LibraryThumb = React.memo(({ token, onRename, onDelete, moveItem }) => {
                         onClick={(e) => e.stopPropagation()}
                     />
                 ) : (
-                    <span className="text-xs text-text-muted truncate w-full text-center px-1 select-none relative z-10">{token.name}</span>
+                    <span className={`text-xs truncate w-full text-center px-1 select-none relative z-10 transition-colors ${(isDragOver && !isDragging) ? 'text-white font-bold' : 'text-text-muted'}`}>
+                        {token.name}
+                    </span>
                 )}
 
                 {!isRenaming && renderActions()}
             </div>
         );
     }
-
+    
+    // Tokens normais
     return (
-        <div draggable onDragStart={handleDragStart} onMouseLeave={handleMouseLeave}
-             className={`aspect-square bg-black rounded-xl border-2 overflow-hidden cursor-grab active:cursor-grabbing transition-all group relative h-full w-full select-none ${isConfirmingDelete ? 'border-red-500 shadow-[0_0_10px_rgba(239,68,68,0.3)]' : 'border-glass-border hover:border-white'}`}>
+        <div 
+            draggable 
+            onDragStart={handleDragStart} 
+            onDragEnd={handleDragEnd}
+            onMouseLeave={handleMouseLeave}
+             className={`
+                aspect-square bg-black rounded-xl border-2 overflow-hidden cursor-grab active:cursor-grabbing transition-all group relative h-full w-full select-none 
+                ${isDragging ? 'opacity-40 grayscale border-dashed border-white/30 scale-95' : ''}
+                ${isConfirmingDelete ? 'border-red-500 shadow-[0_0_10px_rgba(239,68,68,0.3)]' : 'border-glass-border hover:border-white'}
+             `}
+        >
             {confirmOverlay}
             {src && <img src={src} className={`w-full h-full object-cover pointer-events-none transition-opacity ${isConfirmingDelete ? 'opacity-50 grayscale' : ''}`} alt="token"/>}
             {renderActions()}
@@ -194,6 +290,9 @@ const AssetDock = ({ isOpen, onClose }) => {
     } = useGame();
     
     const [currentFolderId, setCurrentFolderId] = useState(null);
+    // Estado para controlar o feedback visual da barra de breadcrumb
+    const [isBreadcrumbActive, setIsBreadcrumbActive] = useState(false);
+    
     const tokenInputRef = useRef(null);
     const libraryRef = useRef(null);
 
@@ -209,15 +308,37 @@ const AssetDock = ({ isOpen, onClose }) => {
     };
 
     const handleDropToParent = (e) => {
-        e.preventDefault();
-        e.stopPropagation();
         const data = JSON.parse(e.dataTransfer.getData('application/json'));
         if (!data.libraryId) return;
         
+        // Pega a pasta atual para descobrir quem é o pai
         const currentFolder = activeAdventure?.tokenLibrary?.find(t => t.id === currentFolderId);
+        // Se currentFolder existe, o alvo é o pai dele. Se não existe (estamos na raiz), não faz nada
         const targetId = currentFolder ? (currentFolder.parentId || null) : null;
         
         moveLibraryItem(data.libraryId, targetId);
+    };
+
+    // Handlers específicos para a Barra de Navegação (Hitbox Expandida)
+    const handleBreadcrumbDragEnter = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsBreadcrumbActive(true);
+    };
+
+    const handleBreadcrumbDragLeave = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        // Evita flicker se passar o mouse sobre elementos filhos
+        if (e.currentTarget.contains(e.relatedTarget)) return;
+        setIsBreadcrumbActive(false);
+    };
+
+    const handleBreadcrumbDrop = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsBreadcrumbActive(false);
+        handleDropToParent(e);
     };
 
     if (!isOpen) return null;
@@ -247,31 +368,47 @@ const AssetDock = ({ isOpen, onClose }) => {
                     Biblioteca de Tokens
                 </h3>
                 <div className="flex gap-1">
-                    <button onClick={() => addFolder("Nova Pasta", currentFolderId)} className="p-1 hover:bg-white/10 rounded text-text-muted hover:text-white" title="Criar Pasta"><FolderPlus size={16}/></button>
+                    <button onClick={() => addFolder("Pasta", currentFolderId)} className="p-1 hover:bg-white/10 rounded text-text-muted hover:text-white" title="Criar Pasta"><FolderPlus size={16}/></button>
                     <button onClick={onClose} className="p-1 hover:bg-white/10 rounded text-text-muted hover:text-white"><X size={16}/></button>
                 </div>
             </div>
 
-            {/* Breadcrumb / Nav */}
+            {/* Breadcrumb / Nav - [ATUALIZADO] Agora é uma Drop Zone completa */}
             <div 
-                className={`bg-black/40 border-b border-glass-border overflow-hidden transition-all duration-300 ease-in-out shrink-0 z-10 flex items-center px-2 gap-2 text-xs
-                ${showBreadcrumb ? 'max-h-12 opacity-100 py-2 translate-y-0' : 'max-h-0 opacity-0 py-0 -translate-y-2'}`}
+                className={`
+                    border-b transition-all duration-200 ease-in-out shrink-0 z-10 flex items-center px-2 gap-2 text-xs relative overflow-hidden
+                    ${showBreadcrumb ? 'max-h-12 opacity-100 py-2 translate-y-0' : 'max-h-0 opacity-0 py-0 -translate-y-2 pointer-events-none'}
+                    ${isBreadcrumbActive 
+                        ? 'bg-neon-green/20 border-neon-green cursor-copy shadow-[inset_0_0_20px_rgba(74,222,128,0.2)]' // Estilo Ativo
+                        : 'bg-black/40 border-glass-border' // Estilo Inativo
+                    }
+                `}
+                onDragEnter={handleBreadcrumbDragEnter}
+                onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }} 
+                onDragLeave={handleBreadcrumbDragLeave}
+                onDrop={handleBreadcrumbDrop}
             >
+                {/* Overlay de Feedback Visual - Aparece apenas durante o Drag */}
+                <div className={`absolute inset-0 flex items-center justify-center bg-black/80 backdrop-blur-sm z-30 transition-opacity duration-200 pointer-events-none ${isBreadcrumbActive ? 'opacity-100' : 'opacity-0'}`}>
+                    <div className="flex items-center gap-2 text-neon-green font-bold animate-pulse">
+                        <CornerLeftUp size={20} strokeWidth={3} />
+                        <span className="uppercase tracking-widest text-[10px]">Mover para pasta acima</span>
+                    </div>
+                </div>
+
+                {/* Conteúdo Normal */}
                 <button 
                     onClick={() => {
                             const curr = activeAdventure?.tokenLibrary?.find(t => t.id === currentFolderId);
                             setCurrentFolderId(curr?.parentId || null);
                     }}
-                    onDragOver={(e) => { e.preventDefault(); e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.2)'; }}
-                    onDragLeave={(e) => { e.currentTarget.style.backgroundColor = ''; }}
-                    onDrop={(e) => { e.currentTarget.style.backgroundColor = ''; handleDropToParent(e); }}
-                    className="p-1.5 bg-white/10 rounded hover:bg-white/20 text-neon-blue flex items-center gap-1 transition-colors shrink-0"
+                    className="p-1.5 bg-white/10 rounded hover:bg-white/20 text-white flex items-center gap-1 transition-colors shrink-0 z-10"
                     title="Voltar"
                 >
                     <CornerLeftUp size={14}/>
                 </button>
-                <div className="flex-1 min-w-0">
-                    <div className="text-[10px] text-text-muted uppercase font-bold leading-none mb-0.5">Pasta</div>
+                <div className="flex-1 min-w-0 z-10">
+                    <div className="text-[10px] text-text-muted uppercase font-bold leading-none mb-0.5">Pasta Atual</div>
                     <div className="font-mono text-white truncate leading-none">{currentFolderName}</div>
                 </div>
             </div>
@@ -279,8 +416,8 @@ const AssetDock = ({ isOpen, onClose }) => {
             {/* Content Area */}
             <div className="flex-1 overflow-y-auto scrollbar-thin min-h-0 p-3 bg-black/20">
                 <div className="grid grid-cols-4 gap-2 pb-2">
-                    <div onClick={() => tokenInputRef.current?.click()} className="aspect-square border border-dashed border-glass-border rounded-xl hover:bg-white/10 flex flex-col items-center justify-center cursor-pointer text-text-muted hover:text-neon-blue transition h-full w-full">
-                        <Plus size={24}/>
+                    <div onClick={() => tokenInputRef.current?.click()} className="aspect-square border border-dashed border-glass-border rounded-xl hover:bg-white/10 flex flex-col items-center justify-center cursor-pointer text-text-muted hover:text-white transition h-full w-full">
+                        <Import size={24}/>
                     </div>
                     <input ref={tokenInputRef} type="file" className="hidden" accept="image/*" multiple onChange={handleMultiTokenUpload}/>
                     
@@ -311,7 +448,7 @@ const SceneSelector = ({ isOpen }) => {
     const [renameValue, setRenameValue] = useState("");
     const [deletingId, setDeletingId] = useState(null);
     
-    // [NOVO] Campo de Busca
+    // Campo de Busca
     const [searchQuery, setSearchQuery] = useState("");
 
     useEffect(() => {
@@ -336,12 +473,12 @@ const SceneSelector = ({ isOpen }) => {
         setRenamingId(null);
     };
 
-    // [NOVO] Helper para normalizar texto (remover acentos, lowercase)
+    // Helper para normalizar texto
     const normalizeText = (text) => {
         return text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
     };
 
-    // [NOVO] Filtragem de cenas
+    // Filtragem de cenas
     const filteredScenes = activeAdventure?.scenes.filter(s => {
         if (!searchQuery) return true;
         return normalizeText(s.name).includes(normalizeText(searchQuery));
@@ -355,7 +492,7 @@ const SceneSelector = ({ isOpen }) => {
                 <h3 className="font-rajdhani font-bold text-white text-sm">Cenas da Aventura</h3>
             </div>
             
-            {/* [NOVO] Campo de Busca */}
+            {/* Campo de Busca */}
             <div className="px-3 py-2 bg-black/20 border-b border-white/5">
                 <div className="flex items-center gap-2 bg-black/40 rounded px-2 py-1.5 border border-transparent focus-within:border-glass-border transition-colors">
                     <Search size={12} className="text-text-muted"/>
@@ -404,7 +541,6 @@ const SceneSelector = ({ isOpen }) => {
                             <span className={`text-sm font-bold truncate max-w-[120px] ${activeScene?.id === s.id ? 'text-neon-green' : 'text-white'}`}>{s.name}</span>
                             <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                 <button onClick={(e) => { e.stopPropagation(); setRenamingId(s.id); setRenameValue(s.name); setDeletingId(null); }} className="text-text-muted hover:text-yellow-400 p-1" title="Renomear"><Edit2 size={14}/></button>
-                                {/* [NOVO] Botão Duplicar */}
                                 <button onClick={(e) => { e.stopPropagation(); duplicateScene(s.id); }} className="text-text-muted hover:text-neon-blue p-1" title="Duplicar"><Copy size={14}/></button>
                                 <button onClick={(e) => { e.stopPropagation(); if (!isOnlyScene) { setDeletingId(s.id); setRenamingId(null); } }} className={`p-1 ${isOnlyScene ? 'text-text-muted opacity-30 cursor-not-allowed' : 'text-text-muted hover:text-red-500'}`} title="Excluir"><Trash2 size={14}/></button>
                             </div>
@@ -458,7 +594,6 @@ const MapConfigModal = ({ isOpen, onClose }) => {
     );
 };
 
-// [NOVO] Janela de Ajuda
 const HelpWindow = ({ isOpen, onClose }) => {
     const helpRef = useRef(null);
     if (!isOpen) return null;
@@ -585,8 +720,6 @@ export const VTTLayout = ({ zoomValue, onZoomChange, activeTool, setActiveTool }
 
               <div className="flex items-center gap-2 p-1.5">
                 
-                {/* [NOVO] Botão de Ajuda */}
-
                 <button onClick={() => { setActiveTool('select'); closeAllMenus(); }} className={`p-2 rounded hover:bg-white/10 transition ${activeTool === 'select' ? 'bg-white/20 text-neon-green' : 'text-text-muted'}`} title="Modo Seleção"><MousePointer size={18}/></button>
                 <button onClick={() => { setActiveTool('fogOfWar'); closeAllMenus(); }} className={`p-2 rounded hover:bg-white/10 transition ${activeTool === 'fogOfWar' ? 'bg-white/20 text-neon-purple' : 'text-text-muted'}`} title="Fog of War"><Square size={18}/></button>
                 
