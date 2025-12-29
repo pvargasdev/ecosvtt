@@ -45,7 +45,7 @@ const DATA_ABILITIES = [
     { id: 'serenidade', name: 'Serenidade', type: 'origin', req: 'elfo', description: 'Seu valor máximo de Karma inicial é 4.' },
     { id: 'espirito_civico', name: 'Espírito Cívico', type: 'origin', req: 'pequenino', description: 'Gaste 1 Karma extra ao ajudar para dar +2 dados no total.' },
     { id: 'determinacao_versatil', name: 'Determinação Versátil', type: 'origin', req: 'humano', description: 'Uma vez por sessão, adicione +2 dados para qualquer teste.' },
-    { id: 'parrudo', name: 'Parrudo', type: 'origin', req: 'meio_orc', description: 'Imune a efeitos de veneno, toxina ou magia de atordoamento.' },
+    { id: 'parrudo', name: 'Parrudo', type: 'origin', req: 'meio_orc', description: 'Imune a efeitos de veneno, toxina ou atordoamento.' },
     { id: 'nascido_do_inferno', name: 'Nascido do Inferno', type: 'origin', req: 'tiefling', description: 'Você possui imunidade contra chamas e calor intenso.' },
     { id: 'heranca_vampirica', name: 'Herança Vampírica', type: 'origin', req: 'vampiro', description: 'Sugar sangue cura 1 dano. Sofre 1 dano/turno sob luz do Sol.' },
 
@@ -113,7 +113,7 @@ const DATA_ABILITIES = [
     { id: 'fome_por_conhecimento', name: 'Fome por Conhecimento', type: 'class', req: 'feiticeiro', description: 'Começa com 1 espaço adicional desbloqueado na árvore.' },
     { id: 'elemento_de_poder', name: 'Elemento de Poder', type: 'class', req: 'feiticeiro', description: 'Escolha um tipo de dano para suas habilidades elementais.' },
     { id: 'maos_magicas', name: 'Mãos Mágicas', type: 'class', req: 'feiticeiro', description: '1 Karma: Conjura mão fantasma que executa tarefas à distância.' },
-    { id: 'conjurar_espiritos', name: 'Conjurar Espíritos', type: 'class', req: 'feiticeiro', description: 'Invoca espíritos que atacam (3) inimigos por duração curta.' },
+    { id: 'conjurar_espiritos', name: 'Conjurar Espíritos', type: 'class', req: 'feiticeiro', description: 'Invoca espíritos que atacam (INT+1) por duração curta.' },
     { id: 'forma_animal', name: 'Forma Animal', type: 'class', req: 'feiticeiro', description: 'Gaste 3 Karma para adotar a forma de um animal até fim da cena.' },
     { id: 'falar_com_natureza', name: 'Falar com Natureza', type: 'class', req: 'feiticeiro', description: 'Conversa com animais e plantas para obter info ou favores.' },
     { id: 'forma_animal_ii', name: 'Forma Animal II', type: 'class', req: 'feiticeiro', description: 'Forma Animal passa a custar 2 Karma.' },
