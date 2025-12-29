@@ -122,7 +122,7 @@ const DATA_ABILITIES = [
     { id: 'explosao_elemental', name: 'Explosão Elemental', type: 'class', req: 'feiticeiro', description: '2 Karma: Ataque (INT+2) em área média com Elemento de Poder.' },
 
     // --- COMBATENTE [Pág. 10] ---
-    { id: 'posturas_de_luta', name: 'Posturas de Luta', type: 'class', req: 'combatente', description: 'Após acertar ataque, gaste 1 Karma para entrar em Zen ou Frenesi.' },
+    { id: 'posturas_de_luta', name: 'Posturas de Luta', type: 'class', req: 'combatente', description: 'Fim do turno: gaste 1 Karma para entrar em postura Zen (Karma máx todo turno, mas não ataca) ou Frenesi (+3 dados em ataques feitos ou recebidos).' },
     { id: 'intuicao_cega', name: 'Intuição Cega', type: 'class', req: 'combatente', description: 'Imune a efeitos de cegueira/invisibilidade para atacar.' },
     { id: 'precisao_critica', name: 'Precisão Crítica', type: 'class', req: 'combatente', description: 'Ataques com resultado 18+ são considerados críticos.' },
     { id: 'protecao', name: 'Proteção', type: 'class', req: 'combatente', description: 'Gaste 2 Karma para reduzir ataque contra aliado próximo em -2 dados.' },
