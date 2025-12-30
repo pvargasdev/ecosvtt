@@ -108,14 +108,10 @@ export const imageDB = {
         if (window.electron) {
             try {
                 const buffer = await blobToArrayBuffer(fileOrBlob);
-                // O Electron precisa ter um método 'saveAudio' no preload/main similar ao saveImage
-                // Se ainda não tiver, ele usará a lógica de arquivo genérico se você implementou, 
-                // mas idealmente criaremos um canal específico 'saveAudio' no Electron depois.
-                // Por hora, assumimos que existe ou que vamos criar.
                 if (window.electron.saveAudio) {
                     await window.electron.saveAudio(id, buffer);
                 } else {
-                    console.warn("Método window.electron.saveAudio não encontrado.");
+                    console.warn("Método window.electron.saveAudio não encontrado no preload.");
                     return null;
                 }
                 return id;
@@ -131,7 +127,6 @@ export const imageDB = {
             return new Promise((resolve, reject) => {
                 const transaction = db.transaction([STORE_AUDIO], 'readwrite');
                 const store = transaction.objectStore(STORE_AUDIO);
-                // Salvamos também o tipo MIME para facilitar a reprodução depois
                 const request = store.put({ 
                     id, 
                     blob: fileOrBlob, 
@@ -155,12 +150,10 @@ export const imageDB = {
             try {
                 if (window.electron.getAudio) {
                     const result = await window.electron.getAudio(id);
+                    // [CORREÇÃO] Verifica se veio resultado e cria o Blob corretamente
                     if (result) {
-                        if (result instanceof ArrayBuffer || (result.type === 'Buffer')) {
-                            // Retorna o Blob. O Howler.js aceita Blob URL ou Base64.
-                            // Importante passar o type correto se possível, mas genericamente audio/*
-                            return new Blob([result], { type: 'audio/mpeg' }); 
-                        }
+                         // Aceita tanto Buffer quanto ArrayBuffer ou Uint8Array
+                        return new Blob([result], { type: 'audio/mpeg' }); 
                     }
                 }
                 return null;
