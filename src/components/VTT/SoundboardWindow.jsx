@@ -35,7 +35,6 @@ const AudioThumb = ({ item, onRename, onDelete, moveItem, onClick, isPlaying }) 
         if (data.type === 'audio_library_item' && data.libraryId !== item.id) moveItem(data.libraryId, item.id);
     };
     
-    // CORREÇÃO: Esta função trata o clique e impede conflito com Renomear/Deletar
     const handleSafeClick = (e) => {
         if (isRenaming || isConfirmingDelete) {
             e.stopPropagation();
@@ -55,7 +54,6 @@ const AudioThumb = ({ item, onRename, onDelete, moveItem, onClick, isPlaying }) 
             onDragStart={handleDragStart} 
             onDragOver={(e) => { if(isFolder) e.preventDefault(); }} 
             onDrop={handleDrop}
-            // AQUI O CLICK É CHAMADO CORRETAMENTE:
             onClick={handleSafeClick} 
             onMouseLeave={() => setIsConfirmingDelete(false)}
             className={`aspect-square rounded-xl border-2 transition-all duration-200 group relative flex flex-col items-center justify-center cursor-pointer h-full w-full select-none ${isPlaying ? 'border-neon-green bg-neon-green/10 shadow-[0_0_10px_rgba(0,255,0,0.2)]' : 'bg-white/5 border-glass-border hover:border-white'} ${isConfirmingDelete ? 'border-red-500 bg-red-900/20' : ''}`}
@@ -114,8 +112,9 @@ const PlayerBar = ({ trackName, isPlaying, onPlayPause, duration, currentTime, o
 
 const SoundboardWindow = ({ isOpen, onClose }) => {
     const { activeAdventure, addAudioToLibrary, addAudioFolder, removeAudioFromLibrary, moveAudioItem, renameAudioItem } = useGame();
+    
     const { 
-        playMusic, playSFX, pauseMusic, stopAll, 
+        playMusic, pauseMusic, playSFX, stopAll, 
         musicVolume, setMusicVolume, 
         sfxVolume, setSfxVolume,
         currentMusicId, isPlaying,
@@ -138,8 +137,8 @@ const SoundboardWindow = ({ isOpen, onClose }) => {
     
     const currentFolder = activeAdventure?.audioLibrary?.find(t => t.id === currentFolderId);
     
-    // Procura o objeto da música que está tocando para exibir o nome
-    const playingTrack = activeAdventure?.audioLibrary?.find(t => t.audioId === currentMusicId);
+    // Comparação de ID normalizada para achar o nome da música
+    const playingTrack = activeAdventure?.audioLibrary?.find(t => String(t.audioId || t.id) === String(currentMusicId));
 
     const handleFileUpload = (e) => {
         const files = e.target.files;
@@ -154,28 +153,29 @@ const SoundboardWindow = ({ isOpen, onClose }) => {
         if (files && files.length) for (let i = 0; i < files.length; i++) addAudioToLibrary(files[i], currentFolderId, activeTab);
     };
 
-    // AQUI ESTÁ A CORREÇÃO PRINCIPAL DO CLIQUE
     const handleItemClick = (item) => {
         if (item.type === 'folder') { 
             setCurrentFolderId(item.id); 
         } else {
-            // Passamos o ITEM inteiro, não apenas o ID
-            if (item.category === 'music') playMusic(item);
-            else playSFX(item);
+            if (item.category === 'music') {
+                playMusic(item); 
+            } else {
+                playSFX(item);
+            }
         }
     };
 
-    // Lógica do botão Play/Pause do rodapé
     const handlePlayPauseToggle = () => {
-        // Se já existe uma música selecionada, mandamos o objeto dela (playingTrack)
-        // Se ela já estiver tocando, o playMusic sabe pausar.
-        if (playingTrack) {
-            playMusic(playingTrack); 
-        } else if (currentMusicId) {
-             // Fallback caso o objeto playingTrack não seja achado, mas temos ID
-             // (Isso tenta retomar, mas idealmente precisamos do objeto se for load inicial)
-             // Como só chegamos aqui se currentMusicId existe, o AudioContext deve ter o src carregado
-             playMusic({ audioId: currentMusicId }); 
+        if (isPlaying) {
+            pauseMusic();
+        } else {
+            // Se tem track selecionada/tocando, manda Play/Resume
+            if (currentMusicId) {
+                 // Busca o item completo se possível, ou manda objeto mínimo
+                 const track = activeAdventure?.audioLibrary?.find(t => String(t.audioId || t.id) === String(currentMusicId));
+                 if (track) playMusic(track);
+                 else playMusic({ audioId: currentMusicId }); 
+            }
         }
     };
 
@@ -184,9 +184,8 @@ const SoundboardWindow = ({ isOpen, onClose }) => {
     return (
         <WindowWrapper containerRef={windowRef} className={`absolute top-24 right-4 w-[340px] bg-[#121216]/95 border border-glass-border backdrop-blur-md rounded-xl flex flex-col max-h-[85vh] z-40 shadow-2xl origin-top-right animate-in fade-in zoom-in-95 overflow-hidden`}>
             
-            {/* Header & Global Controls */}
             <div className="p-3 border-b border-glass-border bg-black/40 shrink-0 space-y-3" onDragOver={e => e.preventDefault()} onDrop={handleWindowDrop}>
-                <div className="flex justify-between items-center">
+                 <div className="flex justify-between items-center">
                     <h3 className="font-rajdhani font-bold text-white flex items-center gap-2">
                         <Speaker size={18} className={accentColor}/> SOUNDBOARD
                     </h3>
@@ -221,7 +220,7 @@ const SoundboardWindow = ({ isOpen, onClose }) => {
                 <button onClick={() => setActiveTab('music')} className={`flex-1 py-2 text-xs font-bold uppercase tracking-wider transition-colors flex items-center justify-center gap-2 ${activeTab === 'music' ? 'bg-neon-blue/10 text-neon-blue border-b-2 border-neon-blue' : 'text-text-muted hover:text-white hover:bg-white/5'}`}><Music size={14}/> Music</button>
                 <button onClick={() => setActiveTab('sfx')} className={`flex-1 py-2 text-xs font-bold uppercase tracking-wider transition-colors flex items-center justify-center gap-2 ${activeTab === 'sfx' ? 'bg-orange-500/10 text-orange-500 border-b-2 border-orange-500' : 'text-text-muted hover:text-white hover:bg-white/5'}`}><Volume2 size={14}/> SFX</button>
             </div>
-
+            
             <div className={`flex items-center gap-2 p-2 border-b border-white/5 text-xs transition-colors shrink-0 ${currentFolderId ? 'bg-white/5' : 'bg-transparent'}`} onDragOver={e => e.preventDefault()} onDrop={(e) => { e.preventDefault(); e.stopPropagation(); const data = JSON.parse(e.dataTransfer.getData('application/json')); if (data.type === 'audio_library_item') moveAudioItem(data.libraryId, currentFolder?.parentId || null); }}>
                 <button onClick={() => setCurrentFolderId(currentFolder?.parentId || null)} disabled={!currentFolderId} className={`p-1.5 rounded transition-colors ${currentFolderId ? 'bg-white/10 text-white hover:bg-white/20 cursor-pointer' : 'text-text-muted opacity-30 cursor-default'}`}><CornerLeftUp size={14}/></button>
                 <div className="flex-1 truncate font-mono text-text-muted">{currentFolderId ? `/${currentFolder?.name}` : '/Raiz'}</div>
@@ -234,7 +233,16 @@ const SoundboardWindow = ({ isOpen, onClose }) => {
                     <div onClick={() => fileInputRef.current?.click()} className="aspect-square border border-dashed border-glass-border rounded-xl hover:bg-white/10 flex flex-col items-center justify-center cursor-pointer text-text-muted hover:text-white transition h-full w-full opacity-50 hover:opacity-100"><FolderPlus size={24}/></div>
                     <input ref={fileInputRef} type="file" className="hidden" accept="audio/*" multiple onChange={handleFileUpload}/>
                     {currentItems.map(item => (
-                        <AudioThumb key={item.id} item={item} isPlaying={activeTab === 'music' && currentMusicId === item.audioId && isPlaying} onRename={renameAudioItem} onDelete={removeAudioFromLibrary} moveItem={moveAudioItem} onClick={handleItemClick}/>
+                        <AudioThumb 
+                            key={item.id} 
+                            item={item} 
+                            // [CORREÇÃO] Comparação de ID segura (String)
+                            isPlaying={activeTab === 'music' && String(currentMusicId) === String(item.audioId || item.id) && isPlaying} 
+                            onRename={renameAudioItem} 
+                            onDelete={removeAudioFromLibrary} 
+                            moveItem={moveAudioItem} 
+                            onClick={handleItemClick}
+                        />
                     ))}
                 </div>
             </div>
