@@ -150,19 +150,21 @@ export const imageDB = {
             try {
                 if (window.electron.getAudio) {
                     const result = await window.electron.getAudio(id);
-                    // [CORREÇÃO] Verifica se veio resultado e cria o Blob corretamente
+                    
+                    // CORREÇÃO: Verificação simplificada e robusta
+                    // Se veio algum dado (result), transformamos em Blob
                     if (result) {
-                         // Aceita tanto Buffer quanto ArrayBuffer ou Uint8Array
                         return new Blob([result], { type: 'audio/mpeg' }); 
                     }
                 }
                 return null;
             } catch (e) {
+                console.error("Erro DB Electron:", e);
                 return null;
             }
         }
 
-        // 2. MODO WEB
+        // 2. MODO WEB (Mantenha o resto igual...)
         try {
             const db = await openDB();
             return new Promise((resolve, reject) => {
@@ -170,8 +172,8 @@ export const imageDB = {
                 const store = transaction.objectStore(STORE_AUDIO);
                 const request = store.get(id);
                 request.onsuccess = () => {
-                    const result = request.result;
-                    resolve(result ? result.blob : null);
+                    const res = request.result;
+                    resolve(res ? res.blob : null);
                 };
                 request.onerror = () => resolve(null);
             });

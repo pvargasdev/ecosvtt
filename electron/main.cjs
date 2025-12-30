@@ -109,8 +109,8 @@ ipcMain.handle('get-audio', async (event, id) => {
         const p = path.join(AUDIO_PATH, id);
         
         if (fs.existsSync(p)) {
-            // [CORREÇÃO CRÍTICA] Retornamos o buffer direto, sem .buffer
-            // Isso evita que o Node envie lixo de memória junto com o arquivo
+            // CORREÇÃO CRÍTICA: Remova o ".buffer" do final!
+            // Retorne o resultado do readFileSync direto.
             return fs.readFileSync(p);
         }
     } catch (e) {
