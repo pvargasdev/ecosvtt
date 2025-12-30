@@ -12,12 +12,13 @@
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "electron:dev": "concurrently \"npm run dev\" \"npm run electron:start\"", 
+    "electron:dev": "concurrently \"npm run dev\" \"npm run electron:start\"",
     "electron:start": "wait-on tcp:5173 && electron .",
-    "electron:build": "npm run build && electron-builder" 
+    "electron:build": "npm run build && electron-builder"
   },
   "dependencies": {
     "file-saver": "^2.0.5",
+    "howler": "^2.2.4",
     "jszip": "^3.10.1",
     "lucide-react": "^0.559.0",
     "react": "^19.2.0",
@@ -30,8 +31,8 @@
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^5.1.1",
     "autoprefixer": "^10.4.17",
-    "concurrently": "^8.2.2", 
-    "electron": "^30.0.9", 
+    "concurrently": "^8.2.2",
+    "electron": "^30.0.9",
     "electron-builder": "^24.13.3",
     "eslint": "^9.39.1",
     "eslint-plugin-react-hooks": "^7.0.1",
@@ -40,9 +41,9 @@
     "postcss": "^8.4.35",
     "tailwindcss": "^3.4.17",
     "vite": "^7.2.4",
-    "wait-on": "^7.2.0" 
+    "wait-on": "^7.2.0"
   },
-  "build": { 
+  "build": {
     "appId": "com.yourcompany.ecosvtt",
     "productName": "ECOS Tabletop",
     "files": [
