@@ -4,10 +4,8 @@ import { useAudio } from '../../context/AudioContext';
 import { 
     X, Folder, FolderPlus, CornerLeftUp, Music, Speaker, 
     Volume2, Square, Play, Pause, Trash2, Edit2, 
-    Clock, Settings2
+    Clock
 } from 'lucide-react';
-
-// --- COMPONENTES AUXILIARES ---
 
 const WindowWrapper = ({ children, className, containerRef }) => (
     <div 
@@ -36,6 +34,15 @@ const AudioThumb = ({ item, onRename, onDelete, moveItem, onClick, isPlaying }) 
         const data = JSON.parse(dataString);
         if (data.type === 'audio_library_item' && data.libraryId !== item.id) moveItem(data.libraryId, item.id);
     };
+    
+    // CORREÇÃO: Esta função trata o clique e impede conflito com Renomear/Deletar
+    const handleSafeClick = (e) => {
+        if (isRenaming || isConfirmingDelete) {
+            e.stopPropagation();
+            return;
+        }
+        onClick(item);
+    };
 
     const isFolder = item.type === 'folder';
     const isMusic = item.category === 'music';
@@ -44,8 +51,13 @@ const AudioThumb = ({ item, onRename, onDelete, moveItem, onClick, isPlaying }) 
 
     return (
         <div 
-            draggable onDragStart={handleDragStart} onDragOver={(e) => { if(isFolder) e.preventDefault(); }} onDrop={handleDrop}
-            onClick={() => !isRenaming && !isConfirmingDelete && onClick(item)} onMouseLeave={() => setIsConfirmingDelete(false)}
+            draggable 
+            onDragStart={handleDragStart} 
+            onDragOver={(e) => { if(isFolder) e.preventDefault(); }} 
+            onDrop={handleDrop}
+            // AQUI O CLICK É CHAMADO CORRETAMENTE:
+            onClick={handleSafeClick} 
+            onMouseLeave={() => setIsConfirmingDelete(false)}
             className={`aspect-square rounded-xl border-2 transition-all duration-200 group relative flex flex-col items-center justify-center cursor-pointer h-full w-full select-none ${isPlaying ? 'border-neon-green bg-neon-green/10 shadow-[0_0_10px_rgba(0,255,0,0.2)]' : 'bg-white/5 border-glass-border hover:border-white'} ${isConfirmingDelete ? 'border-red-500 bg-red-900/20' : ''}`}
         >
             <div className={`mb-1 transition-transform group-hover:scale-110 ${iconColor}`}>
@@ -65,7 +77,6 @@ const AudioThumb = ({ item, onRename, onDelete, moveItem, onClick, isPlaying }) 
     );
 };
 
-// --- PLAYER BAR (Atualizado: Sem input de fade, apenas display e controle de tempo) ---
 const PlayerBar = ({ trackName, isPlaying, onPlayPause, duration, currentTime, onSeek }) => {
     const formatTime = (secs) => {
         if (!secs || isNaN(secs)) return "0:00";
@@ -76,7 +87,6 @@ const PlayerBar = ({ trackName, isPlaying, onPlayPause, duration, currentTime, o
 
     return (
         <div className="p-3 bg-[#0a0a0e] border-t border-glass-border animate-in slide-in-from-bottom-2 shrink-0 z-20 shadow-up-lg">
-            {/* Info e Controles Principais */}
             <div className="flex items-center justify-between mb-2">
                 <div className="flex flex-col min-w-0 pr-2">
                     <span className="text-[10px] text-neon-blue font-bold uppercase tracking-wider flex items-center gap-1"><Music size={10}/> Tocando Agora</span>
@@ -89,15 +99,10 @@ const PlayerBar = ({ trackName, isPlaying, onPlayPause, duration, currentTime, o
                     {isPlaying ? <Pause size={16} fill="currentColor"/> : <Play size={16} fill="currentColor" className="ml-0.5"/>}
                 </button>
             </div>
-
-            {/* Barra de Progresso */}
             <div className="flex items-center gap-2 text-[10px] text-text-muted font-mono">
                 <span className="w-8 text-right">{formatTime(currentTime)}</span>
                 <input 
-                    type="range" 
-                    min="0" 
-                    max={duration || 100} 
-                    value={currentTime}
+                    type="range" min="0" max={duration || 100} value={currentTime}
                     onChange={(e) => onSeek(parseFloat(e.target.value))}
                     className="flex-1 h-1 bg-white/20 rounded-lg appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-2.5 [&::-webkit-slider-thumb]:h-2.5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-neon-green hover:[&::-webkit-slider-thumb]:scale-125 transition-all"
                 />
@@ -107,7 +112,6 @@ const PlayerBar = ({ trackName, isPlaying, onPlayPause, duration, currentTime, o
     );
 };
 
-// --- COMPONENTE PRINCIPAL ---
 const SoundboardWindow = ({ isOpen, onClose }) => {
     const { activeAdventure, addAudioToLibrary, addAudioFolder, removeAudioFromLibrary, moveAudioItem, renameAudioItem } = useGame();
     const { 
@@ -133,6 +137,8 @@ const SoundboardWindow = ({ isOpen, onClose }) => {
     currentItems.sort((a, b) => (a.type === 'folder' && b.type !== 'folder') ? -1 : (a.type !== 'folder' && b.type === 'folder' ? 1 : 0));
     
     const currentFolder = activeAdventure?.audioLibrary?.find(t => t.id === currentFolderId);
+    
+    // Procura o objeto da música que está tocando para exibir o nome
     const playingTrack = activeAdventure?.audioLibrary?.find(t => t.audioId === currentMusicId);
 
     const handleFileUpload = (e) => {
@@ -148,17 +154,29 @@ const SoundboardWindow = ({ isOpen, onClose }) => {
         if (files && files.length) for (let i = 0; i < files.length; i++) addAudioToLibrary(files[i], currentFolderId, activeTab);
     };
 
+    // AQUI ESTÁ A CORREÇÃO PRINCIPAL DO CLIQUE
     const handleItemClick = (item) => {
-        if (item.type === 'folder') { setCurrentFolderId(item.id); } 
-        else {
-            if (item.category === 'music') playMusic(item.audioId);
-            else playSFX(item.audioId);
+        if (item.type === 'folder') { 
+            setCurrentFolderId(item.id); 
+        } else {
+            // Passamos o ITEM inteiro, não apenas o ID
+            if (item.category === 'music') playMusic(item);
+            else playSFX(item);
         }
     };
 
+    // Lógica do botão Play/Pause do rodapé
     const handlePlayPauseToggle = () => {
-        if (isPlaying) pauseMusic();
-        else if (currentMusicId) playMusic(currentMusicId); 
+        // Se já existe uma música selecionada, mandamos o objeto dela (playingTrack)
+        // Se ela já estiver tocando, o playMusic sabe pausar.
+        if (playingTrack) {
+            playMusic(playingTrack); 
+        } else if (currentMusicId) {
+             // Fallback caso o objeto playingTrack não seja achado, mas temos ID
+             // (Isso tenta retomar, mas idealmente precisamos do objeto se for load inicial)
+             // Como só chegamos aqui se currentMusicId existe, o AudioContext deve ter o src carregado
+             playMusic({ audioId: currentMusicId }); 
+        }
     };
 
     const accentColor = activeTab === 'music' ? 'text-neon-blue' : 'text-orange-500';
@@ -168,7 +186,6 @@ const SoundboardWindow = ({ isOpen, onClose }) => {
             
             {/* Header & Global Controls */}
             <div className="p-3 border-b border-glass-border bg-black/40 shrink-0 space-y-3" onDragOver={e => e.preventDefault()} onDrop={handleWindowDrop}>
-                {/* Título e Botões de Janela */}
                 <div className="flex justify-between items-center">
                     <h3 className="font-rajdhani font-bold text-white flex items-center gap-2">
                         <Speaker size={18} className={accentColor}/> SOUNDBOARD
@@ -177,59 +194,40 @@ const SoundboardWindow = ({ isOpen, onClose }) => {
                         <button onClick={stopAll} className="p-1 px-2 bg-red-900/50 border border-red-500/30 rounded text-red-400 hover:bg-red-600 hover:text-white text-[10px] font-bold transition flex items-center gap-1">
                             <Square size={10} fill="currentColor"/> STOP
                         </button>
-                        <button onClick={onClose} className="p-1 hover:bg-white/10 rounded text-text-muted hover:text-white">
-                            <X size={16}/>
-                        </button>
+                        <button onClick={onClose} className="p-1 hover:bg-white/10 rounded text-text-muted hover:text-white"><X size={16}/></button>
                     </div>
                 </div>
 
-                {/* Controles de Volume e Fade */}
                 <div className="bg-white/5 rounded-lg p-3 space-y-3 border border-white/5">
-                    {/* Volume Música */}
                     <div className="space-y-1">
                         <div className="flex justify-between text-[10px] text-neon-blue font-bold uppercase"><span>Música</span><span>{Math.round(musicVolume * 100)}%</span></div>
                         <input type="range" min="0" max="1" step="0.05" value={musicVolume} onChange={e => setMusicVolume(parseFloat(e.target.value))} className="w-full h-1.5 bg-black rounded-lg appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-neon-blue"/>
                     </div>
-                    
-                    {/* Volume SFX */}
                     <div className="space-y-1">
                         <div className="flex justify-between text-[10px] text-orange-500 font-bold uppercase"><span>SFX</span><span>{Math.round(sfxVolume * 100)}%</span></div>
                         <input type="range" min="0" max="1" step="0.05" value={sfxVolume} onChange={e => setSfxVolume(parseFloat(e.target.value))} className="w-full h-1.5 bg-black rounded-lg appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-orange-500"/>
                     </div>
-
-                    {/* [NOVO] Slider de Fade Duration */}
                     <div className="space-y-1 pt-1 border-t border-white/5">
                          <div className="flex justify-between text-[10px] text-text-muted font-bold uppercase">
                             <span className="flex items-center gap-1"><Clock size={10}/> Fade Duration</span>
                             <span className="text-white">{(crossfadeDuration / 1000).toFixed(1)}s</span>
                         </div>
-                        <input 
-                            type="range" 
-                            min="0" 
-                            max="5000" // Máximo de 5 segundos
-                            step="500" // Passos de 0.5s
-                            value={crossfadeDuration} 
-                            onChange={e => setCrossfadeDuration(parseFloat(e.target.value))} 
-                            className="w-full h-1.5 bg-black rounded-lg appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white hover:[&::-webkit-slider-thumb]:bg-neon-green transition-colors"
-                        />
+                        <input type="range" min="0" max="5000" step="500" value={crossfadeDuration} onChange={e => setCrossfadeDuration(parseFloat(e.target.value))} className="w-full h-1.5 bg-black rounded-lg appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white hover:[&::-webkit-slider-thumb]:bg-neon-green transition-colors"/>
                     </div>
                 </div>
             </div>
 
-            {/* Tabs */}
             <div className="flex border-b border-glass-border bg-black/20 shrink-0">
                 <button onClick={() => setActiveTab('music')} className={`flex-1 py-2 text-xs font-bold uppercase tracking-wider transition-colors flex items-center justify-center gap-2 ${activeTab === 'music' ? 'bg-neon-blue/10 text-neon-blue border-b-2 border-neon-blue' : 'text-text-muted hover:text-white hover:bg-white/5'}`}><Music size={14}/> Music</button>
                 <button onClick={() => setActiveTab('sfx')} className={`flex-1 py-2 text-xs font-bold uppercase tracking-wider transition-colors flex items-center justify-center gap-2 ${activeTab === 'sfx' ? 'bg-orange-500/10 text-orange-500 border-b-2 border-orange-500' : 'text-text-muted hover:text-white hover:bg-white/5'}`}><Volume2 size={14}/> SFX</button>
             </div>
 
-            {/* Breadcrumbs */}
             <div className={`flex items-center gap-2 p-2 border-b border-white/5 text-xs transition-colors shrink-0 ${currentFolderId ? 'bg-white/5' : 'bg-transparent'}`} onDragOver={e => e.preventDefault()} onDrop={(e) => { e.preventDefault(); e.stopPropagation(); const data = JSON.parse(e.dataTransfer.getData('application/json')); if (data.type === 'audio_library_item') moveAudioItem(data.libraryId, currentFolder?.parentId || null); }}>
                 <button onClick={() => setCurrentFolderId(currentFolder?.parentId || null)} disabled={!currentFolderId} className={`p-1.5 rounded transition-colors ${currentFolderId ? 'bg-white/10 text-white hover:bg-white/20 cursor-pointer' : 'text-text-muted opacity-30 cursor-default'}`}><CornerLeftUp size={14}/></button>
                 <div className="flex-1 truncate font-mono text-text-muted">{currentFolderId ? `/${currentFolder?.name}` : '/Raiz'}</div>
                 <button onClick={() => addAudioFolder("Nova Pasta", currentFolderId, activeTab)} className="p-1.5 hover:bg-white/10 rounded text-text-muted hover:text-white" title="Nova Pasta"><FolderPlus size={16}/></button>
             </div>
 
-            {/* Grid de Arquivos */}
             <div className="flex-1 overflow-y-auto scrollbar-thin min-h-0 p-3 bg-black/20 relative" onDragOver={e => e.preventDefault()} onDrop={handleWindowDrop}>
                 {currentItems.length === 0 && <div className="absolute inset-0 flex flex-col items-center justify-center text-text-muted opacity-30 pointer-events-none gap-2"><FolderPlus size={32}/><span className="text-xs">Arraste arquivos aqui</span></div>}
                 <div className="grid grid-cols-4 gap-2 pb-2">
@@ -241,7 +239,6 @@ const SoundboardWindow = ({ isOpen, onClose }) => {
                 </div>
             </div>
 
-            {/* Footer Player - Só aparece se houver música ativa */}
             {(currentMusicId) && (
                 <PlayerBar 
                     trackName={playingTrack ? playingTrack.name : "Desconhecido"}
@@ -250,7 +247,6 @@ const SoundboardWindow = ({ isOpen, onClose }) => {
                     duration={trackDuration}
                     currentTime={currentTime}
                     onSeek={seekMusic}
-                    // Removemos o crossfade daqui pois agora está no topo
                 />
             )}
         </WindowWrapper>
