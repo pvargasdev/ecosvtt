@@ -3,11 +3,12 @@ import { useGame } from '../../context/GameContext';
 import { useAudio } from '../../context/AudioContext';
 import { 
     X, Folder, FolderPlus, CornerLeftUp, Music, Speaker, 
-    Volume2, Square, Play, Pause, Trash2, Edit2, 
-    Clock, Settings2
+    Volume2, VolumeX, Square, Play, Pause, Trash2, Edit2, 
+    FastForward, Clock
 } from 'lucide-react';
 
-// --- COMPONENTES AUXILIARES ---
+// ... (WindowWrapper e AudioThumb mantidos iguais à etapa anterior - se quiser posso repetir, mas eles não mudaram) ...
+// Vou repetir apenas o WindowWrapper para garantir o contexto, mas o AudioThumb é o mesmo.
 
 const WindowWrapper = ({ children, className, containerRef }) => (
     <div 
@@ -19,7 +20,11 @@ const WindowWrapper = ({ children, className, containerRef }) => (
     </div>
 );
 
+// Copie o componente AudioThumb da etapa anterior aqui... 
+// (Para economizar espaço na resposta, assumo que você manteve o AudioThumb)
 const AudioThumb = ({ item, onRename, onDelete, moveItem, onClick, isPlaying }) => {
+    // ... [CÓDIGO DO AUDIOTHUMB DA ETAPA 3] ...
+    // Se precisar, me avise que eu colo ele inteiro de novo.
     const [isRenaming, setIsRenaming] = useState(false);
     const [renameVal, setRenameVal] = useState(item.name || "");
     const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
@@ -65,8 +70,9 @@ const AudioThumb = ({ item, onRename, onDelete, moveItem, onClick, isPlaying }) 
     );
 };
 
-// --- PLAYER BAR (Atualizado: Sem input de fade, apenas display e controle de tempo) ---
-const PlayerBar = ({ trackName, isPlaying, onPlayPause, duration, currentTime, onSeek }) => {
+// --- [NOVO] COMPONENTE PLAYER BAR ---
+const PlayerBar = ({ trackName, isPlaying, onPlayPause, duration, currentTime, onSeek, crossfade, setCrossfade }) => {
+    // Formata segundos para MM:SS
     const formatTime = (secs) => {
         if (!secs || isNaN(secs)) return "0:00";
         const m = Math.floor(secs / 60);
@@ -75,11 +81,11 @@ const PlayerBar = ({ trackName, isPlaying, onPlayPause, duration, currentTime, o
     };
 
     return (
-        <div className="p-3 bg-[#0a0a0e] border-t border-glass-border animate-in slide-in-from-bottom-2 shrink-0 z-20 shadow-up-lg">
+        <div className="p-3 bg-[#0a0a0e] border-t border-glass-border animate-in slide-in-from-bottom-2 shrink-0 z-20">
             {/* Info e Controles Principais */}
             <div className="flex items-center justify-between mb-2">
                 <div className="flex flex-col min-w-0 pr-2">
-                    <span className="text-[10px] text-neon-blue font-bold uppercase tracking-wider flex items-center gap-1"><Music size={10}/> Tocando Agora</span>
+                    <span className="text-xs text-neon-blue font-bold uppercase tracking-wider">Tocando Agora</span>
                     <span className="text-white font-rajdhani font-bold truncate text-sm" title={trackName}>{trackName}</span>
                 </div>
                 <button 
@@ -91,7 +97,7 @@ const PlayerBar = ({ trackName, isPlaying, onPlayPause, duration, currentTime, o
             </div>
 
             {/* Barra de Progresso */}
-            <div className="flex items-center gap-2 text-[10px] text-text-muted font-mono">
+            <div className="flex items-center gap-2 text-[10px] text-text-muted font-mono mb-2">
                 <span className="w-8 text-right">{formatTime(currentTime)}</span>
                 <input 
                     type="range" 
@@ -103,11 +109,28 @@ const PlayerBar = ({ trackName, isPlaying, onPlayPause, duration, currentTime, o
                 />
                 <span className="w-8">{formatTime(duration)}</span>
             </div>
+
+            {/* Configuração de Fade */}
+            <div className="flex items-center justify-between bg-white/5 rounded px-2 py-1">
+                <div className="flex items-center gap-1 text-[10px] text-text-muted">
+                    <Clock size={10} />
+                    <span>Fade (ms)</span>
+                </div>
+                <input 
+                    type="number" 
+                    step="500"
+                    min="0"
+                    max="10000"
+                    value={crossfade}
+                    onChange={(e) => setCrossfade(parseInt(e.target.value))}
+                    className="w-12 bg-transparent text-right text-xs text-white outline-none border-b border-transparent focus:border-neon-blue"
+                />
+            </div>
         </div>
     );
 };
 
-// --- COMPONENTE PRINCIPAL ---
+// COMPONENTE PRINCIPAL
 const SoundboardWindow = ({ isOpen, onClose }) => {
     const { activeAdventure, addAudioToLibrary, addAudioFolder, removeAudioFromLibrary, moveAudioItem, renameAudioItem } = useGame();
     const { 
@@ -115,6 +138,7 @@ const SoundboardWindow = ({ isOpen, onClose }) => {
         musicVolume, setMusicVolume, 
         sfxVolume, setSfxVolume,
         currentMusicId, isPlaying,
+        // [NOVO] Novos exports do contexto
         currentTime, trackDuration, seekMusic,
         crossfadeDuration, setCrossfadeDuration
     } = useAudio();
@@ -133,6 +157,8 @@ const SoundboardWindow = ({ isOpen, onClose }) => {
     currentItems.sort((a, b) => (a.type === 'folder' && b.type !== 'folder') ? -1 : (a.type !== 'folder' && b.type === 'folder' ? 1 : 0));
     
     const currentFolder = activeAdventure?.audioLibrary?.find(t => t.id === currentFolderId);
+    
+    // [NOVO] Encontrar o nome da música atual para exibir no player
     const playingTrack = activeAdventure?.audioLibrary?.find(t => t.audioId === currentMusicId);
 
     const handleFileUpload = (e) => {
@@ -158,60 +184,31 @@ const SoundboardWindow = ({ isOpen, onClose }) => {
 
     const handlePlayPauseToggle = () => {
         if (isPlaying) pauseMusic();
-        else if (currentMusicId) playMusic(currentMusicId); 
+        else if (currentMusicId) playMusic(currentMusicId); // Resume
     };
 
     const accentColor = activeTab === 'music' ? 'text-neon-blue' : 'text-orange-500';
 
     return (
         <WindowWrapper containerRef={windowRef} className={`absolute top-24 right-4 w-[340px] bg-[#121216]/95 border border-glass-border backdrop-blur-md rounded-xl flex flex-col max-h-[85vh] z-40 shadow-2xl origin-top-right animate-in fade-in zoom-in-95 overflow-hidden`}>
-            
             {/* Header & Global Controls */}
             <div className="p-3 border-b border-glass-border bg-black/40 shrink-0 space-y-3" onDragOver={e => e.preventDefault()} onDrop={handleWindowDrop}>
-                {/* Título e Botões de Janela */}
                 <div className="flex justify-between items-center">
-                    <h3 className="font-rajdhani font-bold text-white flex items-center gap-2">
-                        <Speaker size={18} className={accentColor}/> SOUNDBOARD
-                    </h3>
+                    <h3 className="font-rajdhani font-bold text-white flex items-center gap-2"><Speaker size={18} className={accentColor}/> SOUNDBOARD</h3>
                     <div className="flex gap-1">
-                        <button onClick={stopAll} className="p-1 px-2 bg-red-900/50 border border-red-500/30 rounded text-red-400 hover:bg-red-600 hover:text-white text-[10px] font-bold transition flex items-center gap-1">
-                            <Square size={10} fill="currentColor"/> STOP
-                        </button>
-                        <button onClick={onClose} className="p-1 hover:bg-white/10 rounded text-text-muted hover:text-white">
-                            <X size={16}/>
-                        </button>
+                        <button onClick={stopAll} className="p-1 px-2 bg-red-900/50 border border-red-500/30 rounded text-red-400 hover:bg-red-600 hover:text-white text-[10px] font-bold transition flex items-center gap-1"><Square size={10} fill="currentColor"/> STOP</button>
+                        <button onClick={onClose} className="p-1 hover:bg-white/10 rounded text-text-muted hover:text-white"><X size={16}/></button>
                     </div>
                 </div>
-
-                {/* Controles de Volume e Fade */}
-                <div className="bg-white/5 rounded-lg p-3 space-y-3 border border-white/5">
-                    {/* Volume Música */}
+                {/* Sliders de Volume (mesmo da etapa 3) */}
+                <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1">
                         <div className="flex justify-between text-[10px] text-neon-blue font-bold uppercase"><span>Música</span><span>{Math.round(musicVolume * 100)}%</span></div>
                         <input type="range" min="0" max="1" step="0.05" value={musicVolume} onChange={e => setMusicVolume(parseFloat(e.target.value))} className="w-full h-1.5 bg-black rounded-lg appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-neon-blue"/>
                     </div>
-                    
-                    {/* Volume SFX */}
                     <div className="space-y-1">
                         <div className="flex justify-between text-[10px] text-orange-500 font-bold uppercase"><span>SFX</span><span>{Math.round(sfxVolume * 100)}%</span></div>
                         <input type="range" min="0" max="1" step="0.05" value={sfxVolume} onChange={e => setSfxVolume(parseFloat(e.target.value))} className="w-full h-1.5 bg-black rounded-lg appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-orange-500"/>
-                    </div>
-
-                    {/* [NOVO] Slider de Fade Duration */}
-                    <div className="space-y-1 pt-1 border-t border-white/5">
-                         <div className="flex justify-between text-[10px] text-text-muted font-bold uppercase">
-                            <span className="flex items-center gap-1"><Clock size={10}/> Fade Duration</span>
-                            <span className="text-white">{(crossfadeDuration / 1000).toFixed(1)}s</span>
-                        </div>
-                        <input 
-                            type="range" 
-                            min="0" 
-                            max="5000" // Máximo de 5 segundos
-                            step="500" // Passos de 0.5s
-                            value={crossfadeDuration} 
-                            onChange={e => setCrossfadeDuration(parseFloat(e.target.value))} 
-                            className="w-full h-1.5 bg-black rounded-lg appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white hover:[&::-webkit-slider-thumb]:bg-neon-green transition-colors"
-                        />
                     </div>
                 </div>
             </div>
@@ -241,7 +238,7 @@ const SoundboardWindow = ({ isOpen, onClose }) => {
                 </div>
             </div>
 
-            {/* Footer Player - Só aparece se houver música ativa */}
+            {/* [NOVO] PLAYER FOOTER (Apenas na aba de música ou se tiver música tocando) */}
             {(currentMusicId) && (
                 <PlayerBar 
                     trackName={playingTrack ? playingTrack.name : "Desconhecido"}
@@ -250,7 +247,8 @@ const SoundboardWindow = ({ isOpen, onClose }) => {
                     duration={trackDuration}
                     currentTime={currentTime}
                     onSeek={seekMusic}
-                    // Removemos o crossfade daqui pois agora está no topo
+                    crossfade={crossfadeDuration}
+                    setCrossfade={setCrossfadeDuration}
                 />
             )}
         </WindowWrapper>
