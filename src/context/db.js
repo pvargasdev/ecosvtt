@@ -1,8 +1,7 @@
 // src/context/db.js
 const DB_NAME = 'EcosVTT_Assets';
-const DB_VERSION = 2; // [ATENÇÃO] Incrementamos a versão para criar a nova store
-const STORE_IMAGES = 'images';
-const STORE_AUDIO = 'audio'; // Nova Store
+const DB_VERSION = 1;
+const STORE_NAME = 'images';
 
 // --- LÓGICA WEB (IndexedDB) ---
 const openDB = () => {
@@ -12,24 +11,18 @@ const openDB = () => {
             return;
         }
         const request = window.indexedDB.open(DB_NAME, DB_VERSION);
-        
         request.onupgradeneeded = (event) => {
             const db = event.target.result;
-            // Cria store de imagens se não existir
-            if (!db.objectStoreNames.contains(STORE_IMAGES)) {
-                db.createObjectStore(STORE_IMAGES, { keyPath: 'id' });
-            }
-            // [NOVO] Cria store de áudio se não existir
-            if (!db.objectStoreNames.contains(STORE_AUDIO)) {
-                db.createObjectStore(STORE_AUDIO, { keyPath: 'id' });
+            if (!db.objectStoreNames.contains(STORE_NAME)) {
+                db.createObjectStore(STORE_NAME, { keyPath: 'id' });
             }
         };
         request.onsuccess = (event) => resolve(event.target.result);
-        request.onerror = (event) => reject('Erro ao abrir banco de dados');
+        request.onerror = (event) => reject('Erro ao abrir banco de imagens');
     });
 };
 
-// --- AUXILIAR: Converter Blob para ArrayBuffer ---
+// --- AUXILIAR: Converter Blob para ArrayBuffer (Necessário para enviar ao Electron) ---
 const blobToArrayBuffer = (blob) => {
     return new Promise((resolve, reject) => {
         const reader = new FileReader();
@@ -40,87 +33,18 @@ const blobToArrayBuffer = (blob) => {
 };
 
 export const imageDB = {
-    // --- IMAGENS (Mantido igual) ---
     saveImage: async (fileOrBlob, forcedId = null) => {
         const id = forcedId || crypto.randomUUID();
+
+        // 1. MODO ELECTRON (Salvar no Disco Local)
         if (window.electron) {
             try {
                 const buffer = await blobToArrayBuffer(fileOrBlob);
+                // Envia para o processo Main salvar o arquivo físico
                 await window.electron.saveImage(id, buffer);
                 return id;
-            } catch (e) { console.error("Erro Electron Save Image:", e); return null; }
-        }
-        try {
-            const db = await openDB();
-            return new Promise((resolve, reject) => {
-                const transaction = db.transaction([STORE_IMAGES], 'readwrite');
-                const request = transaction.objectStore(STORE_IMAGES).put({ id, blob: fileOrBlob, date: Date.now() });
-                request.onsuccess = () => resolve(id);
-                request.onerror = () => reject('Erro ao salvar imagem Web');
-            });
-        } catch (e) { console.error(e); return null; }
-    },
-
-    getImage: async (id) => {
-        if (!id) return null;
-        if (window.electron) {
-            try {
-                const result = await window.electron.getImage(id);
-                if (result) {
-                    if (result instanceof ArrayBuffer || (result.type === 'Buffer')) {
-                         return new Blob([result]);
-                    }
-                    if (typeof result === 'string' && result.startsWith('data:')) {
-                        const res = await fetch(result);
-                        return await res.blob();
-                    }
-                }
-                return null;
-            } catch (e) { return null; }
-        }
-        try {
-            const db = await openDB();
-            return new Promise((resolve, reject) => {
-                const request = db.transaction([STORE_IMAGES], 'readonly').objectStore(STORE_IMAGES).get(id);
-                request.onsuccess = () => resolve(request.result ? request.result.blob : null);
-                request.onerror = () => resolve(null);
-            });
-        } catch (e) { return null; }
-    },
-
-    deleteImage: async (id) => {
-        if (window.electron) {
-            try { await window.electron.deleteImage(id); } catch(e) { console.error(e); }
-            return;
-        }
-        try {
-            const db = await openDB();
-            db.transaction([STORE_IMAGES], 'readwrite').objectStore(STORE_IMAGES).delete(id);
-        } catch (e) { console.error(e); }
-    },
-    
-    // --- [NOVO] ÁUDIO ---
-    
-    saveAudio: async (fileOrBlob, forcedId = null) => {
-        const id = forcedId || crypto.randomUUID();
-
-        // 1. MODO ELECTRON
-        if (window.electron) {
-            try {
-                const buffer = await blobToArrayBuffer(fileOrBlob);
-                // O Electron precisa ter um método 'saveAudio' no preload/main similar ao saveImage
-                // Se ainda não tiver, ele usará a lógica de arquivo genérico se você implementou, 
-                // mas idealmente criaremos um canal específico 'saveAudio' no Electron depois.
-                // Por hora, assumimos que existe ou que vamos criar.
-                if (window.electron.saveAudio) {
-                    await window.electron.saveAudio(id, buffer);
-                } else {
-                    console.warn("Método window.electron.saveAudio não encontrado.");
-                    return null;
-                }
-                return id;
             } catch (e) {
-                console.error("Erro Electron Save Audio:", e);
+                console.error("Erro Electron Save:", e);
                 return null;
             }
         }
@@ -129,17 +53,11 @@ export const imageDB = {
         try {
             const db = await openDB();
             return new Promise((resolve, reject) => {
-                const transaction = db.transaction([STORE_AUDIO], 'readwrite');
-                const store = transaction.objectStore(STORE_AUDIO);
-                // Salvamos também o tipo MIME para facilitar a reprodução depois
-                const request = store.put({ 
-                    id, 
-                    blob: fileOrBlob, 
-                    type: fileOrBlob.type, 
-                    date: Date.now() 
-                });
+                const transaction = db.transaction([STORE_NAME], 'readwrite');
+                const store = transaction.objectStore(STORE_NAME);
+                const request = store.put({ id, blob: fileOrBlob, date: Date.now() });
                 request.onsuccess = () => resolve(id);
-                request.onerror = () => reject('Erro ao salvar áudio Web');
+                request.onerror = () => reject('Erro ao salvar imagem Web');
             });
         } catch (e) {
             console.error(e);
@@ -147,20 +65,25 @@ export const imageDB = {
         }
     },
 
-    getAudio: async (id) => {
+    getImage: async (id) => {
         if (!id) return null;
 
-        // 1. MODO ELECTRON
+        // 1. MODO ELECTRON (Ler do Disco Local)
         if (window.electron) {
             try {
-                if (window.electron.getAudio) {
-                    const result = await window.electron.getAudio(id);
-                    if (result) {
-                        if (result instanceof ArrayBuffer || (result.type === 'Buffer')) {
-                            // Retorna o Blob. O Howler.js aceita Blob URL ou Base64.
-                            // Importante passar o type correto se possível, mas genericamente audio/*
-                            return new Blob([result], { type: 'audio/mpeg' }); 
-                        }
+                // O Electron deve retornar um ArrayBuffer ou Base64, ou o caminho 'secure-file://'
+                const result = await window.electron.getImage(id);
+                
+                if (result) {
+                    // Se vier como Buffer/ArrayBuffer, converte para Blob URL
+                    if (result instanceof ArrayBuffer || (result.type === 'Buffer')) {
+                         const blob = new Blob([result]);
+                         return blob; // O componente Token criará o URL.createObjectURL
+                    }
+                    // Se o Electron retornar Data URI string diretamente
+                    if (typeof result === 'string' && result.startsWith('data:')) {
+                        const res = await fetch(result);
+                        return await res.blob();
                     }
                 }
                 return null;
@@ -169,12 +92,12 @@ export const imageDB = {
             }
         }
 
-        // 2. MODO WEB
+        // 2. MODO WEB (IndexedDB)
         try {
             const db = await openDB();
             return new Promise((resolve, reject) => {
-                const transaction = db.transaction([STORE_AUDIO], 'readonly');
-                const store = transaction.objectStore(STORE_AUDIO);
+                const transaction = db.transaction([STORE_NAME], 'readonly');
+                const store = transaction.objectStore(STORE_NAME);
                 const request = store.get(id);
                 request.onsuccess = () => {
                     const result = request.result;
@@ -187,26 +110,33 @@ export const imageDB = {
         }
     },
 
-    deleteAudio: async (id) => {
+    deleteImage: async (id) => {
+        // MODO ELECTRON
         if (window.electron) {
-            try { 
-                if(window.electron.deleteAudio) await window.electron.deleteAudio(id); 
-            } catch(e) { console.error(e); }
+            try { await window.electron.deleteImage(id); } catch(e) { console.error(e); }
             return;
         }
+
+        // MODO WEB
         try {
             const db = await openDB();
-            db.transaction([STORE_AUDIO], 'readwrite').objectStore(STORE_AUDIO).delete(id);
+            const transaction = db.transaction([STORE_NAME], 'readwrite');
+            transaction.objectStore(STORE_NAME).delete(id);
         } catch (e) { console.error(e); }
     },
-
+    
     clearAll: async () => {
-        if(window.electron) return;
+        // MODO ELECTRON
+        if(window.electron) {
+             // Opcional: Implementar limpeza de pasta no main process
+            return;
+        }
+
+        // MODO WEB
         try {
             const db = await openDB();
-            const tx = db.transaction([STORE_IMAGES, STORE_AUDIO], 'readwrite');
-            tx.objectStore(STORE_IMAGES).clear();
-            tx.objectStore(STORE_AUDIO).clear();
+            const transaction = db.transaction([STORE_NAME], 'readwrite');
+            transaction.objectStore(STORE_NAME).clear();
         } catch (e) { console.error(e); }
     }
 };

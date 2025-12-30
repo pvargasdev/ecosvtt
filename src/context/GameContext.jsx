@@ -225,7 +225,7 @@ export const GameProvider = ({ children }) => {
   const createAdventure = useCallback((name) => {
     const newSceneId = generateUUID();
     const newAdventure = {
-        id: generateUUID(), name: name, activeSceneId: newSceneId, tokenLibrary: [], audioLibrary: [], 
+        id: generateUUID(), name: name, activeSceneId: newSceneId, tokenLibrary: [], 
         scenes: [{ id: newSceneId, name: "Cena 1", mapImageId: null, mapScale: 1.0, tokens: [], fogOfWar: [], pins: [] }]
     };
     setAdventures(prev => [...prev, newAdventure]);
@@ -530,108 +530,6 @@ export const GameProvider = ({ children }) => {
 
   const removeTokenFromLibrary = deleteLibraryItem;
 
-  // --- AUDIO LIBRARY ---
-
-  const handleAudioUpload = async (file) => {
-      if (!file) return null;
-      try { return await imageDB.saveAudio(file); } catch (e) { console.error(e); return null; }
-  };
-
-  const addAudioToLibrary = useCallback(async (file, parentId = null, category = 'music') => {
-      // category pode ser 'music' ou 'sfx'
-      if (!activeAdventureId || !file) return;
-      
-      // Salva no IndexedDB/Electron
-      const audioId = await handleAudioUpload(file);
-      
-      // Adiciona referência na Aventura
-      setAdventures(prev => prev.map(adv => adv.id !== activeAdventureId ? adv : { 
-          ...adv, 
-          audioLibrary: [...(adv.audioLibrary || []), { 
-              id: generateUUID(), 
-              audioId, 
-              name: file.name.split('.')[0], // Nome do arquivo sem extensão
-              type: 'file', // 'file' ou 'folder'
-              category: category, // Importante: separa Música de Efeitos
-              parentId: parentId || null 
-          }] 
-      }));
-  }, [activeAdventureId]);
-
-  const addAudioFolder = useCallback((name, parentId = null, category = 'music') => {
-      if (!activeAdventureId) return;
-      setAdventures(prev => prev.map(adv => adv.id !== activeAdventureId ? adv : {
-          ...adv,
-          audioLibrary: [...(adv.audioLibrary || []), {
-              id: generateUUID(),
-              name: name || "Nova Pasta",
-              type: 'folder',
-              category: category,
-              parentId: parentId || null
-          }]
-      }));
-  }, [activeAdventureId]);
-
-  const removeAudioFromLibrary = useCallback((itemId) => {
-      if (!activeAdventureId) return;
-      
-      setAdventures(prev => {
-          const adv = prev.find(a => a.id === activeAdventureId);
-          if (!adv) return prev;
-
-          let idsToDelete = new Set([itemId]);
-
-          // Função recursiva para encontrar filhos se for pasta
-          const findChildren = (parentId) => {
-              const children = adv.audioLibrary.filter(t => t.parentId === parentId);
-              children.forEach(c => {
-                  idsToDelete.add(c.id);
-                  if (c.type === 'folder') findChildren(c.id);
-              });
-          };
-
-          const targetItem = adv.audioLibrary.find(t => t.id === itemId);
-          if (targetItem && targetItem.type === 'folder') {
-              findChildren(itemId);
-          }
-
-          // Nota: O ideal seria deletar o arquivo físico do DB também (imageDB.deleteAudio),
-          // mas para isso precisaríamos pegar o audioId de cada item deletado.
-          // Por simplicidade agora, removemos apenas a referência lógica.
-          
-          return prev.map(a => a.id !== activeAdventureId ? a : {
-              ...a,
-              audioLibrary: a.audioLibrary.filter(t => !idsToDelete.has(t.id))
-          });
-      });
-  }, [activeAdventureId]);
-  
-  const moveAudioItem = useCallback((itemId, targetFolderId) => {
-      if (!activeAdventureId) return;
-      setAdventures(prev => prev.map(adv => {
-          if (adv.id !== activeAdventureId) return adv;
-          return {
-              ...adv,
-              audioLibrary: adv.audioLibrary.map(item => 
-                  item.id === itemId ? { ...item, parentId: targetFolderId } : item
-              )
-          };
-      }));
-  }, [activeAdventureId]);
-
-    const renameAudioItem = useCallback((itemId, newName) => {
-      if (!activeAdventureId) return;
-      setAdventures(prev => prev.map(adv => {
-          if (adv.id !== activeAdventureId) return adv;
-          return {
-              ...adv,
-              audioLibrary: adv.audioLibrary.map(item => 
-                  item.id === itemId ? { ...item, name: newName } : item
-              )
-          };
-      }));
-  }, [activeAdventureId]);
-
 
   // --- TOKEN INSTANCES ON MAP ---
   const addTokenInstance = useCallback((sceneId, tokenData) => {
@@ -818,7 +716,7 @@ export const GameProvider = ({ children }) => {
     addPin, updatePin, deletePin, deleteMultiplePins,
     gameState: { characters }, addCharacter, updateCharacter, deleteCharacter, setAllCharacters,
     presets, activePresetId, createPreset, loadPreset, saveToPreset, deletePreset, mergePresets, exitPreset, updatePreset, exportPreset, importPreset,
-    resetAllData, addAudioToLibrary, addAudioFolder, removeAudioFromLibrary, moveAudioItem, renameAudioItem
+    resetAllData
   };
 
   return <GameContext.Provider value={value}>{children}</GameContext.Provider>;

@@ -2,8 +2,6 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useGame } from '../../context/GameContext';
 import { Settings, Image as ImageIcon, Box, ArrowLeft, Map, Plus, Trash2, X, ChevronDown, LogOut, Edit2, RotateCcw, Check, Search, Square, MousePointer, AlertTriangle, Folder, FolderPlus, CornerLeftUp, Copy, HelpCircle, Import} from 'lucide-react';
 import { imageDB } from '../../context/db';
-import SoundboardWindow from './SoundboardWindow';
-import { Speaker } from 'lucide-react'; // Importe o ícone Speaker
 
 // --- VARIÁVEL DE CONTROLE DE DRAG ---
 // Permite que os componentes saibam quem está sendo arrastado 
@@ -636,36 +634,26 @@ const HelpWindow = ({ isOpen, onClose }) => {
 export const VTTLayout = ({ zoomValue, onZoomChange, activeTool, setActiveTool }) => {
   const { activeAdventure, activeScene, setActiveAdventureId } = useGame();
 
-  const [uiState, setUiState] = useState({ menuOpen: false, libraryOpen: false, mapConfigOpen: false, helpOpen: false, soundboardOpen: false });
+  const [uiState, setUiState] = useState({ menuOpen: false, libraryOpen: false, mapConfigOpen: false, helpOpen: false });
   const [confirmModal, setConfirmModal] = useState({ open: false, message: '', onConfirm: null });
   const [alertMessage, setAlertMessage] = useState(null); 
   const clearAlert = useCallback(() => setAlertMessage(null), []);
   const headerRef = useRef(null);      
 
   const closeAllMenus = useCallback(() => {
-    setUiState(prev => {
-        if (prev.menuOpen || prev.libraryOpen || prev.mapConfigOpen || prev.helpOpen || prev.soundboardOpen) {
-            return { 
-                menuOpen: false, 
-                libraryOpen: false, 
-                mapConfigOpen: false, 
-                helpOpen: false,
-                soundboardOpen: false // <--- NOVO
-            };
-        }
-        return prev;
-    });
-}, []);
+      setUiState(prev => {
+          if (prev.menuOpen || prev.libraryOpen || prev.mapConfigOpen || prev.helpOpen) {
+              return { menuOpen: false, libraryOpen: false, mapConfigOpen: false, helpOpen: false };
+          }
+          return prev;
+      });
+  }, []);
 
   useEffect(() => {
       const handleOutsideInteraction = (event) => {
           if (headerRef.current && headerRef.current.contains(event.target)) return;
           if (event.target.closest('[data-ecos-window="true"]')) return;
-          
-          // [CORREÇÃO AQUI]: Adicionado || uiState.soundboardOpen
-          if (uiState.menuOpen || uiState.libraryOpen || uiState.mapConfigOpen || uiState.helpOpen || uiState.soundboardOpen) {
-              closeAllMenus();
-          }
+          if (uiState.menuOpen || uiState.libraryOpen || uiState.mapConfigOpen || uiState.helpOpen) closeAllMenus();
       };
       
       const handleKeyDown = (e) => { if (e.key === 'ArrowUp' || e.key === 'ArrowDown') closeAllMenus(); };
@@ -685,9 +673,8 @@ export const VTTLayout = ({ zoomValue, onZoomChange, activeTool, setActiveTool }
         libraryOpen: key === 'libraryOpen' ? !prev.libraryOpen : false,
         mapConfigOpen: key === 'mapConfigOpen' ? !prev.mapConfigOpen : false,
         helpOpen: key === 'helpOpen' ? !prev.helpOpen : false,
-        soundboardOpen: key === 'soundboardOpen' ? !prev.soundboardOpen : false, // <--- NOVO
     }));
-};
+  };
 
   const ConfirmationModal = () => { 
       if (!confirmModal.open) return null; 
@@ -749,7 +736,6 @@ export const VTTLayout = ({ zoomValue, onZoomChange, activeTool, setActiveTool }
                 <div className="w-px h-6 bg-glass-border mx-1"></div>
                 
                 <button onClick={(e) => toggle('mapConfigOpen', e)} className={`p-2 rounded hover:bg-white/10 transition ${uiState.mapConfigOpen ? 'text-neon-blue' : 'text-text-muted'}`} title="Configurar Fundo"><ImageIcon size={18}/></button>
-                <button onClick={(e) => toggle('soundboardOpen', e)} className={`p-2 rounded hover:bg-white/10 transition ${uiState.soundboardOpen ? 'text-neon-green' : 'text-text-muted'}`} title="Soundboard"><Speaker size={18}/></button>
                 <button onClick={(e) => toggle('libraryOpen', e)} className={`p-2 rounded hover:bg-white/10 transition ${uiState.libraryOpen ? 'text-yellow-500' : 'text-text-muted'}`} title="Biblioteca"><Box size={18}/></button>
                 
                 <div className="w-px h-6 bg-glass-border mx-1"></div>
@@ -766,7 +752,6 @@ export const VTTLayout = ({ zoomValue, onZoomChange, activeTool, setActiveTool }
 
           <MapConfigModal isOpen={uiState.mapConfigOpen} onClose={() => setUiState(p => ({...p, mapConfigOpen: false}))} />
           <AssetDock isOpen={uiState.libraryOpen} onClose={() => setUiState(p => ({...p, libraryOpen: false}))} />
-            <SoundboardWindow isOpen={uiState.soundboardOpen} onClose={() => setUiState(p => ({...p, soundboardOpen: false}))} /> {/* <--- NOVO */}
           <SceneSelector isOpen={uiState.menuOpen} />
           <HelpWindow isOpen={uiState.helpOpen} onClose={() => setUiState(p => ({...p, helpOpen: false}))} />
           <ConfirmationModal />
