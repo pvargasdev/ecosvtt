@@ -1,3 +1,4 @@
+// electron/main.cjs
 const { app, BrowserWindow, ipcMain, Menu } = require('electron');
 const path = require('path');
 const fs = require('fs');
@@ -56,6 +57,7 @@ ipcMain.handle('write-json', async (event, key, data) => {
 
 // --- FUNÇÕES DE ARQUIVO (IMAGENS) ---
 const IMAGES_PATH = path.join(DATA_PATH, 'images');
+
 try {
     if (!fs.existsSync(IMAGES_PATH)) fs.mkdirSync(IMAGES_PATH, { recursive: true });
 } catch (e) {
@@ -80,48 +82,6 @@ ipcMain.handle('get-image', async (event, id) => {
 ipcMain.handle('delete-image', async (event, id) => {
     try {
         const p = path.join(IMAGES_PATH, id);
-        if (fs.existsSync(p)) { fs.unlinkSync(p); return true; }
-    } catch (e) {}
-    return false;
-});
-
-// --- [NOVO] FUNÇÕES DE ARQUIVO (ÁUDIO) ---
-const AUDIO_PATH = path.join(DATA_PATH, 'audio');
-try {
-    if (!fs.existsSync(AUDIO_PATH)) fs.mkdirSync(AUDIO_PATH, { recursive: true });
-} catch (e) {
-    console.error("⚠️ Erro ao criar pasta audio:", e);
-}
-
-ipcMain.handle('save-audio', async (event, id, buffer) => {
-    try {
-        // Salva o arquivo na pasta 'audio'
-        fs.writeFileSync(path.join(AUDIO_PATH, id), Buffer.from(buffer)); 
-        return true;
-    } catch (e) { 
-        console.error("Erro save-audio:", e);
-        return false; 
-    }
-});
-
-ipcMain.handle('get-audio', async (event, id) => {
-    try {
-        const p = path.join(AUDIO_PATH, id);
-        
-        if (fs.existsSync(p)) {
-            // [CORREÇÃO CRÍTICA] Retornamos o buffer direto, sem .buffer
-            // Isso evita que o Node envie lixo de memória junto com o arquivo
-            return fs.readFileSync(p);
-        }
-    } catch (e) {
-        console.error("Erro get-audio:", e);
-    }
-    return null;
-});
-
-ipcMain.handle('delete-audio', async (event, id) => {
-    try {
-        const p = path.join(AUDIO_PATH, id);
         if (fs.existsSync(p)) { fs.unlinkSync(p); return true; }
     } catch (e) {}
     return false;
@@ -166,6 +126,7 @@ function createWindow() {
 
 function createGMWindow(startAdventureId) {
     console.log("🔄 Tentando abrir Janela do Mestre...");
+
     if (gmWindow) {
         gmWindow.focus();
         return;
