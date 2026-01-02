@@ -1,23 +1,22 @@
 import React, { useState, useEffect } from 'react';
 import { useGame } from '../../context/GameContext';
-import { Volume2, Trash2, Edit2, Zap } from 'lucide-react';
+import { Volume2, Trash2, Edit2, Zap, Check, X } from 'lucide-react';
 import * as Icons from 'lucide-react';
 
 const SFXButton = ({ data }) => {
     const { triggerSfxRemote, updateSfx, removeSfx } = useGame();
     const [isPressed, setIsPressed] = useState(false);
-    const [showSettings, setShowSettings] = useState(false);
-    const [localName, setLocalName] = useState(data.name);
+    
+    // Estados de UI
+    const [mode, setMode] = useState('idle'); // 'idle', 'editing', 'deleting'
+    const [editName, setEditName] = useState(data.name);
+    const [editVolume, setEditVolume] = useState(data.volume || 1);
 
-    // --- NOVO: Listener para Sincronia Visual Remota ---
+    // Listener para feedback visual remoto
     useEffect(() => {
         const handleRemoteTrigger = (e) => {
-            // Se o evento recebido for para este botão, ativa a animação
-            if (e.detail && e.detail.id === data.id) {
-                animatePress();
-            }
+            if (e.detail && e.detail.id === data.id) animatePress();
         };
-
         window.addEventListener('ecos-sfx-trigger', handleRemoteTrigger);
         return () => window.removeEventListener('ecos-sfx-trigger', handleRemoteTrigger);
     }, [data.id]);
@@ -27,31 +26,83 @@ const SFXButton = ({ data }) => {
         setTimeout(() => setIsPressed(false), 200);
     };
 
-    const handlePress = () => {
-        animatePress(); // Feedback local imediato
-        triggerSfxRemote(data); // Envia sinal para tocar áudio (e acender botões remotos)
+    const handlePress = (e) => {
+        if (mode !== 'idle') return; // Não toca se estiver editando
+        if (e.button !== 0) return; // Apenas botão esquerdo
+        animatePress();
+        triggerSfxRemote(data);
     };
 
-    const handleRightClick = (e) => {
-        e.preventDefault();
-        setShowSettings(!showSettings);
+    const handleSaveEdit = (e) => {
+        e.stopPropagation();
+        updateSfx(data.id, { name: editName, volume: editVolume });
+        setMode('idle');
+    };
+
+    const handleDelete = (e) => {
+        e.stopPropagation();
+        removeSfx(data.id);
     };
 
     const IconComponent = Icons[data.icon] || Zap;
 
+    // --- RENDERIZAÇÃO DO MODO DE EDIÇÃO ---
+    if (mode === 'editing') {
+        return (
+            <div className="aspect-square rounded-xl border border-neon-green bg-black/90 flex flex-col p-2 gap-2 relative shadow-[0_0_15px_rgba(74,222,128,0.2)] animate-in fade-in zoom-in-95">
+                <input 
+                    className="w-full bg-white/10 border-none rounded px-1 py-0.5 text-xs text-center text-white outline-none focus:ring-1 focus:ring-neon-green"
+                    value={editName}
+                    onChange={(e) => setEditName(e.target.value)}
+                    autoFocus
+                    placeholder="Nome"
+                />
+                
+                <div className="flex items-center gap-1 flex-1">
+                    <Volume2 size={12} className="text-text-muted shrink-0"/>
+                    <input 
+                        type="range" min="0" max="150" 
+                        value={editVolume * 100}
+                        onChange={(e) => setEditVolume(e.target.value / 100)}
+                        className="w-full h-1 bg-white/20 rounded-full appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-2.5 [&::-webkit-slider-thumb]:h-2.5 [&::-webkit-slider-thumb]:bg-neon-green [&::-webkit-slider-thumb]:rounded-full"
+                    />
+                </div>
+
+                <div className="flex gap-2 mt-auto">
+                    <button onClick={() => setMode('idle')} className="flex-1 py-1 bg-white/10 hover:bg-white/20 rounded text-xs text-text-muted hover:text-white flex justify-center"><X size={12}/></button>
+                    <button onClick={handleSaveEdit} className="flex-1 py-1 bg-neon-green text-black font-bold rounded text-xs hover:bg-white flex justify-center"><Check size={12}/></button>
+                </div>
+            </div>
+        );
+    }
+
+    // --- RENDERIZAÇÃO DO MODO DE CONFIRMAÇÃO DE EXCLUSÃO ---
+    if (mode === 'deleting') {
+        return (
+            <div className="aspect-square rounded-xl border-2 border-red-500 bg-red-900/40 flex flex-col items-center justify-center p-2 relative animate-in zoom-in">
+                <span className="text-xs font-bold text-white mb-2 text-center leading-tight">Excluir SFX?</span>
+                <div className="flex gap-2 w-full">
+                    <button onClick={(e) => { e.stopPropagation(); setMode('idle'); }} className="flex-1 py-1.5 bg-black/40 hover:bg-black/60 rounded text-white flex justify-center"><X size={14}/></button>
+                    <button onClick={handleDelete} className="flex-1 py-1.5 bg-red-600 hover:bg-red-500 rounded text-white flex justify-center shadow-lg"><Check size={14}/></button>
+                </div>
+            </div>
+        );
+    }
+
+    // --- RENDERIZAÇÃO PADRÃO (PLAY) ---
     return (
-        <div className="relative group select-none">
+        <div 
+            className="relative group select-none h-full"
+            onMouseDown={handlePress}
+        >
             <div 
-                onMouseDown={handlePress}
-                onContextMenu={handleRightClick}
                 className={`
-                    aspect-square rounded-xl border-2 flex flex-col items-center justify-center cursor-pointer transition-all duration-100 shadow-lg relative overflow-hidden
+                    w-full h-full rounded-xl border-2 flex flex-col items-center justify-center cursor-pointer transition-all duration-100 shadow-lg relative overflow-hidden
                     ${isPressed ? 'scale-95 brightness-150 border-white shadow-[0_0_20px_rgba(255,255,255,0.5)]' : 'hover:scale-105 hover:brightness-110'}
                 `}
                 style={{
                     backgroundColor: `${data.color}20`, 
                     borderColor: isPressed ? '#fff' : data.color,
-                    // Se estiver pressionado (remota ou localmente), aumenta o brilho da cor
                     boxShadow: isPressed ? `0 0 30px ${data.color}` : 'none'
                 }}
             >
@@ -68,43 +119,23 @@ const SFXButton = ({ data }) => {
                 </span>
             </div>
 
-            {/* Menu de Configurações (Mantido igual) */}
-            {showSettings && (
-                <div className="absolute inset-0 z-20 bg-black/95 rounded-xl border border-white/20 flex flex-col p-2 animate-in fade-in zoom-in-95">
-                    <input 
-                        className="w-full bg-transparent border-b border-white/20 text-xs text-center text-white outline-none mb-2 pb-1 focus:border-neon-green"
-                        value={localName}
-                        onChange={(e) => setLocalName(e.target.value)}
-                        onBlur={() => updateSfx(data.id, { name: localName })}
-                        autoFocus
-                    />
-                    <div className="flex items-center gap-1 mb-2">
-                        <Volume2 size={10} className="text-text-muted"/>
-                        <input 
-                            type="range" min="0" max="150" 
-                            value={(data.volume || 1) * 100}
-                            onChange={(e) => updateSfx(data.id, { volume: e.target.value / 100 })}
-                            className="w-full h-1 bg-white/20 rounded-full appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-2 [&::-webkit-slider-thumb]:h-2 [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:rounded-full"
-                        />
-                    </div>
-                    <div className="flex justify-between mt-auto">
-                        <button 
-                            onClick={() => {
-                                const colors = ['#d084ff', '#00ff9d', '#ff0055', '#00eaff', '#ffcc00', '#ff8800'];
-                                const nextColor = colors[Math.floor(Math.random() * colors.length)];
-                                updateSfx(data.id, { color: nextColor });
-                            }} 
-                            className="p-1 text-text-muted hover:text-white" title="Mudar Cor"
-                        >
-                            <Edit2 size={12}/>
-                        </button>
-                        <button onClick={() => removeSfx(data.id)} className="p-1 text-red-500 hover:text-red-300" title="Excluir">
-                            <Trash2 size={12}/>
-                        </button>
-                        <button onClick={() => setShowSettings(false)} className="p-1 text-neon-green hover:text-white">
-                            <Zap size={12}/>
-                        </button>
-                    </div>
+            {/* Ações de Hover (Só aparecem se não estiver pressionando) */}
+            {!isPressed && (
+                <div className="absolute top-1 right-1 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-20">
+                    <button 
+                        onClick={(e) => { e.stopPropagation(); setEditName(data.name); setEditVolume(data.volume || 1); setMode('editing'); }} 
+                        className="p-1.5 bg-black/60 backdrop-blur-sm rounded text-white hover:text-yellow-400 hover:bg-black/90 transition shadow-lg"
+                        title="Editar"
+                    >
+                        <Edit2 size={10} />
+                    </button>
+                    <button 
+                        onClick={(e) => { e.stopPropagation(); setMode('deleting'); }} 
+                        className="p-1.5 bg-black/60 backdrop-blur-sm rounded text-white hover:text-red-500 hover:bg-black/90 transition shadow-lg"
+                        title="Excluir"
+                    >
+                        <Trash2 size={10} />
+                    </button>
                 </div>
             )}
         </div>

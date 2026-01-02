@@ -850,7 +850,10 @@ export const GameProvider = ({ children }) => {
           activeTrack: { 
               ...track, 
               playlistId, 
-              isPlaying: true, 
+              // [CORREÇÃO] Respeita o valor de isPlaying se ele vier no objeto track
+              // Se vier undefined (ex: clique duplo na lista), assume true.
+              isPlaying: (track.isPlaying !== undefined) ? track.isPlaying : true, 
+              
               // Mantém progresso se for a mesma faixa pausada, senão 0
               progress: (prev.activeTrack?.id === track.id) ? prev.activeTrack.progress : 0 
           }
