@@ -745,7 +745,7 @@ export const VTTLayout = ({ zoomValue, onZoomChange, activeTool, setActiveTool }
                 {/* BOTÃO DA SOUNDBOARD ADICIONADO AQUI */}
                 <button 
                     onClick={(e) => toggle('soundboardOpen', e)} 
-                    className={`p-2 rounded hover:bg-white/10 transition ${uiState.soundboardOpen ? 'text-pink-400' : 'text-text-muted'}`} 
+                    className={`p-2 rounded hover:bg-white/10 transition ${uiState.soundboardOpen ? 'text-pink-500' : 'text-text-muted'}`} 
                     title="Soundboard / Músicas"
                 >
                     <Speaker size={18}/>
