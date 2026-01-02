@@ -372,7 +372,7 @@ const Board = () => {
   const handleMouseDown = (e) => {
     if (e.target.closest('.vtt-ui-layer')) return;
     if (contextMenu) setContextMenu(null);
-    if (e.button === 1 || e.button === 2 || (isSpacePressed && e.button === 0)) {
+    if (e.button === 1 || (isSpacePressed && e.button === 0)) {
         setInteraction({ mode: 'PANNING', startX: e.clientX, startY: e.clientY, initialViewX: targetViewRef.current.x, initialViewY: targetViewRef.current.y });
         return;
     }
