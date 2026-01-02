@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { Howl, Howler } from 'howler';
 import { useGame } from '../context/GameContext';
-import { audioDB } from '../context/db'; // ou audioDb se nomeou assim
+import { audioDB } from '../context/audioDb';
 
 export const useAudioEngine = () => {
     const { soundboard, isGMWindow, updateSoundboard } = useGame();
