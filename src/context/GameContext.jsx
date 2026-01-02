@@ -450,7 +450,7 @@ export const GameProvider = ({ children }) => {
               }
           }
 
-          const newAdv = { ...advData, id: generateUUID(), name: `${advData.name} (Imp)` };
+          const newAdv = { ...advData, id: generateUUID(), name: `${advData.name}` };
           setAdventures(prev => [...prev, newAdv]);
       } catch (e) { console.error(e); alert("Erro ao importar aventura: " + e.message); }
   }, []);
