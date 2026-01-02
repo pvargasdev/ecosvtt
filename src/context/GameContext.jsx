@@ -28,6 +28,14 @@ export const GameProvider = ({ children }) => {
   const [activePresetId, setActivePresetId] = useState(null);
   const [activeTool, setActiveTool] = useState('select');
   const [activeAdventureId, setActiveAdventureId] = useState(null);
+
+  const [soundboard, setSoundboard] = useState({
+      playlists: [],     // Array de { id, name, tracks: [{id, title, fileId, duration}] }
+      sfxGrid: [],       // Array de { id, name, fileId, volume, color, icon }
+      activeTrack: null, // { id, playlistId, fileId, isPlaying, volume, progress, duration }
+      masterVolume: { music: 0.5, sfx: 1.0 },
+      fadeSettings: { fadeIn: 2000, fadeOut: 2000, crossfade: true }
+  });
   
   const [isGMWindowOpen, setIsGMWindowOpen] = useState(false);
 
@@ -49,7 +57,8 @@ export const GameProvider = ({ children }) => {
                   adventures: current.adventures, 
                   characters: current.characters, 
                   presets: current.presets, 
-                  activeAdventureId: current.activeAdventureId 
+                  activeAdventureId: current.activeAdventureId,
+                  soundboard: current.soundboard
               };
               if (window.electron) {
                   window.electron.sendSync('FULL_SYNC_RESPONSE', payload);
@@ -66,6 +75,7 @@ export const GameProvider = ({ children }) => {
               setAdventures(data.adventures);
               setCharacters(data.characters);
               setPresets(data.presets);
+              setSoundboard(data.soundboard || {});
               setActiveAdventureId(urlAdvId || data.activeAdventureId);
               setIsDataLoaded(true); 
               setTimeout(() => { isRemoteUpdate.current = false; }, 100);
@@ -79,6 +89,7 @@ export const GameProvider = ({ children }) => {
           case 'SYNC_CHARACTERS': setCharacters(data); break;
           case 'SYNC_PRESETS': setPresets(data); break;
           case 'SYNC_ACTIVE_ADV_ID': setActiveAdventureId(data); break;
+          case 'SYNC_SOUNDBOARD': setSoundboard(data); break;
       }
       setTimeout(() => { isRemoteUpdate.current = false; }, 50);
   }, [isGMWindow, urlAdvId]); 
@@ -153,6 +164,9 @@ export const GameProvider = ({ children }) => {
           const loadedChars = await loadData(STORAGE_CHARACTERS_KEY) || [];
           const loadedPresets = await loadData(PRESETS_KEY) || [];
           const loadedAdventures = await loadData(STORAGE_ADVENTURES_KEY) || [];
+          const loadedSoundboard = await loadData('ecos_vtt_soundboard_v1') || {
+              playlists: [], sfxGrid: [], activeTrack: null, masterVolume: { music: 0.5, sfx: 1.0 }, fadeSettings: { fadeIn: 2000, fadeOut: 2000, crossfade: true }
+          };
           
           let loadedTool = 'select';
           let loadedActivePreset = null;
@@ -171,12 +185,20 @@ export const GameProvider = ({ children }) => {
           setAdventures(loadedAdventures);
           setActiveTool(loadedTool);
           setActivePresetId(loadedActivePreset);
+          setSoundboard(loadedSoundboard);
 
           setIsDataLoaded(true);
       };
 
       init();
   }, [isGMWindow]);
+  
+  useEffect(() => {
+      // Salva no localStorage ou arquivo JSON
+      saveData('ecos_vtt_soundboard_v1', soundboard);
+      // Envia para a outra janela
+      broadcast('SYNC_SOUNDBOARD', soundboard);
+  }, [soundboard, isDataLoaded]);
 
   // --- EFEITOS DE SALVAMENTO E SYNC ---
   useEffect(() => { 
@@ -704,6 +726,76 @@ export const GameProvider = ({ children }) => {
       window.location.reload(); 
   };
 
+  // --- SOUNDBOARD ACTIONS ---
+  
+  const updateSoundboard = useCallback((updates) => {
+      setSoundboard(prev => ({ ...prev, ...updates }));
+  }, []);
+
+  const addPlaylist = useCallback((name) => {
+      setSoundboard(prev => ({
+          ...prev,
+          playlists: [...prev.playlists, { id: generateUUID(), name, tracks: [] }]
+      }));
+  }, []);
+
+  const addTrackToPlaylist = useCallback(async (playlistId, file, duration = 0) => {
+      const fileId = await audioDB.saveAudio(file);
+      if(!fileId) return;
+      
+      const newTrack = {
+          id: generateUUID(),
+          title: file.name.replace(/\.[^/.]+$/, ""), // Remove extensão
+          fileId,
+          duration
+      };
+
+      setSoundboard(prev => ({
+          ...prev,
+          playlists: prev.playlists.map(pl => 
+              pl.id === playlistId ? { ...pl, tracks: [...pl.tracks, newTrack] } : pl
+          )
+      }));
+  }, []);
+
+  const removeTrack = useCallback((playlistId, trackId) => {
+      setSoundboard(prev => ({
+          ...prev,
+          playlists: prev.playlists.map(pl => 
+              pl.id === playlistId 
+              ? { ...pl, tracks: pl.tracks.filter(t => t.id !== trackId) } 
+              : pl
+          )
+      }));
+      // Nota: Idealmente deletaríamos do audioDB também se não for usado em outro lugar
+  }, []);
+
+  // Esta função apenas atualiza o ESTADO de que algo deve tocar. 
+  // O AudioEngine (que faremos na próxima etapa) reagirá a essa mudança de estado.
+  const playTrack = useCallback((track, playlistId) => {
+      setSoundboard(prev => ({
+          ...prev,
+          activeTrack: { 
+              ...track, 
+              playlistId, 
+              isPlaying: true, 
+              // Mantém progresso se for a mesma faixa pausada, senão 0
+              progress: (prev.activeTrack?.id === track.id) ? prev.activeTrack.progress : 0 
+          }
+      }));
+  }, []);
+
+  const stopTrack = useCallback(() => {
+      setSoundboard(prev => ({
+          ...prev,
+          activeTrack: prev.activeTrack ? { ...prev.activeTrack, isPlaying: false } : null
+      }));
+  }, []);
+  
+  const setMusicVolume = useCallback((val) => {
+      setSoundboard(prev => ({ ...prev, masterVolume: { ...prev.masterVolume, music: val } }));
+  }, []);
+
   const value = {
     isGMWindow, isGMWindowOpen,
     adventures, activeAdventureId, activeAdventure, activeScene,
@@ -716,6 +808,7 @@ export const GameProvider = ({ children }) => {
     addPin, updatePin, deletePin, deleteMultiplePins,
     gameState: { characters }, addCharacter, updateCharacter, deleteCharacter, setAllCharacters,
     presets, activePresetId, createPreset, loadPreset, saveToPreset, deletePreset, mergePresets, exitPreset, updatePreset, exportPreset, importPreset,
+    soundboard, updateSoundboard, addPlaylist, addTrackToPlaylist, removeTrack, playTrack, stopTrack, setMusicVolume,
     resetAllData
   };
 
