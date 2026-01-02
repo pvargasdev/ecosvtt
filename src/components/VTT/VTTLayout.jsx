@@ -2,6 +2,8 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useGame } from '../../context/GameContext';
 import { Settings, Image as ImageIcon, Box, ArrowLeft, Map, Plus, Trash2, X, ChevronDown, LogOut, Edit2, RotateCcw, Check, Search, Square, MousePointer, AlertTriangle, Folder, FolderPlus, CornerLeftUp, Copy, HelpCircle, Import} from 'lucide-react';
 import { imageDB } from '../../context/db';
+import SoundboardWindow from '../Soundboard/SoundboardWindow';
+import { Music } from 'lucide-react'; // Adicione 'Music' aos imports do lucide-react
 
 // --- VARIÁVEL DE CONTROLE DE DRAG ---
 // Permite que os componentes saibam quem está sendo arrastado 
@@ -634,7 +636,7 @@ const HelpWindow = ({ isOpen, onClose }) => {
 export const VTTLayout = ({ zoomValue, onZoomChange, activeTool, setActiveTool }) => {
   const { activeAdventure, activeScene, setActiveAdventureId } = useGame();
 
-  const [uiState, setUiState] = useState({ menuOpen: false, libraryOpen: false, mapConfigOpen: false, helpOpen: false });
+  const [uiState, setUiState] = useState({ menuOpen: false, libraryOpen: false, mapConfigOpen: false, helpOpen: false, soundboardOpen: false });
   const [confirmModal, setConfirmModal] = useState({ open: false, message: '', onConfirm: null });
   const [alertMessage, setAlertMessage] = useState(null); 
   const clearAlert = useCallback(() => setAlertMessage(null), []);

@@ -10,6 +10,9 @@ import Pin from './Pins/Pin';
 import PinModal from './Pins/PinModal';
 import ContextMenu from './Pins/ContextMenu';
 
+// [NOVO] Importando o Controlador de Áudio
+import AudioController from '../../components/AudioController';
+
 // --- CONFIGURAÇÕES DE CONTROLE ---
 const MIN_SCALE = 0.1;
 const MAX_SCALE = 5.0;
@@ -573,6 +576,7 @@ const Board = () => {
       if (isGMWindow) {
           return (
             <div className="w-full h-full bg-[#15151a] flex flex-col items-center justify-center text-white p-6">
+                <AudioController /> {/* Instância Invisível */}
                 <Monitor size={64} className="text-neon-green mb-4 opacity-50 animate-pulse"/>
                 <h1 className="text-2xl font-rajdhani font-bold text-neon-green tracking-widest mb-2">TELA DO MESTRE</h1>
                 <p className="text-text-muted">Aguardando seleção de aventura na tela principal...</p>
@@ -581,6 +585,7 @@ const Board = () => {
       }
       return (
         <div className="w-full h-full bg-ecos-bg flex flex-col items-center justify-center p-6 text-white relative z-50">
+            <AudioController /> {/* Instância Invisível */}
             <style>{`@keyframes enter-slide { 0% { opacity: 0; transform: translateY(-15px) scale(0.95); max-height: 0; margin-bottom: 0; } 40% { max-height: 60px; margin-bottom: 0.5rem; } 100% { opacity: 1; transform: translateY(0) scale(1); max-height: 60px; margin-bottom: 0.5rem; } } .animate-enter { animation: enter-slide 0.45s cubic-bezier(0.2, 0.8, 0.2, 1) forwards; }`}</style>
             <h1 className="text-5xl font-rajdhani font-bold text-neon-green mb-8 tracking-widest">TABULEIRO</h1>
             <div className="bg-glass border border-glass-border rounded-xl p-6 shadow-2xl w-full max-w-lg relative">
@@ -661,6 +666,9 @@ const Board = () => {
         onDragOver={e => e.preventDefault()}
         onAuxClick={handleAuxClick} 
     >
+        {/* [NOVO] INSERINDO O CONTROLADOR DE ÁUDIO INVISÍVEL AQUI */}
+        <AudioController /> 
+
         {isGMWindow && <div className="absolute top-4 left-4 z-50 bg-neon-green/20 border border-neon-green px-3 py-1 rounded text-neon-green font-bold font-rajdhani text-sm pointer-events-none select-none">VISÃO DO MESTRE</div>}
 
         <div className="absolute top-0 left-0 w-full h-full origin-top-left" style={{ transform: `translate(${view.x}px, ${view.y}px) scale(${view.scale})` }}>
