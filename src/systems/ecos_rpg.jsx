@@ -712,7 +712,7 @@ export const Viewer = ({ data, updateData }) => {
     };
 
     const className = DATA_CLASSES.find(c => c.id === data.classId)?.name || "Sem Classe";
-    const originName = DATA_ORIGINS.find(o => o.id === data.originId)?.name || "Desconhecido";
+    const originName = DATA_ORIGINS.find(o => o.id === data.originId)?.name || "Sem Origem";
     
     // --- LÓGICA DE PROCESSAMENTO DE HABILIDADES (MERGE) ---
     const displayedAbilities = useMemo(() => {
