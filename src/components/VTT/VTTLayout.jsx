@@ -1,8 +1,9 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useGame } from '../../context/GameContext';
-import { Settings, Image as ImageIcon, Box, ArrowLeft, Map, Plus, Trash2, X, ChevronDown, LogOut, Edit2, RotateCcw, Check, Search, Square, MousePointer, AlertTriangle, Folder, FolderPlus, CornerLeftUp, Copy, HelpCircle, Import, Speaker } from 'lucide-react';
+import { Settings, Image as ImageIcon, Box, ArrowLeft, Map, Plus, Trash2, X, ChevronDown, LogOut, Edit2, RotateCcw, Check, Search, Square, MousePointer, AlertTriangle, Folder, FolderPlus, CornerLeftUp, Copy, HelpCircle, Import, Speaker, Dices } from 'lucide-react';
 import { imageDB } from '../../context/db';
 import SoundboardWindow from '../Soundboard/SoundboardWindow';
+import DiceWindow from '../DiceRoller/DiceWindow';
 
 // --- VARIÁVEL DE CONTROLE DE DRAG ---
 let currentDraggingId = null;
@@ -612,7 +613,16 @@ const HelpWindow = ({ isOpen, onClose }) => {
 export const VTTLayout = ({ zoomValue, onZoomChange, activeTool, setActiveTool, showUI }) => {
   const { activeAdventure, activeScene, setActiveAdventureId } = useGame();
 
-  const [uiState, setUiState] = useState({ menuOpen: false, libraryOpen: false, mapConfigOpen: false, helpOpen: false, soundboardOpen: false });
+  // ADICIONADO: diceOpen
+  const [uiState, setUiState] = useState({ 
+      menuOpen: false, 
+      libraryOpen: false, 
+      mapConfigOpen: false, 
+      helpOpen: false, 
+      soundboardOpen: false,
+      diceOpen: false 
+  });
+  
   const [confirmModal, setConfirmModal] = useState({ open: false, message: '', onConfirm: null });
   const [alertMessage, setAlertMessage] = useState(null); 
   const clearAlert = useCallback(() => setAlertMessage(null), []);
@@ -620,8 +630,16 @@ export const VTTLayout = ({ zoomValue, onZoomChange, activeTool, setActiveTool, 
 
   const closeAllMenus = useCallback(() => {
       setUiState(prev => {
-          if (prev.menuOpen || prev.libraryOpen || prev.mapConfigOpen || prev.helpOpen || prev.soundboardOpen) {
-              return { menuOpen: false, libraryOpen: false, mapConfigOpen: false, helpOpen: false, soundboardOpen: false };
+          if (prev.menuOpen || prev.libraryOpen || prev.mapConfigOpen || prev.helpOpen || prev.soundboardOpen || prev.diceOpen) {
+              // Resetando todos, inclusive diceOpen
+              return { 
+                  menuOpen: false, 
+                  libraryOpen: false, 
+                  mapConfigOpen: false, 
+                  helpOpen: false, 
+                  soundboardOpen: false,
+                  diceOpen: false 
+              };
           }
           return prev;
       });
@@ -631,7 +649,8 @@ export const VTTLayout = ({ zoomValue, onZoomChange, activeTool, setActiveTool, 
       const handleOutsideInteraction = (event) => {
           if (headerRef.current && headerRef.current.contains(event.target)) return;
           if (event.target.closest('[data-ecos-window="true"]')) return;
-          if (uiState.menuOpen || uiState.libraryOpen || uiState.mapConfigOpen || uiState.helpOpen || uiState.soundboardOpen) closeAllMenus();
+          // Incluindo a verificação de diceOpen
+          if (uiState.menuOpen || uiState.libraryOpen || uiState.mapConfigOpen || uiState.helpOpen || uiState.soundboardOpen || uiState.diceOpen) closeAllMenus();
       };
       
       const handleKeyDown = (e) => { if (e.key === 'ArrowUp' || e.key === 'ArrowDown') closeAllMenus(); };
@@ -652,6 +671,7 @@ export const VTTLayout = ({ zoomValue, onZoomChange, activeTool, setActiveTool, 
         mapConfigOpen: key === 'mapConfigOpen' ? !prev.mapConfigOpen : false,
         helpOpen: key === 'helpOpen' ? !prev.helpOpen : false,
         soundboardOpen: key === 'soundboardOpen' ? !prev.soundboardOpen : false,
+        diceOpen: key === 'diceOpen' ? !prev.diceOpen : false,
     }));
   };
 
@@ -723,13 +743,22 @@ export const VTTLayout = ({ zoomValue, onZoomChange, activeTool, setActiveTool, 
                 
                 <div className="w-px h-6 bg-glass-border mx-1"></div>
 
-                {/* BOTÃO DA SOUNDBOARD ADICIONADO AQUI */}
+                {/* BOTÃO DA SOUNDBOARD */}
                 <button 
                     onClick={(e) => toggle('soundboardOpen', e)} 
                     className={`p-2 rounded hover:bg-white/10 transition ${uiState.soundboardOpen ? 'text-pink-500' : 'text-text-muted'}`} 
                     title="Soundboard / Músicas"
                 >
                     <Speaker size={18}/>
+                </button>
+                
+                {/* BOTÃO DE ROLAGEM DE DADOS (NOVO) */}
+                <button 
+                    onClick={(e) => toggle('diceOpen', e)} 
+                    className={`p-2 rounded hover:bg-white/10 transition ${uiState.diceOpen ? 'text-neon-purple' : 'text-text-muted'}`} 
+                    title="Rolar Dados"
+                >
+                    <Dices size={18}/>
                 </button>
 
                 <div className="w-px h-6 bg-glass-border mx-1"></div>
@@ -755,6 +784,14 @@ export const VTTLayout = ({ zoomValue, onZoomChange, activeTool, setActiveTool, 
               {uiState.soundboardOpen && (
                   <SoundboardWindow 
                       onClose={() => setUiState(p => ({...p, soundboardOpen: false}))} 
+                      WindowWrapperComponent={WindowWrapper} 
+                  />
+              )}
+              
+              {/* JANELA DE DADOS (NOVO) */}
+              {uiState.diceOpen && (
+                  <DiceWindow 
+                      onClose={() => setUiState(p => ({...p, diceOpen: false}))} 
                       WindowWrapperComponent={WindowWrapper} 
                   />
               )}
