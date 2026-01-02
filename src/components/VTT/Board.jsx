@@ -20,7 +20,8 @@ const ZOOM_SPEED_FACTOR = 0.001;
 const TOKEN_ROTATION_STEP = 30; 
 const FADE_DURATION = 600; 
 
-const Board = () => {
+// [ALTERAÇÃO]: Recebendo showUI via props
+const Board = ({ showUI }) => {
   const { 
     activeAdventureId, activeAdventure, activeScene, 
     activeTool, setActiveTool,
@@ -671,8 +672,15 @@ const Board = () => {
             }}
         />
 
+        {/* [ALTERAÇÃO]: Passando showUI para VTTLayout e condicionando a renderização de menus */}
         <div className="vtt-ui-layer absolute inset-0 pointer-events-none z-[50]" onMouseDown={(e) => e.stopPropagation()} onMouseUp={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()} onDoubleClick={(e) => e.stopPropagation()}>
-            <VTTLayout zoomValue={sliderValue} onZoomChange={handleSliderZoom} activeTool={activeTool} setActiveTool={setActiveTool} />
+            <VTTLayout 
+                zoomValue={sliderValue} 
+                onZoomChange={handleSliderZoom} 
+                activeTool={activeTool} 
+                setActiveTool={setActiveTool}
+                showUI={showUI}
+            />
             {contextMenu && <ContextMenu x={contextMenu.x} y={contextMenu.y} onOptionClick={(opt) => { if (opt === 'add_pin') openPinModal(null, { x: contextMenu.worldX, y: contextMenu.worldY }); setContextMenu(null); }} onClose={() => setContextMenu(null)} />}
             {pinModal.open && <PinModal initialData={pinModal.data} position={pinModal.position} onSave={handlePinSave} onClose={() => setPinModal({ open: false, data: null, position: { x: 0, y: 0 } })} />}
         </div>

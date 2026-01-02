@@ -5,8 +5,6 @@ import { imageDB } from '../../context/db';
 import SoundboardWindow from '../Soundboard/SoundboardWindow';
 
 // --- VARIÁVEL DE CONTROLE DE DRAG ---
-// Permite que os componentes saibam quem está sendo arrastado 
-// para evitar que uma pasta "aceite" a si mesma.
 let currentDraggingId = null;
 
 // --- COMPONENTES AUXILIARES ---
@@ -19,7 +17,6 @@ const WindowWrapper = ({ children, className, containerRef }) => (
         onMouseDown={e => e.stopPropagation()} 
         onClick={e => e.stopPropagation()} 
         onWheel={e => e.stopPropagation()}
-        // [CORREÇÃO] Impede que o "drop" atravesse a janela e vá para o Board
         onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
         onDrop={(e) => { e.preventDefault(); e.stopPropagation(); }}
     >
@@ -72,7 +69,6 @@ const LibraryThumb = React.memo(({ token, onRename, onDelete, moveItem }) => {
             return;
         }
 
-        // [NOVO] Define quem está sendo arrastado e ativa o visual de "fantasma"
         currentDraggingId = token.id;
         setIsDragging(true);
         
@@ -89,7 +85,6 @@ const LibraryThumb = React.memo(({ token, onRename, onDelete, moveItem }) => {
              e.dataTransfer.setData('application/json', JSON.stringify(payload));
         }
         
-        // Payload unificado para movimentação interna
         const unifiedPayload = {
             type: token.type === 'token' ? 'library_token' : 'library_folder', 
             libraryId: token.id,
@@ -99,23 +94,18 @@ const LibraryThumb = React.memo(({ token, onRename, onDelete, moveItem }) => {
         e.dataTransfer.setData('application/json', JSON.stringify(unifiedPayload));
     };
 
-    // [NOVO] Limpa o estado global e local ao terminar o drag
     const handleDragEnd = () => {
         currentDraggingId = null;
         setIsDragging(false);
         setIsDragOver(false);
     };
 
-    // Handlers de Drag & Drop Melhorados
     const handleDragEnter = (e) => {
         e.preventDefault();
         e.stopPropagation();
         
-        // [CORREÇÃO] Se eu sou o item sendo arrastado, ignoro o evento.
-        // Isso impede a animação de "receber" a si mesmo.
         if (currentDraggingId === token.id) return;
 
-        // Não permitir drop se for a própria pasta
         if (token.type === 'folder') {
             setIsDragOver(true);
         }
@@ -125,7 +115,6 @@ const LibraryThumb = React.memo(({ token, onRename, onDelete, moveItem }) => {
         e.preventDefault();
         e.stopPropagation();
         
-        // [UX] Previne "flicker"
         if (e.currentTarget.contains(e.relatedTarget)) return;
 
         setIsDragOver(false);
@@ -134,9 +123,8 @@ const LibraryThumb = React.memo(({ token, onRename, onDelete, moveItem }) => {
     const handleDropOnFolder = (e) => {
         e.preventDefault();
         e.stopPropagation();
-        setIsDragOver(false); // Reseta visual
+        setIsDragOver(false); 
 
-        // [CORREÇÃO] Segurança extra no drop
         if (currentDraggingId === token.id) return;
 
         const dataString = e.dataTransfer.getData('application/json');
@@ -148,7 +136,6 @@ const LibraryThumb = React.memo(({ token, onRename, onDelete, moveItem }) => {
         }
     };
 
-    // --- Renderização dos Botões de Ação ---
     const renderActions = () => {
         if (isConfirmingDelete) {
             return (
@@ -184,31 +171,27 @@ const LibraryThumb = React.memo(({ token, onRename, onDelete, moveItem }) => {
                 draggable 
                 onDragStart={handleDragStart}
                 onDragEnd={handleDragEnd}
-                // Eventos atualizados
                 onDragEnter={handleDragEnter}
                 onDragOver={(e) => { 
                     e.preventDefault(); 
-                    /* Só permite drop se não for ele mesmo */ 
                     if(currentDraggingId !== token.id) e.dataTransfer.dropEffect = "move"; 
                 }}
                 onDragLeave={handleDragLeave}
                 onDrop={handleDropOnFolder}
                 onMouseLeave={handleMouseLeave}
                 onClick={() => !isRenaming && !isConfirmingDelete && token.onEnter()}
-                // [NOVO] Visual de "Fantasma" (opacity-40 grayscale) e verificação de DragOver
                 className={`
                     aspect-square rounded-xl border-2 transition-all duration-200 
                     group relative flex flex-col items-center justify-center cursor-pointer h-full w-full select-none
                     ${isDragging ? 'opacity-40 grayscale border-dashed border-white/30 scale-95' : ''} 
                     ${isDragOver && !isDragging
-                        ? 'bg-neon-green/20 border-neon-green scale-105 shadow-[0_0_15px_rgba(74,222,128,0.4)] z-10' // Estilo quando arrastando em cima
-                        : 'bg-white/5 border-glass-border hover:border-white' // Estilo normal
+                        ? 'bg-neon-green/20 border-neon-green scale-105 shadow-[0_0_15px_rgba(74,222,128,0.4)] z-10' 
+                        : 'bg-white/5 border-glass-border hover:border-white' 
                     }
                 `}
             >
                 {confirmOverlay}
                 
-                {/* Ícone muda de cor se estiver recebendo drop */}
                 <Folder 
                     size={32} 
                     className={`mb-1 transition-colors duration-200 ${
@@ -239,7 +222,6 @@ const LibraryThumb = React.memo(({ token, onRename, onDelete, moveItem }) => {
         );
     }
     
-    // Tokens normais
     return (
         <div 
             draggable 
@@ -291,7 +273,6 @@ const AssetDock = ({ isOpen, onClose }) => {
     } = useGame();
     
     const [currentFolderId, setCurrentFolderId] = useState(null);
-    // Estado para controlar o feedback visual da barra de breadcrumb
     const [isBreadcrumbActive, setIsBreadcrumbActive] = useState(false);
     
     const tokenInputRef = useRef(null);
@@ -312,15 +293,12 @@ const AssetDock = ({ isOpen, onClose }) => {
         const data = JSON.parse(e.dataTransfer.getData('application/json'));
         if (!data.libraryId) return;
         
-        // Pega a pasta atual para descobrir quem é o pai
         const currentFolder = activeAdventure?.tokenLibrary?.find(t => t.id === currentFolderId);
-        // Se currentFolder existe, o alvo é o pai dele. Se não existe (estamos na raiz), não faz nada
         const targetId = currentFolder ? (currentFolder.parentId || null) : null;
         
         moveLibraryItem(data.libraryId, targetId);
     };
 
-    // Handlers específicos para a Barra de Navegação (Hitbox Expandida)
     const handleBreadcrumbDragEnter = (e) => {
         e.preventDefault();
         e.stopPropagation();
@@ -330,7 +308,6 @@ const AssetDock = ({ isOpen, onClose }) => {
     const handleBreadcrumbDragLeave = (e) => {
         e.preventDefault();
         e.stopPropagation();
-        // Evita flicker se passar o mouse sobre elementos filhos
         if (e.currentTarget.contains(e.relatedTarget)) return;
         setIsBreadcrumbActive(false);
     };
@@ -374,14 +351,14 @@ const AssetDock = ({ isOpen, onClose }) => {
                 </div>
             </div>
 
-            {/* Breadcrumb / Nav - [ATUALIZADO] Agora é uma Drop Zone completa */}
+            {/* Breadcrumb / Nav */}
             <div 
                 className={`
                     border-b transition-all duration-200 ease-in-out shrink-0 z-10 flex items-center px-2 gap-2 text-xs relative overflow-hidden
                     ${showBreadcrumb ? 'max-h-12 opacity-100 py-2 translate-y-0' : 'max-h-0 opacity-0 py-0 -translate-y-2 pointer-events-none'}
                     ${isBreadcrumbActive 
-                        ? 'bg-neon-green/20 border-neon-green cursor-copy shadow-[inset_0_0_20px_rgba(74,222,128,0.2)]' // Estilo Ativo
-                        : 'bg-black/40 border-glass-border' // Estilo Inativo
+                        ? 'bg-neon-green/20 border-neon-green cursor-copy shadow-[inset_0_0_20px_rgba(74,222,128,0.2)]' 
+                        : 'bg-black/40 border-glass-border' 
                     }
                 `}
                 onDragEnter={handleBreadcrumbDragEnter}
@@ -389,7 +366,7 @@ const AssetDock = ({ isOpen, onClose }) => {
                 onDragLeave={handleBreadcrumbDragLeave}
                 onDrop={handleBreadcrumbDrop}
             >
-                {/* Overlay de Feedback Visual - Aparece apenas durante o Drag */}
+                {/* Overlay de Feedback Visual */}
                 <div className={`absolute inset-0 flex items-center justify-center bg-black/80 backdrop-blur-sm z-30 transition-opacity duration-200 pointer-events-none ${isBreadcrumbActive ? 'opacity-100' : 'opacity-0'}`}>
                     <div className="flex items-center gap-2 text-neon-green font-bold animate-pulse">
                         <CornerLeftUp size={20} strokeWidth={3} />
@@ -474,12 +451,10 @@ const SceneSelector = ({ isOpen }) => {
         setRenamingId(null);
     };
 
-    // Helper para normalizar texto
     const normalizeText = (text) => {
         return text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
     };
 
-    // Filtragem de cenas
     const filteredScenes = activeAdventure?.scenes.filter(s => {
         if (!searchQuery) return true;
         return normalizeText(s.name).includes(normalizeText(searchQuery));
@@ -493,7 +468,6 @@ const SceneSelector = ({ isOpen }) => {
                 <h3 className="font-rajdhani font-bold text-white text-sm">Cenas da Aventura</h3>
             </div>
             
-            {/* Campo de Busca */}
             <div className="px-3 py-2 bg-black/20 border-b border-white/5">
                 <div className="flex items-center gap-2 bg-black/40 rounded px-2 py-1.5 border border-transparent focus-within:border-glass-border transition-colors">
                     <Search size={12} className="text-text-muted"/>
@@ -602,6 +576,8 @@ const HelpWindow = ({ isOpen, onClose }) => {
     const shortcuts = [
         { key: "Middle Click", desc: "Mover a tela" },
         { key: "Scroll", desc: "Zoom In / Zoom Out" },
+        { key: "F11", desc: "Tela Cheia" },
+        { key: "Tab", desc: "Esconder UI" },
         { key: "Double Click", desc: "Criar/Editar Pin" },
         { key: "Ctrl + Click", desc: "Seleção Múltipla" },
         { key: "Ctrl + C / V", desc: "Copiar e Colar Tokens" },
@@ -632,7 +608,8 @@ const HelpWindow = ({ isOpen, onClose }) => {
 
 // --- COMPONENTE PRINCIPAL ---
 
-export const VTTLayout = ({ zoomValue, onZoomChange, activeTool, setActiveTool }) => {
+// [ALTERAÇÃO]: Recebendo showUI via props
+export const VTTLayout = ({ zoomValue, onZoomChange, activeTool, setActiveTool, showUI }) => {
   const { activeAdventure, activeScene, setActiveAdventureId } = useGame();
 
   const [uiState, setUiState] = useState({ menuOpen: false, libraryOpen: false, mapConfigOpen: false, helpOpen: false, soundboardOpen: false });
@@ -701,7 +678,11 @@ export const VTTLayout = ({ zoomValue, onZoomChange, activeTool, setActiveTool }
 
           <div 
              ref={headerRef}
-             className="absolute top-4 right-4 flex flex-col bg-black/80 rounded-lg border border-glass-border shadow-lg backdrop-blur-sm pointer-events-auto z-40 w-max overflow-hidden scale-90 origin-top-right"
+             // [ALTERAÇÃO]: Classes CSS condicionais para esconder a barra superior suavemente
+             className={`
+                absolute top-4 right-4 flex flex-col bg-black/80 rounded-lg border border-glass-border shadow-lg backdrop-blur-sm pointer-events-auto z-40 w-max overflow-hidden scale-90 origin-top-right transition-all duration-300
+                ${showUI ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-10 pointer-events-none'}
+             `}
              onClick={e => e.stopPropagation()} onMouseDown={e => e.stopPropagation()}
           >
               
@@ -763,21 +744,24 @@ export const VTTLayout = ({ zoomValue, onZoomChange, activeTool, setActiveTool }
               </div>
           </div>
 
-          {/* JANELAS RENDERIZADAS CONDICIONALMENTE */}
-          <MapConfigModal isOpen={uiState.mapConfigOpen} onClose={() => setUiState(p => ({...p, mapConfigOpen: false}))} />
-          <AssetDock isOpen={uiState.libraryOpen} onClose={() => setUiState(p => ({...p, libraryOpen: false}))} />
-          <SceneSelector isOpen={uiState.menuOpen} />
-          <HelpWindow isOpen={uiState.helpOpen} onClose={() => setUiState(p => ({...p, helpOpen: false}))} />
-          
-          {/* JANELA SOUNDBOARD ADICIONADA AQUI */}
-          {uiState.soundboardOpen && (
-              <SoundboardWindow 
-                  onClose={() => setUiState(p => ({...p, soundboardOpen: false}))} 
-                  WindowWrapperComponent={WindowWrapper} 
-              />
-          )}
+          {/* JANELAS RENDERIZADAS CONDICIONALMENTE SE SHOWUI FOR TRUE */}
+          {showUI && (
+            <>
+              <MapConfigModal isOpen={uiState.mapConfigOpen} onClose={() => setUiState(p => ({...p, mapConfigOpen: false}))} />
+              <AssetDock isOpen={uiState.libraryOpen} onClose={() => setUiState(p => ({...p, libraryOpen: false}))} />
+              <SceneSelector isOpen={uiState.menuOpen} />
+              <HelpWindow isOpen={uiState.helpOpen} onClose={() => setUiState(p => ({...p, helpOpen: false}))} />
+              
+              {uiState.soundboardOpen && (
+                  <SoundboardWindow 
+                      onClose={() => setUiState(p => ({...p, soundboardOpen: false}))} 
+                      WindowWrapperComponent={WindowWrapper} 
+                  />
+              )}
 
-          <ConfirmationModal />
+              <ConfirmationModal />
+            </>
+          )}
       </div>
   );
 };
