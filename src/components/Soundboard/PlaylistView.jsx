@@ -83,7 +83,7 @@ const PlaylistView = () => {
                             // RENDERIZAÇÃO DO MODO DE EXCLUSÃO (Fundo Vermelho Reforçado)
                             if (isDeleting) {
                                 return (
-                                    <tr key={track.id} className="h-10 border-b border-red-500/30 bg-red-900/40 animate-in fade-in duration-150">
+                                    <tr key={track.id} className="h-10 border-black bg-red-900/40 animate-in fade-in duration-150">
                                         <td colSpan={4} className="p-0 align-middle">
                                             <div 
                                                 className="w-full h-full flex justify-between items-center px-2"
@@ -124,7 +124,7 @@ const PlaylistView = () => {
                                     key={track.id} 
                                     onClick={() => playTrack(track, playlistId)}
                                     className={`
-                                        h-10 group border-b border-white/5 last:border-0 transition-colors cursor-pointer
+                                        h-10 group border-black last:border-0 transition-colors cursor-pointer
                                         ${isCurrent ? 'bg-white/10' : 'hover:bg-white/5'}
                                     `}
                                 >
@@ -137,9 +137,8 @@ const PlaylistView = () => {
                                                     <div className="w-[2px] bg-neon-green animate-[bounce_0.8s_infinite] h-1"></div>
                                                 </div>
                                             ) : (
-                                                <span className="group-hover:hidden">{index + 1}</span>
+                                                <span className="">{index + 1}</span>
                                             )}
-                                            <Play size={12} className={`hidden group-hover:block ${isCurrent ? 'text-neon-green' : 'text-white'}`} fill="currentColor"/>
                                         </div>
                                     </td>
                                     <td className={`p-2 text-sm font-medium truncate max-w-[180px] ${isCurrent ? 'text-neon-green' : 'text-gray-300'}`}>
