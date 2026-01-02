@@ -58,20 +58,20 @@ const PlayerBar = () => {
         <div className="h-16 bg-[#080808]/95 border-t border-glass-border backdrop-blur-xl flex items-center justify-between px-4 shrink-0 relative overflow-hidden shadow-[0_-5px_20px_rgba(0,0,0,0.5)] z-50 w-full">
             
             {/* Linha Neon Superior */}
-            <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-neon-green/40 to-transparent"></div>
+            <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-pink-500/40 to-transparent"></div>
 
             {/* 1. INFO DA FAIXA (Esquerda) */}
             <div className="flex items-center gap-3 overflow-hidden min-w-0 max-w-[60%]">
                 {/* Capa / Disco */}
                 <div className={`w-10 h-10 rounded-full flex items-center justify-center bg-white/5 border border-white/10 shrink-0 ${activeTrack.isPlaying ? 'animate-[spin_4s_linear_infinite]' : ''}`}>
-                    <Disc size={20} className={activeTrack.isPlaying ? "text-neon-green" : "text-text-muted"} />
+                    <Disc size={20} className={activeTrack.isPlaying ? "text-white" : "text-text-muted"} />
                 </div>
                 
                 <div className="flex flex-col min-w-0">
                     <div className="text-sm font-bold text-white truncate font-rajdhani tracking-wide">
                         {activeTrack.title || "Selecionando..."}
                     </div>
-                    <div className="text-[10px] text-neon-green font-mono tracking-wider flex items-center gap-1 opacity-80">
+                    <div className="text-[10px] text-pink-400 font-mono tracking-wider flex items-center gap-1 opacity-80">
                         <Music size={8} />
                         {formatTime(progress)} / {formatTime(activeTrack.duration)}
                     </div>
@@ -89,7 +89,7 @@ const PlayerBar = () => {
                     
                     <div className="w-24 h-1.5 bg-white/10 rounded-full relative overflow-hidden group-hover:bg-white/20 transition-colors">
                         <div 
-                            className="absolute top-0 left-0 h-full bg-white group-hover:bg-neon-green transition-colors"
+                            className="absolute top-0 left-0 h-full bg-white group-hover:bg-pink-500 transition-colors"
                             style={{ width: `${isMuted ? 0 : localVolume}%` }}
                         />
                         <input 
@@ -108,10 +108,10 @@ const PlayerBar = () => {
                 <button 
                     onClick={togglePlayPause}
                     className={`
-                        w-10 h-10 rounded-full flex items-center justify-center transition-all duration-200 active:scale-95 shadow-lg
+                        w-10 h-10 rounded-full flex items-center justify-center transition-all duration-200 shadow-lg
                         ${activeTrack.isPlaying 
-                            ? 'bg-neon-green text-black shadow-[0_0_15px_rgba(74,222,128,0.3)] hover:bg-white' 
-                            : 'bg-white text-black hover:bg-neon-green hover:shadow-[0_0_15px_rgba(74,222,128,0.3)]'
+                            ? 'bg-white text-black hover:bg-white hover:shadow-[0_0_15px_rgba(256,256,256,0.5)]' 
+                            : 'bg-white text-black hover:bg-white hover:shadow-[0_0_15px_rgba(256,256,256,0.5)]'
                         }
                     `}
                     title={activeTrack.isPlaying ? "Pausar" : "Tocar"}

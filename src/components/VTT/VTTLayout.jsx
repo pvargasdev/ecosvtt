@@ -418,7 +418,7 @@ const AssetDock = ({ isOpen, onClose }) => {
             <div className="flex-1 overflow-y-auto scrollbar-thin min-h-0 p-3 bg-black/20">
                 <div className="grid grid-cols-4 gap-2 pb-2">
                     <div onClick={() => tokenInputRef.current?.click()} className="aspect-square border border-dashed border-glass-border rounded-xl hover:bg-white/10 flex flex-col items-center justify-center cursor-pointer text-text-muted hover:text-white transition h-full w-full">
-                        <Import size={24}/>
+                        <Plus size={24}/>
                     </div>
                     <input ref={tokenInputRef} type="file" className="hidden" accept="image/*" multiple onChange={handleMultiTokenUpload}/>
                     
@@ -582,7 +582,7 @@ const MapConfigModal = ({ isOpen, onClose }) => {
         <WindowWrapper containerRef={mapConfigRef} className="absolute top-24 right-4 bg-black/85 border border-glass-border backdrop-blur-sm p-4 rounded-xl shadow-2xl z-50 w-72 scale-90 origin-top-right">
             <div className="flex justify-between items-center mb-4"><h3 className="font-rajdhani font-bold text-white">Imagem de Fundo</h3><button onClick={onClose}><X size={16} className="text-text-muted hover:text-white"/></button></div>
             <div className="space-y-4">
-                <div onClick={() => mapInputRef.current?.click()} className="flex items-center justify-center gap-2 p-3 border border-dashed border-glass-border rounded hover:bg-white/5 cursor-pointer text-sm text-neon-blue transition"><ImageIcon size={16}/> {activeScene?.mapImageId ? "Trocar Imagem" : "Upload Imagem"}</div>
+                <div onClick={() => mapInputRef.current?.click()} className="flex items-center justify-center gap-2 p-3 border border-dashed border-glass-border rounded hover:bg-white/5 cursor-pointer text-sm text-neon-blue transition"><ImageIcon size={16}/> {activeScene?.mapImageId ? "Trocar Imagem" : "Escolher Imagem"}</div>
                 <input ref={mapInputRef} type="file" className="hidden" accept="image/*" onChange={(e) => { const f = e.target.files[0]; if(f) updateSceneMap(activeScene.id, f); e.target.value = ''; }} />
                 {(activeScene?.mapImageId || activeScene?.mapImage) && (
                     <div className="bg-black/20 p-3 rounded border border-white/5">
@@ -745,7 +745,7 @@ export const VTTLayout = ({ zoomValue, onZoomChange, activeTool, setActiveTool }
                 {/* BOTÃO DA SOUNDBOARD ADICIONADO AQUI */}
                 <button 
                     onClick={(e) => toggle('soundboardOpen', e)} 
-                    className={`p-2 rounded hover:bg-white/10 transition ${uiState.soundboardOpen ? 'text-pink-500' : 'text-text-muted'}`} 
+                    className={`p-2 rounded hover:bg-white/10 transition ${uiState.soundboardOpen ? 'text-pink-400' : 'text-text-muted'}`} 
                     title="Soundboard / Músicas"
                 >
                     <Speaker size={18}/>

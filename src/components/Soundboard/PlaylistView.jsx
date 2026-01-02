@@ -42,7 +42,7 @@ const PlaylistView = () => {
             {/* Header da Playlist */}
             <div className="p-4 border-b border-white/5 flex justify-between items-center bg-white/5 shrink-0">
                 <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 bg-gradient-to-br from-purple-900 to-black rounded flex items-center justify-center shadow-lg">
+                    <div className="w-12 h-12 bg-gradient-to-br from-pink-500/50 to-black rounded flex items-center justify-center shadow-lg">
                         <Music className="text-white/50" />
                     </div>
                     <div>
@@ -54,7 +54,7 @@ const PlaylistView = () => {
                 <button 
                     onClick={(e) => { e.stopPropagation(); !isUploading && fileInputRef.current.click(); }}
                     disabled={isUploading}
-                    className={`px-3 py-1.5 bg-neon-green/10 text-neon-green border border-neon-green/30 rounded hover:bg-neon-green hover:text-black transition flex items-center gap-2 text-xs font-bold ${isUploading ? 'opacity-50 cursor-wait' : ''}`}
+                    className={`px-3 py-1.5 bg-pink-500/10 text-pink-100 border border-pink-500 rounded hover:bg-pink-500 hover:text-black transition flex items-center gap-2 text-xs font-bold ${isUploading ? 'opacity-50 cursor-wait' : ''}`}
                 >
                     {isUploading ? <Loader2 size={14} className="animate-spin"/> : <Plus size={14} />} 
                     {isUploading ? 'PROCESSANDO...' : 'ADICIONAR'}
@@ -132,16 +132,16 @@ const PlaylistView = () => {
                                         <div className="w-4 flex justify-center">
                                             {isPlaying ? (
                                                 <div className="flex gap-[2px] h-3 items-end">
-                                                    <div className="w-[2px] bg-neon-green animate-[bounce_1s_infinite] h-2"></div>
-                                                    <div className="w-[2px] bg-neon-green animate-[bounce_1.2s_infinite] h-3"></div>
-                                                    <div className="w-[2px] bg-neon-green animate-[bounce_0.8s_infinite] h-1"></div>
+                                                    <div className="w-[2px] bg-pink-400 animate-[bounce_1s_infinite] h-2"></div>
+                                                    <div className="w-[2px] bg-pink-400 animate-[bounce_1.2s_infinite] h-3"></div>
+                                                    <div className="w-[2px] bg-pink-400 animate-[bounce_0.8s_infinite] h-1"></div>
                                                 </div>
                                             ) : (
                                                 <span className="">{index + 1}</span>
                                             )}
                                         </div>
                                     </td>
-                                    <td className={`p-2 text-sm font-medium truncate max-w-[180px] ${isCurrent ? 'text-neon-green' : 'text-gray-300'}`}>
+                                    <td className={`p-2 text-sm font-medium truncate max-w-[180px] ${isCurrent ? 'text-pink-400' : 'text-gray-300'}`}>
                                         {track.title}
                                     </td>
                                     <td className="p-2 text-xs text-right text-text-muted font-mono w-16">

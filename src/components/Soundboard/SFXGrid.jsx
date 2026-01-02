@@ -48,9 +48,9 @@ const SFXGrid = () => {
         >
             {/* Overlay de Drag & Drop */}
             {isDragging && (
-                <div className="absolute inset-0 z-50 bg-neon-green/10 border-2 border-dashed border-neon-green flex flex-col items-center justify-center backdrop-blur-sm animate-in fade-in pointer-events-none">
-                    <Upload size={48} className="text-neon-green mb-2 animate-bounce"/>
-                    <h3 className="text-neon-green font-bold text-xl font-rajdhani">SOLTE PARA ADICIONAR SFX</h3>
+                <div className="absolute inset-0 z-50 bg-pink-400/10 border-2 border-dashed border-pink-400 flex flex-col items-center justify-center backdrop-blur-sm animate-in fade-in pointer-events-none">
+                    <Upload size={48} className="text-pink-400 mb-2 animate-bounce"/>
+                    <h3 className="text-pink-400 font-bold text-xl font-rajdhani">SOLTE PARA ADICIONAR SFX</h3>
                 </div>
             )}
 

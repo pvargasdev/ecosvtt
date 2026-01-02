@@ -51,9 +51,10 @@ const SFXButton = ({ data }) => {
     // --- MODO EDIÇÃO ---
     if (mode === 'editing') {
         return (
-            <div className="aspect-square rounded-xl border border-neon-green bg-black/90 flex flex-col p-2 gap-2 relative shadow-[0_0_15px_rgba(74,222,128,0.2)] animate-in fade-in cursor-default" onMouseDown={e => e.stopPropagation()}>
+            // [CORREÇÃO] Ajustada a shadow para rosa (rgba: 244, 114, 182) para combinar com border-pink-400
+            <div className="aspect-square rounded-xl border border-pink-400 bg-black/90 flex flex-col p-2 gap-2 relative shadow-[0_0_15px_rgba(244,114,182,0.2)] animate-in fade-in cursor-default" onMouseDown={e => e.stopPropagation()}>
                 <input 
-                    className="w-full bg-white/10 border-none rounded px-1 py-0.5 text-xs text-center text-white outline-none focus:ring-1 focus:ring-neon-green"
+                    className="w-full bg-white/10 border-none rounded px-1 py-0.5 text-xs text-center text-white outline-none focus:ring-1 focus:ring-pink-400"
                     value={editName}
                     onChange={(e) => setEditName(e.target.value)}
                     autoFocus
@@ -65,12 +66,12 @@ const SFXButton = ({ data }) => {
                         type="range" min="0" max="150" 
                         value={editVolume * 100}
                         onChange={(e) => setEditVolume(e.target.value / 100)}
-                        className="w-full h-1 bg-white/20 rounded-full appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-2.5 [&::-webkit-slider-thumb]:h-2.5 [&::-webkit-slider-thumb]:bg-neon-green [&::-webkit-slider-thumb]:rounded-full"
+                        className="w-full h-1 bg-white/20 rounded-full appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-2.5 [&::-webkit-slider-thumb]:h-2.5 [&::-webkit-slider-thumb]:bg-pink-400 [&::-webkit-slider-thumb]:rounded-full"
                     />
                 </div>
                 <div className="flex gap-2 mt-auto">
                     <button onMouseDown={() => setMode('idle')} className="flex-1 py-1 bg-white/10 hover:bg-white/20 rounded text-xs text-text-muted hover:text-white flex justify-center"><X size={12}/></button>
-                    <button onMouseDown={handleSaveEdit} className="flex-1 py-1 bg-neon-green text-black font-bold rounded text-xs hover:bg-white flex justify-center"><Check size={12}/></button>
+                    <button onMouseDown={handleSaveEdit} className="flex-1 py-1 bg-pink-400 text-black font-bold rounded text-xs hover:bg-white flex justify-center"><Check size={12}/></button>
                 </div>
             </div>
         );
@@ -99,37 +100,37 @@ const SFXButton = ({ data }) => {
                 className={`
                     w-full h-full aspect-square rounded-xl border-2 flex flex-col items-center justify-center cursor-pointer transition-all duration-150 relative overflow-hidden
                     ${isPlaying 
-                        ? 'border-neon-green bg-neon-green/10 shadow-[0_0_20px_rgba(74,222,128,0.4)]' // Estilo ATIVO (Tocando)
+                        ? 'border-pink-500 bg-pink-500/10 shadow-[0_0_20px_rgba(236,72,153,0.4)]' // Estilo ATIVO (Tocando) - Pink vibrante
                         : 'border-white/10 bg-white/5 hover:border-white/30 hover:bg-white/10' // Estilo Inativo
                     }
                 `}
-                style={{
-                    // Se estiver tocando, usa a cor do item para o brilho, senão usa padrão
-                    borderColor: isPlaying ? data.color : undefined,
-                    boxShadow: isPlaying ? `0 0 25px ${data.color}40` : 'none'
-                }}
+                // [CORREÇÃO] Removidos estilos inline que forçavam data.color (roxo)
             >
-
+                {/* Indicador de "Parar" ao passar o mouse enquanto toca */}
+                {isPlaying && (
+                    <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                    </div>
+                )}
 
                 <div className={`absolute inset-0 bg-gradient-to-t from-black/80 to-transparent pointer-events-none ${isPlaying ? 'opacity-80' : 'opacity-100'}`} />
                 
+                {/* [CORREÇÃO] Ícone agora é sempre Pink fixo, ignorando data.color */}
                 <IconComponent 
                     size={32} 
-                    style={{ color: data.color }} 
-                    className={`z-10 mb-2 transition-transform duration-200 ${isPlaying ? 'scale-110 animate-pulse' : ''}`} 
+                    className={`z-10 mb-2 transition-transform duration-200 text-pink-500 ${isPlaying ? 'scale-110 animate-pulse text-pink-400' : ''}`} 
                 />
                 
-                <span className={`z-10 text-[10px] font-bold uppercase tracking-wider text-center px-1 truncate w-full shadow-black drop-shadow-md ${isPlaying ? 'text-neon-green' : 'text-white'}`}>
+                <span className={`z-10 text-[10px] font-bold uppercase tracking-wider text-center px-1 truncate w-full shadow-black drop-shadow-md ${isPlaying ? 'text-pink-400' : 'text-white'}`}>
                     {isPlaying ? 'TOCANDO...' : data.name}
                 </span>
             </div>
 
-            {/* Ações de Hover (Só aparecem se não estiver tocando para não atrapalhar o stop) */}
+            {/* Ações de Hover */}
             {!isPlaying && (
                 <div className="absolute top-1 right-1 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-20">
                     <button 
                         onMouseDown={(e) => { e.stopPropagation(); setEditName(data.name); setEditVolume(data.volume || 1); setMode('editing'); }} 
-                        className="p-1.5 bg-black/60 backdrop-blur-sm rounded text-white hover:text-yellow-400 hover:bg-black/90 transition shadow-lg"
+                        className="p-1.5 bg-black/60 backdrop-blur-sm rounded text-white hover:text-pink-400 hover:bg-black/90 transition shadow-lg"
                         title="Editar"
                     >
                         <Edit2 size={10} />
