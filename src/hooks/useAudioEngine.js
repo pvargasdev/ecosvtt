@@ -145,15 +145,27 @@ export const useAudioEngine = () => {
         const masterSfx = soundboard?.masterVolume?.sfx ?? 1.0;
         const finalVol = (sfxItem.volume || 1) * masterSfx;
         
-        const blob = await audioDB.getAudio(sfxItem.fileId);
-        if(blob) {
-            const url = URL.createObjectURL(blob);
-            const sfx = new Howl({
-                src: [url],
-                volume: finalVol,
-                onend: () => URL.revokeObjectURL(url) // Limpeza automática
-            });
-            sfx.play();
+        try {
+            const blob = await audioDB.getAudio(sfxItem.fileId);
+            if(blob) {
+                const url = URL.createObjectURL(blob);
+                
+                const sfx = new Howl({
+                    src: [url],
+                    format: ['mp3', 'ogg', 'wav', 'webm'], // <--- A CORREÇÃO MÁGICA: Diz ao Howler para tentar esses formatos
+                    html5: false, // SFX deve ser rápido, html5: false carrega na memória para disparo instantâneo
+                    volume: finalVol,
+                    onplayerror: (id, err) => {
+                        console.warn("Erro ao tentar tocar SFX (Autoplay bloqueado?):", err);
+                        sfx.once('unlock', () => sfx.play());
+                    },
+                    onend: () => URL.revokeObjectURL(url) // Limpeza automática
+                });
+                
+                sfx.play();
+            }
+        } catch (error) {
+            console.error("Erro ao processar SFX:", error);
         }
     };
 

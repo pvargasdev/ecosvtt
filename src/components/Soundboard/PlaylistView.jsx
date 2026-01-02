@@ -1,26 +1,50 @@
-import React, { useRef } from 'react';
+import React, { useRef, useState } from 'react';
 import { useGame } from '../../context/GameContext';
-import { Play, Music, Trash2, Plus, Clock } from 'lucide-react';
+import { Play, Music, Trash2, Plus, Clock, Loader2 } from 'lucide-react';
 
 const PlaylistView = () => {
     const { soundboard, addTrackToPlaylist, playTrack, removeTrack } = useGame();
     const fileInputRef = useRef(null);
+    const [isUploading, setIsUploading] = useState(false);
     
-    // Por simplicidade inicial, vamos usar uma playlist padrão "Geral" se não houver nenhuma
-    // Na prática, você criaria uma lógica de abas para múltiplas playlists aqui.
     const activePlaylist = soundboard.playlists[0] || { id: 'default', name: 'Geral', tracks: [] };
     const playlistId = activePlaylist.id;
 
+    // Helper para pegar duração de forma segura
+    const getAudioDuration = (file) => {
+        return new Promise((resolve) => {
+            const objectUrl = URL.createObjectURL(file);
+            const audio = new Audio(objectUrl);
+            
+            audio.onloadedmetadata = () => {
+                URL.revokeObjectURL(objectUrl);
+                resolve(audio.duration);
+            };
+            
+            // Se der erro ou demorar demais, resolve com 0
+            audio.onerror = () => {
+                URL.revokeObjectURL(objectUrl);
+                resolve(0);
+            };
+        });
+    };
+
     const handleUpload = async (e) => {
         const files = Array.from(e.target.files);
-        for (const file of files) {
-            // Tenta obter a duração (truque básico de Audio element)
-            const audio = new Audio(URL.createObjectURL(file));
-            audio.onloadedmetadata = () => {
-                addTrackToPlaylist(playlistId, file, audio.duration);
-            };
+        if (files.length === 0) return;
+
+        setIsUploading(true);
+        try {
+            for (const file of files) {
+                const duration = await getAudioDuration(file);
+                await addTrackToPlaylist(playlistId, file, duration);
+            }
+        } catch (error) {
+            console.error("Erro ao adicionar músicas:", error);
+        } finally {
+            setIsUploading(false);
+            if (e.target) e.target.value = null; 
         }
-        e.target.value = null; // Reset input
     };
 
     return (
@@ -36,11 +60,14 @@ const PlaylistView = () => {
                         <p className="text-xs text-text-muted">{activePlaylist.tracks.length} faixas</p>
                     </div>
                 </div>
+                
                 <button 
-                    onClick={() => fileInputRef.current.click()}
-                    className="px-3 py-1.5 bg-neon-green/10 text-neon-green border border-neon-green/30 rounded hover:bg-neon-green hover:text-black transition flex items-center gap-2 text-xs font-bold"
+                    onClick={() => !isUploading && fileInputRef.current.click()}
+                    disabled={isUploading}
+                    className={`px-3 py-1.5 bg-neon-green/10 text-neon-green border border-neon-green/30 rounded hover:bg-neon-green hover:text-black transition flex items-center gap-2 text-xs font-bold ${isUploading ? 'opacity-50 cursor-wait' : ''}`}
                 >
-                    <Plus size={14} /> ADICIONAR
+                    {isUploading ? <Loader2 size={14} className="animate-spin"/> : <Plus size={14} />} 
+                    {isUploading ? 'PROCESSANDO...' : 'ADICIONAR'}
                 </button>
                 <input ref={fileInputRef} type="file" multiple accept="audio/*" className="hidden" onChange={handleUpload}/>
             </div>
