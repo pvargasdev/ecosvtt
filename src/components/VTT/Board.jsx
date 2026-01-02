@@ -630,7 +630,25 @@ const Board = ({ showUI }) => {
             
             {mapParams.url && <div style={{ transform: `scale(${displayScene?.mapScale || 1})`, transformOrigin: '0 0' }}><img src={mapParams.url} className="max-w-none pointer-events-none select-none opacity-90 shadow-2xl" alt="Map Layer"/></div>}
             
-            {displayScene?.tokens.map(t => <Token key={t.id} data={t} isSelected={selectedIds.has(t.id)} onMouseDown={handleTokenDown} onResizeStart={handleTokenResizeStart}/>)}
+            {displayScene?.tokens.map(t => {
+            // LÓGICA DE DETECÇÃO DE ARRASTO LOCAL
+            // O token é considerado "arrastado localmente" se:
+            // 1. O modo de interação for 'DRAGGING'
+            // 2. E este token estiver dentro do conjunto de itens selecionados (selectedIds)
+            // Isso garante que tanto o token clicado quanto os outros do grupo se movam instantaneamente.
+            const isBeingDragged = interaction.mode === 'DRAGGING' && selectedIds.has(t.id);
+
+            return (
+                <Token 
+                    key={t.id} 
+                    data={t} 
+                    isDragging={isBeingDragged} // <--- AQUI ESTÁ O SEGREDO
+                    isSelected={selectedIds.has(t.id)} 
+                    onMouseDown={handleTokenDown} 
+                    onResizeStart={handleTokenResizeStart}
+                />
+            );
+        })}
             
             {displayScene?.pins?.map(pin => {
                 if (!isGMWindow && pin.visibleToPlayers === false) return null;
@@ -684,6 +702,7 @@ const Board = ({ showUI }) => {
             {contextMenu && <ContextMenu x={contextMenu.x} y={contextMenu.y} onOptionClick={(opt) => { if (opt === 'add_pin') openPinModal(null, { x: contextMenu.worldX, y: contextMenu.worldY }); setContextMenu(null); }} onClose={() => setContextMenu(null)} />}
             {pinModal.open && <PinModal initialData={pinModal.data} position={pinModal.position} onSave={handlePinSave} onClose={() => setPinModal({ open: false, data: null, position: { x: 0, y: 0 } })} />}
         </div>
+
     </div>
   );
 };
