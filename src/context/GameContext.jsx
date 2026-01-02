@@ -29,16 +29,6 @@ export const GameProvider = ({ children }) => {
   const [activePresetId, setActivePresetId] = useState(null);
   const [activeTool, setActiveTool] = useState('select');
   const [activeAdventureId, setActiveAdventureId] = useState(null);
-
-  const defaultSoundboardState = {
-      playlists: [],     
-      sfxGrid: [],       
-      activeTrack: null, 
-      masterVolume: { music: 0.5, sfx: 1.0 },
-      fadeSettings: { fadeIn: 2000, fadeOut: 2000, crossfade: true }
-  };
-
-  const [soundboard, setSoundboard] = useState(defaultSoundboardState);
   
   const [isGMWindowOpen, setIsGMWindowOpen] = useState(false);
 
@@ -46,18 +36,11 @@ export const GameProvider = ({ children }) => {
   const broadcastChannel = useRef(null);
   const isRemoteUpdate = useRef(false); 
   
-  const stateRef = useRef({ adventures, characters, presets, activeAdventureId, isDataLoaded, soundboard });
+  const stateRef = useRef({ adventures, characters, presets, activeAdventureId, isDataLoaded });
 
   useEffect(() => {
-    stateRef.current = { 
-        adventures, 
-        characters, 
-        presets, 
-        activeAdventureId, 
-        isDataLoaded,
-        soundboard 
-    };
-  }, [adventures, characters, presets, activeAdventureId, isDataLoaded, soundboard]);
+    stateRef.current = { adventures, characters, presets, activeAdventureId, isDataLoaded };
+  }, [adventures, characters, presets, activeAdventureId, isDataLoaded]);
 
   const handleIncomingMessage = useCallback((type, data) => {
       if (type === 'REQUEST_FULL_SYNC') {
@@ -67,8 +50,7 @@ export const GameProvider = ({ children }) => {
                   adventures: current.adventures, 
                   characters: current.characters, 
                   presets: current.presets, 
-                  activeAdventureId: current.activeAdventureId,
-                  soundboard: current.soundboard 
+                  activeAdventureId: current.activeAdventureId
               };
               if (window.electron) {
                   window.electron.sendSync('FULL_SYNC_RESPONSE', payload);
@@ -85,7 +67,6 @@ export const GameProvider = ({ children }) => {
               setAdventures(data.adventures || []);
               setCharacters(data.characters || []);
               setPresets(data.presets || []);
-              setSoundboard(data.soundboard ? { ...defaultSoundboardState, ...data.soundboard } : defaultSoundboardState);
               setActiveAdventureId(urlAdvId || data.activeAdventureId);
               setIsDataLoaded(true); 
               setTimeout(() => { isRemoteUpdate.current = false; }, 100);
@@ -99,7 +80,7 @@ export const GameProvider = ({ children }) => {
           case 'SYNC_CHARACTERS': setCharacters(data); break;
           case 'SYNC_PRESETS': setPresets(data); break;
           case 'SYNC_ACTIVE_ADV_ID': setActiveAdventureId(data); break;
-          case 'SYNC_SOUNDBOARD': setSoundboard(data); break;
+          // TRIGGER_SFX continua separado pois é um evento efêmero, não estado
           case 'TRIGGER_SFX': window.dispatchEvent(new CustomEvent('ecos-sfx-trigger', { detail: data })); break;
       }
       setTimeout(() => { isRemoteUpdate.current = false; }, 50);
@@ -145,6 +126,7 @@ export const GameProvider = ({ children }) => {
       }
   };
 
+  // --- FUNÇÕES DE ARMAZENAMENTO ---
   const loadData = async (key) => {
       if (window.electron) {
           try { return await window.electron.readJson(key); } catch { return null; }
@@ -166,13 +148,14 @@ export const GameProvider = ({ children }) => {
       }
   };
 
+  // --- CARREGAMENTO INICIAL ---
   useEffect(() => {
       if (isGMWindow) return;
+
       const init = async () => {
           const loadedChars = await loadData(STORAGE_CHARACTERS_KEY) || [];
           const loadedPresets = await loadData(PRESETS_KEY) || [];
           const loadedAdventures = await loadData(STORAGE_ADVENTURES_KEY) || [];
-          const loadedSoundboard = await loadData('ecos_vtt_soundboard_v1') || defaultSoundboardState;
           
           let loadedTool = 'select';
           let loadedActivePreset = null;
@@ -191,17 +174,14 @@ export const GameProvider = ({ children }) => {
           setAdventures(loadedAdventures);
           setActiveTool(loadedTool);
           setActivePresetId(loadedActivePreset);
-          setSoundboard(loadedSoundboard);
+
           setIsDataLoaded(true);
       };
+
       init();
   }, [isGMWindow]);
   
-  useEffect(() => {
-      saveData('ecos_vtt_soundboard_v1', soundboard);
-      broadcast('SYNC_SOUNDBOARD', soundboard);
-  }, [soundboard, isDataLoaded]);
-
+  // --- EFEITOS DE SALVAMENTO E SYNC ---
   useEffect(() => { 
       saveData(STORAGE_CHARACTERS_KEY, characters);
       broadcast('SYNC_CHARACTERS', characters); 
@@ -212,16 +192,13 @@ export const GameProvider = ({ children }) => {
       broadcast('SYNC_PRESETS', presets);
   }, [presets, isDataLoaded]);
 
+  // Sincroniza Aventuras (Agora inclui o Soundboard dentro de cada aventura)
   useEffect(() => { 
       saveData(STORAGE_ADVENTURES_KEY, adventures);
       broadcast('SYNC_ADVENTURES', adventures);
   }, [adventures, isDataLoaded]);
 
-  // [NOVO] Reseta o estado visual da música ao sair da aventura
   useEffect(() => {
-      if (!activeAdventureId) {
-          setSoundboard(prev => prev.activeTrack ? { ...prev, activeTrack: { ...prev.activeTrack, isPlaying: false } } : prev);
-      }
       if (isDataLoaded) broadcast('SYNC_ACTIVE_ADV_ID', activeAdventureId);
   }, [activeAdventureId, isDataLoaded]);
 
@@ -237,9 +214,23 @@ export const GameProvider = ({ children }) => {
   }, [activePresetId, activeTool, isDataLoaded]);
 
 
+  // --- SOUNDBOARD STATE DERIVADO ---
+  const defaultSoundboardState = {
+      playlists: [],     
+      sfxGrid: [],       
+      activeTrack: null, 
+      masterVolume: { music: 0.5, sfx: 1.0 },
+      fadeSettings: { fadeIn: 2000, fadeOut: 2000, crossfade: true }
+  };
+
   const generateUUID = () => crypto.randomUUID();
   const activeAdventure = adventures.find(a => a.id === activeAdventureId);
   const activeScene = activeAdventure?.scenes.find(s => s.id === activeAdventure.activeSceneId);
+  
+  // Soundboard agora é uma propriedade da aventura ativa
+  const soundboard = activeAdventure?.soundboard || defaultSoundboardState;
+
+  // --- ACTIONS GERAIS ---
 
   const handleImageUpload = async (file) => {
       if (!file) return null;
@@ -250,7 +241,9 @@ export const GameProvider = ({ children }) => {
     const newSceneId = generateUUID();
     const newAdventure = {
         id: generateUUID(), name: name, activeSceneId: newSceneId, tokenLibrary: [], 
-        scenes: [{ id: newSceneId, name: "Cena 1", mapImageId: null, mapScale: 1.0, tokens: [], fogOfWar: [], pins: [] }]
+        scenes: [{ id: newSceneId, name: "Cena 1", mapImageId: null, mapScale: 1.0, tokens: [], fogOfWar: [], pins: [] }],
+        // Inicializa soundboard vazio na aventura
+        soundboard: { ...defaultSoundboardState } 
     };
     setAdventures(prev => [...prev, newAdventure]);
   }, []);
@@ -273,13 +266,20 @@ export const GameProvider = ({ children }) => {
       setAdventures(prev => [...prev, copy]);
   }, [adventures]);
 
+  // --- EXPORT ADVENTURE (AGORA INCLUI ÁUDIO) ---
   const exportAdventure = useCallback(async (advId) => {
       const adv = adventures.find(a => a.id === advId);
       if (!adv) return;
       const zip = new JSZip();
+      
+      // 1. Salva JSON
       zip.file("adventure.json", JSON.stringify(adv));
+      
+      // 2. Pasta Imagens
       const imgFolder = zip.folder("images");
       const imageIds = new Set();
+      
+      // Coleta IDs de imagem
       adv.scenes.forEach(scene => {
           if (scene.mapImageId) imageIds.add(scene.mapImageId);
           scene.tokens.forEach(t => { if (t.imageId) imageIds.add(t.imageId); });
@@ -287,22 +287,64 @@ export const GameProvider = ({ children }) => {
       if (adv.tokenLibrary) {
           adv.tokenLibrary.forEach(t => { if (t.imageId) imageIds.add(t.imageId); });
       }
+      
       for (const id of imageIds) {
           const blob = await imageDB.getImage(id);
           if (blob) imgFolder.file(id, blob);
       }
+
+      // 3. Pasta Áudios (NOVO)
+      const audioFolder = zip.folder("audio");
+      const audioIds = new Set();
+
+      if (adv.soundboard) {
+          // Playlists
+          if (adv.soundboard.playlists) {
+              adv.soundboard.playlists.forEach(pl => {
+                  pl.tracks.forEach(t => { if (t.fileId) audioIds.add(t.fileId); });
+              });
+          }
+          // SFX
+          if (adv.soundboard.sfxGrid) {
+              adv.soundboard.sfxGrid.forEach(sfx => { if (sfx.fileId) audioIds.add(sfx.fileId); });
+          }
+          // Active Track
+          if (adv.soundboard.activeTrack?.fileId) {
+              audioIds.add(adv.soundboard.activeTrack.fileId);
+          }
+      }
+
+      for (const id of audioIds) {
+          const blob = await audioDB.getAudio(id);
+          if (blob) audioFolder.file(id, blob);
+      }
+
       const content = await zip.generateAsync({ type: "blob" });
       saveAs(content, `adventure_${adv.name.replace(/\s+/g, '_')}.zip`);
   }, [adventures]);
 
+  // --- IMPORT ADVENTURE (AGORA INCLUI ÁUDIO) ---
   const importAdventure = useCallback(async (file) => {
       if (!file) return;
       try {
           const zip = await JSZip.loadAsync(file);
           const jsonFile = zip.file("adventure.json");
           if (!jsonFile) throw new Error("Arquivo inválido");
+          
           const advData = JSON.parse(await jsonFile.async("string"));
-          advData.scenes = advData.scenes.map(scene => ({ ...scene, fogOfWar: scene.fogOfWar || [], pins: scene.pins || [] }));
+          
+          // Migração de dados legados (garante campos novos)
+          advData.scenes = advData.scenes.map(scene => ({ 
+              ...scene, 
+              fogOfWar: scene.fogOfWar || [], 
+              pins: scene.pins || [] 
+          }));
+          
+          if (!advData.soundboard) {
+              advData.soundboard = { ...defaultSoundboardState };
+          }
+
+          // 1. Processar Imagens
           const imgFolder = zip.folder("images");
           if (imgFolder) {
               const images = [];
@@ -312,73 +354,147 @@ export const GameProvider = ({ children }) => {
                   await imageDB.saveImage(blob, img.id); 
               }
           }
-          const newAdv = { ...advData, id: generateUUID(), name: `${advData.name}` };
-          setAdventures(prev => [...prev, newAdv]);
-      } catch (e) { console.error(e); alert("Erro ao importar aventura."); }
-  }, []);
 
-  const exportSoundboard = useCallback(async () => {
-      const zip = new JSZip();
-      zip.file("soundboard_data.json", JSON.stringify(soundboard));
-      
-      const audioFolder = zip.folder("audio_files");
-      const processedIds = new Set(); 
-
-      for (const playlist of soundboard.playlists) {
-          for (const track of playlist.tracks) {
-              if (track.fileId && !processedIds.has(track.fileId)) {
-                  processedIds.add(track.fileId);
+          // 2. Processar Áudios (NOVO)
+          const audioFolder = zip.folder("audio");
+          if (audioFolder) {
+              const audios = [];
+              audioFolder.forEach((relativePath, file) => audios.push({ id: relativePath, file }));
+              for (const aud of audios) {
+                  const blob = await aud.file.async("blob");
+                  await audioDB.saveAudio(blob, aud.id);
               }
           }
-      }
 
-      for (const sfx of soundboard.sfxGrid) {
-          if (sfx.fileId && !processedIds.has(sfx.fileId)) {
-              processedIds.add(sfx.fileId);
+          const newAdv = { ...advData, id: generateUUID(), name: `${advData.name} (Imp)` };
+          setAdventures(prev => [...prev, newAdv]);
+      } catch (e) { console.error(e); alert("Erro ao importar aventura: " + e.message); }
+  }, []);
+
+  // --- SOUNDBOARD FUNCTIONS (AGORA ALTERAM A AVENTURA ATIVA) ---
+  
+  // Helper para atualizar soundboard da aventura ativa
+  const setActiveAdvSoundboard = (updateFn) => {
+      if (!activeAdventureId) return;
+      setAdventures(prev => prev.map(adv => {
+          if (adv.id !== activeAdventureId) return adv;
+          const currentSB = adv.soundboard || defaultSoundboardState;
+          const newSB = typeof updateFn === 'function' ? updateFn(currentSB) : updateFn;
+          return { ...adv, soundboard: newSB };
+      }));
+  };
+
+  const updateSoundboard = useCallback((updates) => { 
+      setActiveAdvSoundboard(prev => ({ ...prev, ...updates })); 
+  }, [activeAdventureId]);
+
+  const addPlaylist = useCallback((name) => { 
+      setActiveAdvSoundboard(prev => ({
+          ...prev,
+          playlists: [...prev.playlists, { id: generateUUID(), name, tracks: [] }]
+      }));
+  }, [activeAdventureId]);
+  
+  const addTrackToPlaylist = useCallback(async (playlistId, file, duration = 0) => {
+      const fileId = await audioDB.saveAudio(file);
+      if(!fileId) return;
+      const newTrack = { id: generateUUID(), title: file.name.replace(/\.[^/.]+$/, ""), fileId, duration };
+      setActiveAdvSoundboard(prev => ({
+          ...prev,
+          playlists: prev.playlists.map(pl => pl.id === playlistId ? { ...pl, tracks: [...pl.tracks, newTrack] } : pl)
+      }));
+  }, [activeAdventureId]);
+
+  const removeTrack = useCallback((playlistId, trackId) => {
+      setActiveAdvSoundboard(prev => ({
+          ...prev,
+          playlists: prev.playlists.map(pl => pl.id === playlistId ? { ...pl, tracks: pl.tracks.filter(t => t.id !== trackId) } : pl)
+      }));
+  }, [activeAdventureId]);
+
+  const playTrack = useCallback((track, playlistId) => {
+      setActiveAdvSoundboard(prev => ({
+          ...prev,
+          activeTrack: { 
+              ...track, 
+              playlistId, 
+              isPlaying: (track.isPlaying !== undefined) ? track.isPlaying : true, 
+              progress: (prev.activeTrack?.id === track.id) ? prev.activeTrack.progress : 0 
           }
-      }
+      }));
+  }, [activeAdventureId]);
 
-      for (const id of processedIds) {
-          const blob = await audioDB.getAudio(id);
-          if (blob) {
-              audioFolder.file(id, blob);
-          }
-      }
+  const stopTrack = useCallback(() => { 
+      setActiveAdvSoundboard(prev => ({ 
+          ...prev, 
+          activeTrack: prev.activeTrack ? { ...prev.activeTrack, isPlaying: false } : null 
+      })); 
+  }, [activeAdventureId]);
 
-      const content = await zip.generateAsync({ type: "blob" });
-      const dateStr = new Date().toISOString().slice(0, 10);
-      saveAs(content, `ecos_soundboard_backup_${dateStr}.zip`);
+  // --- SFX (NOVA ESTRUTURA NA AVENTURA) ---
+  const addSfx = useCallback(async (file, parentId = null) => {
+      const fileId = await audioDB.saveAudio(file);
+      if(!fileId) return;
+      const newSfx = { 
+          id: generateUUID(), 
+          name: file.name.replace(/\.[^/.]+$/, "").substring(0, 12), 
+          fileId, 
+          volume: 1.0, 
+          color: '#d084ff', 
+          icon: 'Zap',
+          type: 'sfx',
+          parentId: parentId || null
+      };
+      setActiveAdvSoundboard(prev => ({ ...prev, sfxGrid: [...(prev.sfxGrid || []), newSfx] }));
+  }, [activeAdventureId]);
 
-  }, [soundboard]);
-
-  const importSoundboard = useCallback(async (file) => {
-      if (!file) return;
-      try {
-          const zip = await JSZip.loadAsync(file);
-          const jsonFile = zip.file("soundboard_data.json");
-          if (!jsonFile) throw new Error("Arquivo de backup inválido (json ausente)");
-          const loadedState = JSON.parse(await jsonFile.async("string"));
-          const audioFolder = zip.folder("audio_files");
-          if (audioFolder) {
-              const audioPromises = [];
-              audioFolder.forEach((relativePath, fileEntry) => {
-                  const promise = async () => {
-                      const blob = await fileEntry.async("blob");
-                      await audioDB.saveAudio(blob, relativePath);
-                  };
-                  audioPromises.push(promise());
+  const removeSfx = useCallback((id) => {
+      setActiveAdvSoundboard(prev => {
+          // Deleta recursivamente se for pasta
+          const grid = prev.sfxGrid || [];
+          const idsToDelete = new Set([id]);
+          const findChildren = (parentId) => {
+              grid.filter(item => item.parentId === parentId).forEach(c => {
+                  idsToDelete.add(c.id);
+                  if (c.type === 'folder') findChildren(c.id);
               });
-              await Promise.all(audioPromises);
-          }
-          setSoundboard(loadedState);
-          broadcast('SYNC_SOUNDBOARD', loadedState);
-          alert("Soundboard importada com sucesso!");
-      } catch (e) {
-          console.error("Erro na importação:", e);
-          alert("Erro ao importar Soundboard: " + e.message);
-      }
+          };
+          const target = grid.find(i => i.id === id);
+          if (target && target.type === 'folder') findChildren(id);
+          
+          return { ...prev, sfxGrid: grid.filter(s => !idsToDelete.has(s.id)) };
+      });
+  }, [activeAdventureId]);
+
+  const updateSfx = useCallback((id, updates) => {
+      setActiveAdvSoundboard(prev => ({
+          ...prev,
+          sfxGrid: (prev.sfxGrid || []).map(s => s.id === id ? { ...s, ...updates } : s)
+      }));
+  }, [activeAdventureId]);
+
+  const setSfxMasterVolume = useCallback((val) => {
+      setActiveAdvSoundboard(prev => ({ ...prev, masterVolume: { ...(prev.masterVolume || {}), sfx: val } }));
+  }, [activeAdventureId]);
+
+  const setMusicVolume = useCallback((val) => {
+      setActiveAdvSoundboard(prev => ({ ...prev, masterVolume: { ...(prev.masterVolume || {}), music: val } }));
+  }, [activeAdventureId]);
+
+  // Trigger remoto não altera estado persistente, apenas avisa
+  const triggerSfxRemote = useCallback((sfxItem) => {
+      broadcast('TRIGGER_SFX', sfxItem);
+      window.dispatchEvent(new CustomEvent('ecos-sfx-trigger', { detail: sfxItem }));
   }, [broadcast]);
 
+  // Reseta música ao sair da aventura
+  useEffect(() => {
+      if (!activeAdventureId) {
+          // Se não há aventura ativa, garante que o Player pare visualmente (o AudioController desmontado para o som)
+      }
+  }, [activeAdventureId]);
+
+  // --- MODIFICADORES DE CENA E DEMAIS (MANTIDOS) ---
   const addScene = useCallback((name) => {
       if (!activeAdventureId) return;
       const newId = generateUUID();
@@ -673,53 +789,14 @@ export const GameProvider = ({ children }) => {
       window.location.reload(); 
   };
 
-  const updateSoundboard = useCallback((updates) => { setSoundboard(prev => ({ ...prev, ...updates })); }, []);
-  const addPlaylist = useCallback((name) => { setSoundboard(prev => ({ ...prev, playlists: [...prev.playlists, { id: generateUUID(), name, tracks: [] }] })); }, []);
-  
-  const addTrackToPlaylist = useCallback(async (playlistId, file, duration = 0) => {
-      const fileId = await audioDB.saveAudio(file);
-      if(!fileId) return;
-      const newTrack = { id: generateUUID(), title: file.name.replace(/\.[^/.]+$/, ""), fileId, duration };
-      setSoundboard(prev => ({ ...prev, playlists: prev.playlists.map(pl => pl.id === playlistId ? { ...pl, tracks: [...pl.tracks, newTrack] } : pl) }));
-  }, []);
-
-  const removeTrack = useCallback((playlistId, trackId) => {
-      setSoundboard(prev => ({ ...prev, playlists: prev.playlists.map(pl => pl.id === playlistId ? { ...pl, tracks: pl.tracks.filter(t => t.id !== trackId) } : pl) }));
-  }, []);
-
-  const playTrack = useCallback((track, playlistId) => {
-      setSoundboard(prev => ({
-          ...prev,
-          activeTrack: { 
-              ...track, 
-              playlistId, 
-              isPlaying: (track.isPlaying !== undefined) ? track.isPlaying : true, 
-              progress: (prev.activeTrack?.id === track.id) ? prev.activeTrack.progress : 0 
-          }
-      }));
-  }, []);
-
-  const stopTrack = useCallback(() => { setSoundboard(prev => ({ ...prev, activeTrack: prev.activeTrack ? { ...prev.activeTrack, isPlaying: false } : null })); }, []);
-
-  const addSfx = useCallback(async (file) => {
-      const fileId = await audioDB.saveAudio(file);
-      if(!fileId) return;
-      const newSfx = { id: generateUUID(), name: file.name.replace(/\.[^/.]+$/, "").substring(0, 12), fileId, volume: 1.0, color: '#d084ff', icon: 'Zap' };
-      setSoundboard(prev => ({ ...prev, sfxGrid: [...prev.sfxGrid, newSfx] }));
-  }, []);
-
-  const removeSfx = useCallback((id) => { setSoundboard(prev => ({ ...prev, sfxGrid: prev.sfxGrid.filter(s => s.id !== id) })); }, []);
-  const updateSfx = useCallback((id, updates) => { setSoundboard(prev => ({ ...prev, sfxGrid: prev.sfxGrid.map(s => s.id === id ? { ...s, ...updates } : s) })); }, []);
-  const setSfxMasterVolume = useCallback((val) => { setSoundboard(prev => ({ ...prev, masterVolume: { ...prev.masterVolume, sfx: val } })); }, []);
-  const triggerSfxRemote = useCallback((sfxItem) => { broadcast('TRIGGER_SFX', sfxItem); window.dispatchEvent(new CustomEvent('ecos-sfx-trigger', { detail: sfxItem })); }, [broadcast]);
-  const setMusicVolume = useCallback((val) => { setSoundboard(prev => ({ ...prev, masterVolume: { ...prev.masterVolume, music: val } })); }, []);
-
   const value = {
     isGMWindow, isGMWindowOpen,
     adventures, activeAdventureId, activeAdventure, activeScene,
     createAdventure, deleteAdventure, updateAdventure, duplicateAdventure, setActiveAdventureId,
     exportAdventure, importAdventure,
-    exportSoundboard, importSoundboard,
+    // [MODIFICADO] Soundboard Actions agora alteram a aventura
+    soundboard, updateSoundboard, addPlaylist, addTrackToPlaylist, removeTrack, playTrack, stopTrack, setMusicVolume,
+    addSfx, removeSfx, updateSfx, setSfxMasterVolume, triggerSfxRemote,
     addScene, duplicateScene, updateScene, updateSceneMap, setActiveScene, deleteScene,
     activeTool, setActiveTool, addFogArea, updateFogArea, deleteFogArea, deleteMultipleFogAreas,
     addTokenToLibrary, removeTokenFromLibrary, addTokenInstance, updateTokenInstance, deleteTokenInstance, deleteMultipleTokenInstances, importCharacterAsToken,
@@ -727,8 +804,6 @@ export const GameProvider = ({ children }) => {
     addPin, updatePin, deletePin, deleteMultiplePins,
     gameState: { characters }, addCharacter, updateCharacter, deleteCharacter, setAllCharacters,
     presets, activePresetId, createPreset, loadPreset, saveToPreset, deletePreset, mergePresets, exitPreset, updatePreset, exportPreset, importPreset,
-    soundboard, updateSoundboard, addPlaylist, addTrackToPlaylist, removeTrack, playTrack, stopTrack, setMusicVolume,
-    addSfx, removeSfx, updateSfx, setSfxMasterVolume, triggerSfxRemote,
     resetAllData
   };
 
