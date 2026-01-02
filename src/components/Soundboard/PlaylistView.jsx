@@ -1,6 +1,6 @@
 import React, { useRef, useState } from 'react';
 import { useGame } from '../../context/GameContext';
-import { Play, Music, Trash2, Plus, Clock, Loader2, X, Check } from 'lucide-react';
+import { Play, Music, Trash2, Plus, Clock, Loader2, X, Check, Music3  } from 'lucide-react';
 
 const PlaylistView = () => {
     const { soundboard, addTrackToPlaylist, playTrack, removeTrack } = useGame();
@@ -65,13 +65,8 @@ const PlaylistView = () => {
             </div>
 
             <div className="flex-1 overflow-y-auto p-2 scrollbar-thin">
-                {activePlaylist.tracks.length === 0 && (
-                    <div className="flex flex-col items-center justify-center h-40 text-text-muted opacity-50"><Music size={48} className="mb-2 stroke-1"/><p className="text-sm">Nenhuma música adicionada.</p></div>
-                )}
+
                 <table className="w-full text-left border-collapse">
-                    <thead className="text-xs text-text-muted uppercase border-b border-white/5 sticky top-0 bg-[#121216] z-10">
-                        <tr><th className="p-2 w-8">#</th><th className="p-2">Título</th><th className="p-2 w-16 text-right"><Clock size={12} className="inline"/></th><th className="p-2 w-8"></th></tr>
-                    </thead>
                     <tbody>
                         {activePlaylist.tracks.map((track, index) => {
                             const isCurrent = soundboard.activeTrack?.id === track.id;
@@ -107,6 +102,9 @@ const PlaylistView = () => {
                         })}
                     </tbody>
                 </table>
+                {activePlaylist.tracks.length === 0 && (
+                    <div className="flex flex-col items-center justify-center h-40 text-text-muted opacity-50"><Music size={48} className="mb-2 stroke-1"/><p className="text-sm">Nenhuma música adicionada.</p></div>
+                )}
             </div>
         </div>
     );

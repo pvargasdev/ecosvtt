@@ -28,7 +28,7 @@ const SoundboardWindow = ({ onClose, containerRef, WindowWrapperComponent }) => 
 
     return (
         <Wrapper containerRef={containerRef} 
-            className="absolute top-[95px] right-4 w-[426px] h-[calc(100vh-80px)] max-h-[700px] bg-black/90 border border-glass-border backdrop-blur-xl rounded-xl shadow-2xl z-40 flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200"
+            className="absolute top-[95px] right-4 w-[426px] h-[calc(100vh-80px)] max-h-[500px] bg-black/90 border border-glass-border backdrop-blur-xl rounded-xl shadow-2xl z-40 flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200"
         >
             {/* Header / Tabs */}
             <div className="flex items-center justify-between px-2 pt-2 border-b border-white/5 shrink-0 bg-[#0a0a0a]">
