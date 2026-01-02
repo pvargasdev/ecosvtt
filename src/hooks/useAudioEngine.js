@@ -1,15 +1,16 @@
+// src/hooks/useAudioEngine.js
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { Howl, Howler } from 'howler';
 import { useGame } from '../context/GameContext';
-import { audioDB } from '../context/audioDb';
+// [CORREÇÃO AQUI]: O audioDB fica em 'audioDb', não em 'db'
+import { audioDB } from '../context/audioDb'; 
 
 export const useAudioEngine = () => {
-    const { soundboard, isGMWindow, updateSoundboard } = useGame();
+    const { soundboard, isGMWindow } = useGame();
     
     // Refs para manter controle das instâncias de áudio sem causar re-renders
     const currentMusicRef = useRef(null);
     const oldMusicRef = useRef(null); // Para o crossfade
-    const isFadingRef = useRef(false);
     
     // Estado local para URL do blob atual (para limpeza)
     const currentBlobUrl = useRef(null);
@@ -17,30 +18,21 @@ export const useAudioEngine = () => {
     // --- 1. CONTROLE DE VOLUME MASTER & GM MUTE ---
     useEffect(() => {
         // Se for janela do Mestre, muta globalmente para evitar eco (controle remoto)
-        // A menos que implementemos um toggle "Ouvir Localmente" no futuro.
         if (isGMWindow) {
             Howler.mute(true);
         } else {
             Howler.mute(false);
             // Aplica o volume master definido no contexto
-            Howler.volume(soundboard.masterVolume.music); 
+            const vol = soundboard?.masterVolume?.music ?? 0.5;
+            Howler.volume(vol); 
         }
-    }, [isGMWindow, soundboard.masterVolume.music]);
-
-    // --- 5. LISTENER DE SFX (EVENTO DISPARADO REMOTA OU LOCALMENTE) ---
-    useEffect(() => {
-        const handleSfxEvent = (e) => {
-            const sfxItem = e.detail;
-            if (sfxItem) triggerSfx(sfxItem);
-        };
-
-        window.addEventListener('ecos-sfx-trigger', handleSfxEvent);
-        return () => window.removeEventListener('ecos-sfx-trigger', handleSfxEvent);
-    }, [soundboard.masterVolume.sfx]); // Recria se o volume master mudar
+    }, [isGMWindow, soundboard?.masterVolume?.music]);
 
 
     // --- 2. GERENCIAMENTO DA FAIXA DE MÚSICA (CROSSFADE) ---
     useEffect(() => {
+        if (!soundboard) return;
+
         const track = soundboard.activeTrack;
         const fadeTime = soundboard.fadeSettings?.crossfade ? (soundboard.fadeSettings.fadeIn || 2000) : 0;
 
@@ -128,21 +120,15 @@ export const useAudioEngine = () => {
 
         handleMusicChange();
 
-    }, [soundboard.activeTrack?.fileId, soundboard.activeTrack?.isPlaying, soundboard.activeTrack?.volume]); // Re-executa se o ID, Estado ou Volume mudarem
+    }, [soundboard?.activeTrack?.fileId, soundboard?.activeTrack?.isPlaying, soundboard?.activeTrack?.volume]); 
 
 
     // --- 3. LOOP DE SINCRONIA VISUAL (PROGRESS BAR) ---
-    // Atualiza o estado local ou contexto com o tempo atual da música
     useEffect(() => {
-        // Apenas o Mestre ou quem está tocando precisa calcular isso para a UI
         const interval = setInterval(() => {
             if (currentMusicRef.current && currentMusicRef.current.playing()) {
                 const seek = currentMusicRef.current.seek();
-                // Não enviamos broadcast aqui para não spamar a rede.
-                // A UI deve ler isso via um método ou estado local efêmero, 
-                // ou atualizamos o contexto apenas a cada X segundos se necessário.
-                
-                // Opção Leve: Emitir evento customizado no DOM para a UI pegar sem React re-render total
+                // Emitir evento customizado no DOM para a UI pegar sem React re-render total
                 const event = new CustomEvent('ecos-audio-progress', { detail: { progress: seek } });
                 window.dispatchEvent(event);
             }
@@ -152,12 +138,12 @@ export const useAudioEngine = () => {
     }, []);
     
     // --- 4. FUNÇÕES EXPOSTAS (SFX) ---
-    // SFX são "Fire and Forget", não precisam de estado persistente complexo no player
     const triggerSfx = async (sfxItem) => {
-        if (!sfxItem.fileId) return;
+        if (!sfxItem || !sfxItem.fileId) return;
         
         // Volume específico do SFX * Volume Master de SFX
-        const finalVol = (sfxItem.volume || 1) * (soundboard.masterVolume.sfx || 1);
+        const masterSfx = soundboard?.masterVolume?.sfx ?? 1.0;
+        const finalVol = (sfxItem.volume || 1) * masterSfx;
         
         const blob = await audioDB.getAudio(sfxItem.fileId);
         if(blob) {
@@ -171,7 +157,18 @@ export const useAudioEngine = () => {
         }
     };
 
+    // --- 5. LISTENER DE SFX (EVENTO DISPARADO REMOTA OU LOCALMENTE) ---
+    useEffect(() => {
+        const handleSfxEvent = (e) => {
+            const sfxItem = e.detail;
+            if (sfxItem) triggerSfx(sfxItem);
+        };
+
+        window.addEventListener('ecos-sfx-trigger', handleSfxEvent);
+        return () => window.removeEventListener('ecos-sfx-trigger', handleSfxEvent);
+    }, [soundboard?.masterVolume?.sfx]); 
+
     return {
-        triggerSfx // Expomos isso para o componente invisível usar se receber comando via socket
+        triggerSfx
     };
 };

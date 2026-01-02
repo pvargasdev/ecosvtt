@@ -30,13 +30,16 @@ export const GameProvider = ({ children }) => {
   const [activeTool, setActiveTool] = useState('select');
   const [activeAdventureId, setActiveAdventureId] = useState(null);
 
-  const [soundboard, setSoundboard] = useState({
-      playlists: [],     // Array de { id, name, tracks: [{id, title, fileId, duration}] }
-      sfxGrid: [],       // Array de { id, name, fileId, volume, color, icon }
-      activeTrack: null, // { id, playlistId, fileId, isPlaying, volume, progress, duration }
+  // Estado padrão da Soundboard para evitar problemas de undefined
+  const defaultSoundboardState = {
+      playlists: [],     
+      sfxGrid: [],       
+      activeTrack: null, 
       masterVolume: { music: 0.5, sfx: 1.0 },
       fadeSettings: { fadeIn: 2000, fadeOut: 2000, crossfade: true }
-  });
+  };
+
+  const [soundboard, setSoundboard] = useState(defaultSoundboardState);
   
   const [isGMWindowOpen, setIsGMWindowOpen] = useState(false);
 
@@ -44,11 +47,19 @@ export const GameProvider = ({ children }) => {
   const broadcastChannel = useRef(null);
   const isRemoteUpdate = useRef(false); 
   
-  const stateRef = useRef({ adventures, characters, presets, activeAdventureId, isDataLoaded });
+  const stateRef = useRef({ adventures, characters, presets, activeAdventureId, isDataLoaded, soundboard });
 
+  // [CORREÇÃO CRÍTICA] Adicionado 'soundboard' aqui para garantir que o Mestre receba os dados
   useEffect(() => {
-    stateRef.current = { adventures, characters, presets, activeAdventureId, isDataLoaded };
-  }, [adventures, characters, presets, activeAdventureId, isDataLoaded]);
+    stateRef.current = { 
+        adventures, 
+        characters, 
+        presets, 
+        activeAdventureId, 
+        isDataLoaded,
+        soundboard 
+    };
+  }, [adventures, characters, presets, activeAdventureId, isDataLoaded, soundboard]);
 
   const handleIncomingMessage = useCallback((type, data) => {
       if (type === 'REQUEST_FULL_SYNC') {
@@ -59,7 +70,7 @@ export const GameProvider = ({ children }) => {
                   characters: current.characters, 
                   presets: current.presets, 
                   activeAdventureId: current.activeAdventureId,
-                  soundboard: current.soundboard
+                  soundboard: current.soundboard // Agora isso terá valor
               };
               if (window.electron) {
                   window.electron.sendSync('FULL_SYNC_RESPONSE', payload);
@@ -73,10 +84,11 @@ export const GameProvider = ({ children }) => {
       if (type === 'FULL_SYNC_RESPONSE') {
           if (isGMWindow) {
               isRemoteUpdate.current = true;
-              setAdventures(data.adventures);
-              setCharacters(data.characters);
-              setPresets(data.presets);
-              setSoundboard(data.soundboard || {});
+              setAdventures(data.adventures || []);
+              setCharacters(data.characters || []);
+              setPresets(data.presets || []);
+              // Garante que o soundboard tenha estrutura mínima se vier vazio
+              setSoundboard(data.soundboard ? { ...defaultSoundboardState, ...data.soundboard } : defaultSoundboardState);
               setActiveAdventureId(urlAdvId || data.activeAdventureId);
               setIsDataLoaded(true); 
               setTimeout(() => { isRemoteUpdate.current = false; }, 100);
@@ -166,9 +178,7 @@ export const GameProvider = ({ children }) => {
           const loadedChars = await loadData(STORAGE_CHARACTERS_KEY) || [];
           const loadedPresets = await loadData(PRESETS_KEY) || [];
           const loadedAdventures = await loadData(STORAGE_ADVENTURES_KEY) || [];
-          const loadedSoundboard = await loadData('ecos_vtt_soundboard_v1') || {
-              playlists: [], sfxGrid: [], activeTrack: null, masterVolume: { music: 0.5, sfx: 1.0 }, fadeSettings: { fadeIn: 2000, fadeOut: 2000, crossfade: true }
-          };
+          const loadedSoundboard = await loadData('ecos_vtt_soundboard_v1') || defaultSoundboardState;
           
           let loadedTool = 'select';
           let loadedActivePreset = null;
@@ -321,17 +331,12 @@ export const GameProvider = ({ children }) => {
   // --- IMPORT/EXPORT SOUNDBOARD ---
 
   const exportSoundboard = useCallback(async () => {
-      // 1. Prepara o ZIP
       const zip = new JSZip();
-      
-      // 2. Salva o Estado (JSON)
       zip.file("soundboard_data.json", JSON.stringify(soundboard));
       
-      // 3. Pasta para arquivos de áudio
       const audioFolder = zip.folder("audio_files");
-      const processedIds = new Set(); // Evita duplicatas
+      const processedIds = new Set(); 
 
-      // 4. Coleta IDs das Playlists
       for (const playlist of soundboard.playlists) {
           for (const track of playlist.tracks) {
               if (track.fileId && !processedIds.has(track.fileId)) {
@@ -340,14 +345,12 @@ export const GameProvider = ({ children }) => {
           }
       }
 
-      // 5. Coleta IDs da Grade SFX
       for (const sfx of soundboard.sfxGrid) {
           if (sfx.fileId && !processedIds.has(sfx.fileId)) {
               processedIds.add(sfx.fileId);
           }
       }
 
-      // 6. Busca os Blobs no Banco e adiciona ao ZIP
       for (const id of processedIds) {
           const blob = await audioDB.getAudio(id);
           if (blob) {
@@ -355,7 +358,6 @@ export const GameProvider = ({ children }) => {
           }
       }
 
-      // 7. Gera e Baixa o Arquivo
       const content = await zip.generateAsync({ type: "blob" });
       const dateStr = new Date().toISOString().slice(0, 10);
       saveAs(content, `ecos_soundboard_backup_${dateStr}.zip`);
@@ -367,36 +369,26 @@ export const GameProvider = ({ children }) => {
       try {
           const zip = await JSZip.loadAsync(file);
           
-          // 1. Lê o JSON de estado
           const jsonFile = zip.file("soundboard_data.json");
           if (!jsonFile) throw new Error("Arquivo de backup inválido (json ausente)");
           
           const loadedState = JSON.parse(await jsonFile.async("string"));
           
-          // 2. Processa arquivos de áudio
           const audioFolder = zip.folder("audio_files");
           if (audioFolder) {
               const audioPromises = [];
-              
               audioFolder.forEach((relativePath, fileEntry) => {
                   const promise = async () => {
                       const blob = await fileEntry.async("blob");
-                      // Salva no audioDB com o ID original (nome do arquivo)
-                      // O ID é o relativePath (ex: "uuid-1234")
                       await audioDB.saveAudio(blob, relativePath);
                   };
                   audioPromises.push(promise());
               });
-
               await Promise.all(audioPromises);
           }
 
-          // 3. Atualiza o Estado
           setSoundboard(loadedState);
-          
-          // Sincroniza com janelas remotas
           broadcast('SYNC_SOUNDBOARD', loadedState);
-          
           alert("Soundboard importada com sucesso!");
 
       } catch (e) {
