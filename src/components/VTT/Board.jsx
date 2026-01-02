@@ -5,12 +5,9 @@ import { VTTLayout } from './VTTLayout';
 import { imageDB } from '../../context/db';
 import { Plus, Trash2, Import, Upload, Copy, Edit2, X, Check, Monitor, ArrowLeft } from 'lucide-react';
 
-// Importando componentes de Pins
 import Pin from './Pins/Pin';
 import PinModal from './Pins/PinModal';
 import ContextMenu from './Pins/ContextMenu';
-
-// [NOVO] Importando o Controlador de Áudio
 import AudioController from '../../components/AudioController';
 
 // --- CONFIGURAÇÕES DE CONTROLE ---
@@ -20,7 +17,6 @@ const PAN_LIMIT = 3000;
 const CAMERA_SMOOTHING = 0.2; 
 const ZOOM_SPEED_FACTOR = 0.001; 
 
-// Configurações de Manipulação de Token
 const TOKEN_ROTATION_STEP = 30; 
 const FADE_DURATION = 600; 
 
@@ -50,7 +46,6 @@ const Board = () => {
 
   const prevAdventuresLength = useRef(adventures.length);
 
-  // --- CONTROLE DE CÂMERA ---
   const animationRef = useRef(null); 
   const viewRef = useRef({ x: 0, y: 0, scale: 1 }); 
   const targetViewRef = useRef({ x: 0, y: 0, scale: 1 }); 
@@ -58,7 +53,6 @@ const Board = () => {
   const [view, setView] = useState({ x: 0, y: 0, scale: 1 });
   const [sliderValue, setSliderValue] = useState(100);
 
-  // Interações
   const [isCreatingAdventure, setIsCreatingAdventure] = useState(false);
   const [selectedIds, setSelectedIds] = useState(new Set()); 
   const [selectedFogIds, setSelectedFogIds] = useState(new Set());
@@ -77,7 +71,6 @@ const Board = () => {
   
   const [mapParams, setMapParams] = useState({ url: null, id: null });
 
-  // UI
   const [contextMenu, setContextMenu] = useState(null);
   const [pinModal, setPinModal] = useState({ open: false, data: null, position: { x: 0, y: 0 } });
   const [newAdvName, setNewAdvName] = useState("");
@@ -89,11 +82,9 @@ const Board = () => {
   const zoomSpeedRef = useRef(0.01); 
   const lastZoomTimeRef = useRef(0); 
 
-  // --- CONTROLE DE TRANSIÇÃO (BUFFER) ---
   const [transitionOpacity, setTransitionOpacity] = useState(1); 
   const [displayScene, setDisplayScene] = useState(null); 
 
-  // Helper para aplicar view imediatamente
   const forceSetView = (newView) => {
       setView(newView);
       targetViewRef.current = newView;
@@ -101,32 +92,22 @@ const Board = () => {
       setSliderValue(Math.round(newView.scale * 100));
   };
 
-  // [MODIFICADO] Auto-Save da Câmera (Debounced)
-  // Agora só salva se NÃO for a janela do Mestre
   useEffect(() => {
-      // Se for janela do mestre, aborta o salvamento
       if (!displayScene || isGMWindow) return;
-      
       const saveTimer = setTimeout(() => {
           updateScene(displayScene.id, { savedView: view });
       }, 1000); 
-
       return () => clearTimeout(saveTimer);
   }, [view, displayScene?.id, isGMWindow]); 
 
-  // Efeito principal de Sincronização e Transição
   useEffect(() => {
-      // 1. Caso Inicial: Aplica view salva ou default
       if (!displayScene && activeScene) {
           setDisplayScene(activeScene);
-          
-          // Carrega a posição salva (jogadores ou mestre leem daqui, mas só jogadores escrevem)
           if (activeScene.savedView) {
               forceSetView(activeScene.savedView);
           } else {
               forceSetView({ x: 0, y: 0, scale: 1 });
           }
-
           setTimeout(() => setTransitionOpacity(0), 100); 
           return;
       }
@@ -136,36 +117,24 @@ const Board = () => {
           return;
       }
 
-      // 2. Detecção de TROCA DE CENA
       if (displayScene && activeScene.id !== displayScene.id) {
-          // [MODIFICADO] Antes de trocar, SALVA a posição da cena anterior APENAS se for JOGADOR
           if (!isGMWindow) {
               updateScene(displayScene.id, { savedView: view });
           }
-
-          // Inicia o Fade Out
           setTransitionOpacity(1);
-
           const timer = setTimeout(() => {
               setDisplayScene(activeScene);
-              
-              // Carrega a posição da nova cena (vale tanto para Mestre quanto Jogador)
               if (activeScene.savedView) {
                   forceSetView(activeScene.savedView);
               } else {
                   forceSetView({ x: 0, y: 0, scale: 1 });
               }
-
               setTimeout(() => {
                   setTransitionOpacity(0);
               }, 100);
           }, FADE_DURATION);
-
           return () => clearTimeout(timer);
-      } 
-      
-      // 3. Atualizações Normais
-      else {
+      } else {
           setDisplayScene(activeScene);
       }
   }, [activeScene, displayScene]); 
@@ -200,16 +169,12 @@ const Board = () => {
 
   useEffect(() => { return () => { if (animationRef.current) cancelAnimationFrame(animationRef.current); }; }, []);
 
-  // Lógica de Teclado
   useEffect(() => {
     const handleKeyDown = (e) => {
         if (['INPUT', 'TEXTAREA'].includes(document.activeElement?.tagName)) return;
         if (e.code === 'Space' && !e.repeat) setIsSpacePressed(true);
 
-        // --- MANIPULAÇÃO DE TOKENS (Ctrl + Tecla) ---
         if (selectedIds.size > 0 && activeScene && (e.ctrlKey || e.metaKey)) {
-            
-            // FLIP HORIZONTAL (Ctrl + F)
             if (e.key === 'f' || e.key === 'F') {
                 e.preventDefault();
                 selectedIds.forEach(id => {
@@ -217,8 +182,6 @@ const Board = () => {
                     if (t) updateTokenInstance(activeScene.id, id, { mirrorX: !t.mirrorX });
                 });
             }
-
-            // ROTACIONAR ANTI-HORÁRIO (Ctrl + Q)
             if (e.key === 'q' || e.key === 'Q') {
                 e.preventDefault();
                 selectedIds.forEach(id => {
@@ -229,8 +192,6 @@ const Board = () => {
                     }
                 });
             }
-
-            // ROTACIONAR HORÁRIO (Ctrl + E)
             if (e.key === 'e' || e.key === 'E') {
                 e.preventDefault();
                 selectedIds.forEach(id => {
@@ -243,7 +204,6 @@ const Board = () => {
             }
         }
 
-        // --- DELETAR ---
         if ((e.key === 'Delete' || e.key === 'Backspace')) {
             if (selectedIds.size > 0 && activeScene) {
                 deleteMultipleTokenInstances(activeScene?.id, Array.from(selectedIds));
@@ -259,7 +219,6 @@ const Board = () => {
             }
         }
 
-        // --- COPIAR (Ctrl+C) ---
         if ((e.ctrlKey || e.metaKey) && e.key === 'c') {
             if (selectedIds.size > 0 && activeScene) {
                 const tokensToCopy = activeScene.tokens.filter(t => selectedIds.has(t.id));
@@ -267,7 +226,6 @@ const Board = () => {
             }
         }
 
-        // --- COLAR (Ctrl+V) ---
         if ((e.ctrlKey || e.metaKey) && e.key === 'v') {
             if (clipboardRef.current.length > 0 && activeScene) {
                 if (isMouseOverRef.current && containerRef.current) {
@@ -316,7 +274,6 @@ const Board = () => {
     return () => { window.removeEventListener('keydown', handleKeyDown); window.removeEventListener('keyup', handleKeyUp); };
   }, [selectedIds, selectedFogIds, selectedPinIds, activeScene, deleteMultipleTokenInstances, deleteMultipleFogAreas, deleteMultiplePins, setActiveTool, addTokenInstance, updateTokenInstance]);
 
-  // ... (RESTO DO CÓDIGO DA CÂMERA MANTIDO) ...
   const animateCamera = useCallback(() => {
       const target = targetViewRef.current;
       const current = viewRef.current;
@@ -404,7 +361,6 @@ const Board = () => {
 
   const handleAuxClick = (e) => { if (e.button === 1) e.preventDefault(); };
 
-  // Handlers de Mouse
   const handleBoardDoubleClick = (e) => {
       if (activeTool !== 'select') return;
       const rect = containerRef.current.getBoundingClientRect();
@@ -439,13 +395,10 @@ const Board = () => {
 
     if (activeScene && activeScene.tokens) {
         const currentIndex = activeScene.tokens.findIndex(t => t.id === id);
-        // Só executa se o token existir e NÃO for o último da lista
         if (currentIndex !== -1 && currentIndex !== activeScene.tokens.length - 1) {
             const newTokens = [...activeScene.tokens];
-            const [movedToken] = newTokens.splice(currentIndex, 1); // Remove da posição atual
-            newTokens.push(movedToken); // Adiciona no final
-            
-            // Atualiza a cena com a nova ordem de tokens
+            const [movedToken] = newTokens.splice(currentIndex, 1); 
+            newTokens.push(movedToken); 
             updateScene(activeScene.id, { tokens: newTokens });
         }
     }
@@ -576,7 +529,7 @@ const Board = () => {
       if (isGMWindow) {
           return (
             <div className="w-full h-full bg-[#15151a] flex flex-col items-center justify-center text-white p-6">
-                <AudioController /> {/* Instância Invisível */}
+                {/* REMOVIDO AudioController DAQUI */}
                 <Monitor size={64} className="text-neon-green mb-4 opacity-50 animate-pulse"/>
                 <h1 className="text-2xl font-rajdhani font-bold text-neon-green tracking-widest mb-2">TELA DO MESTRE</h1>
                 <p className="text-text-muted">Aguardando seleção de aventura na tela principal...</p>
@@ -585,7 +538,7 @@ const Board = () => {
       }
       return (
         <div className="w-full h-full bg-ecos-bg flex flex-col items-center justify-center p-6 text-white relative z-50">
-            <AudioController /> {/* Instância Invisível */}
+            {/* REMOVIDO AudioController DAQUI */}
             <style>{`@keyframes enter-slide { 0% { opacity: 0; transform: translateY(-15px) scale(0.95); max-height: 0; margin-bottom: 0; } 40% { max-height: 60px; margin-bottom: 0.5rem; } 100% { opacity: 1; transform: translateY(0) scale(1); max-height: 60px; margin-bottom: 0.5rem; } } .animate-enter { animation: enter-slide 0.45s cubic-bezier(0.2, 0.8, 0.2, 1) forwards; }`}</style>
             <h1 className="text-5xl font-rajdhani font-bold text-neon-green mb-8 tracking-widest">TABULEIRO</h1>
             <div className="bg-glass border border-glass-border rounded-xl p-6 shadow-2xl w-full max-w-lg relative">
@@ -666,7 +619,7 @@ const Board = () => {
         onDragOver={e => e.preventDefault()}
         onAuxClick={handleAuxClick} 
     >
-        {/* [NOVO] INSERINDO O CONTROLADOR DE ÁUDIO INVISÍVEL AQUI */}
+        {/* AudioController PRESENTE APENAS AQUI (DENTRO DA AVENTURA) */}
         <AudioController /> 
 
         {isGMWindow && <div className="absolute top-4 left-4 z-50 bg-neon-green/20 border border-neon-green px-3 py-1 rounded text-neon-green font-bold font-rajdhani text-sm pointer-events-none select-none">VISÃO DO MESTRE</div>}
@@ -674,13 +627,10 @@ const Board = () => {
         <div className="absolute top-0 left-0 w-full h-full origin-top-left" style={{ transform: `translate(${view.x}px, ${view.y}px) scale(${view.scale})` }}>
              <div className="absolute -top-[50000px] -left-[50000px] w-[100000px] h-[100000px] opacity-20 pointer-events-none" style={{ backgroundImage: 'radial-gradient(circle, #555 1px, transparent 1px)', backgroundSize: '70px 70px' }} />
             
-            {/* [MODIFICADO] Renderiza MAPA baseado em displayScene */}
             {mapParams.url && <div style={{ transform: `scale(${displayScene?.mapScale || 1})`, transformOrigin: '0 0' }}><img src={mapParams.url} className="max-w-none pointer-events-none select-none opacity-90 shadow-2xl" alt="Map Layer"/></div>}
             
-            {/* [MODIFICADO] Renderiza TOKENS baseado em displayScene */}
             {displayScene?.tokens.map(t => <Token key={t.id} data={t} isSelected={selectedIds.has(t.id)} onMouseDown={handleTokenDown} onResizeStart={handleTokenResizeStart}/>)}
             
-            {/* [MODIFICADO] Renderiza PINS baseado em displayScene */}
             {displayScene?.pins?.map(pin => {
                 if (!isGMWindow && pin.visibleToPlayers === false) return null;
                 return (
@@ -700,7 +650,6 @@ const Board = () => {
                 <div className="absolute pointer-events-none fog-area" style={{ left: Math.min(fogDrawing.startX, fogDrawing.currentX), top: Math.min(fogDrawing.startY, fogDrawing.currentY), width: Math.abs(fogDrawing.currentX - fogDrawing.startX), height: Math.abs(fogDrawing.currentY - fogDrawing.startY), backgroundColor: 'rgba(0, 0, 0, 0.7)', border: '2px dashed rgba(255, 255, 255, 0.3)', zIndex: 15 }} />
             )}
             
-            {/* [MODIFICADO] Renderiza FOG OF WAR baseado em displayScene */}
             {displayScene?.fogOfWar?.map(fog => (
                 <div key={fog.id} className={`fog-area absolute ${selectedFogIds.has(fog.id) ? 'ring-2 ring-yellow-400' : ''} ${activeTool === 'select' ? 'cursor-move' : 'cursor-default'}`}
                     style={{
@@ -714,12 +663,11 @@ const Board = () => {
             ))}
         </div>
         
-        {/* Overlay de Transição Fade to Black */}
         <div 
             className="absolute inset-0 bg-black pointer-events-none z-40"
             style={{ 
                 opacity: transitionOpacity, 
-                transition: `opacity ${FADE_DURATION}ms ease-in-out` // Usa constante
+                transition: `opacity ${FADE_DURATION}ms ease-in-out` 
             }}
         />
 

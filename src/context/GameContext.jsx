@@ -1,6 +1,6 @@
 import React, { createContext, useState, useContext, useEffect, useCallback, useRef } from 'react';
 import { imageDB } from './db';
-import { audioDB } from './audioDb'; // Importando o banco de áudio
+import { audioDB } from './audioDb'; 
 import JSZip from 'jszip'; 
 import { saveAs } from 'file-saver'; 
 import { getSystemDefaultState } from '../systems'; 
@@ -30,7 +30,6 @@ export const GameProvider = ({ children }) => {
   const [activeTool, setActiveTool] = useState('select');
   const [activeAdventureId, setActiveAdventureId] = useState(null);
 
-  // Estado padrão da Soundboard para evitar problemas de undefined
   const defaultSoundboardState = {
       playlists: [],     
       sfxGrid: [],       
@@ -49,7 +48,6 @@ export const GameProvider = ({ children }) => {
   
   const stateRef = useRef({ adventures, characters, presets, activeAdventureId, isDataLoaded, soundboard });
 
-  // [CORREÇÃO CRÍTICA] Adicionado 'soundboard' aqui para garantir que o Mestre receba os dados
   useEffect(() => {
     stateRef.current = { 
         adventures, 
@@ -70,7 +68,7 @@ export const GameProvider = ({ children }) => {
                   characters: current.characters, 
                   presets: current.presets, 
                   activeAdventureId: current.activeAdventureId,
-                  soundboard: current.soundboard // Agora isso terá valor
+                  soundboard: current.soundboard 
               };
               if (window.electron) {
                   window.electron.sendSync('FULL_SYNC_RESPONSE', payload);
@@ -87,7 +85,6 @@ export const GameProvider = ({ children }) => {
               setAdventures(data.adventures || []);
               setCharacters(data.characters || []);
               setPresets(data.presets || []);
-              // Garante que o soundboard tenha estrutura mínima se vier vazio
               setSoundboard(data.soundboard ? { ...defaultSoundboardState, ...data.soundboard } : defaultSoundboardState);
               setActiveAdventureId(urlAdvId || data.activeAdventureId);
               setIsDataLoaded(true); 
@@ -148,7 +145,6 @@ export const GameProvider = ({ children }) => {
       }
   };
 
-  // --- FUNÇÕES DE ARMAZENAMENTO ---
   const loadData = async (key) => {
       if (window.electron) {
           try { return await window.electron.readJson(key); } catch { return null; }
@@ -170,10 +166,8 @@ export const GameProvider = ({ children }) => {
       }
   };
 
-  // --- CARREGAMENTO INICIAL ---
   useEffect(() => {
       if (isGMWindow) return;
-
       const init = async () => {
           const loadedChars = await loadData(STORAGE_CHARACTERS_KEY) || [];
           const loadedPresets = await loadData(PRESETS_KEY) || [];
@@ -198,21 +192,16 @@ export const GameProvider = ({ children }) => {
           setActiveTool(loadedTool);
           setActivePresetId(loadedActivePreset);
           setSoundboard(loadedSoundboard);
-
           setIsDataLoaded(true);
       };
-
       init();
   }, [isGMWindow]);
   
   useEffect(() => {
-      // Salva no localStorage ou arquivo JSON
       saveData('ecos_vtt_soundboard_v1', soundboard);
-      // Envia para a outra janela
       broadcast('SYNC_SOUNDBOARD', soundboard);
   }, [soundboard, isDataLoaded]);
 
-  // --- EFEITOS DE SALVAMENTO E SYNC ---
   useEffect(() => { 
       saveData(STORAGE_CHARACTERS_KEY, characters);
       broadcast('SYNC_CHARACTERS', characters); 
@@ -228,7 +217,11 @@ export const GameProvider = ({ children }) => {
       broadcast('SYNC_ADVENTURES', adventures);
   }, [adventures, isDataLoaded]);
 
+  // [NOVO] Reseta o estado visual da música ao sair da aventura
   useEffect(() => {
+      if (!activeAdventureId) {
+          setSoundboard(prev => prev.activeTrack ? { ...prev, activeTrack: { ...prev.activeTrack, isPlaying: false } } : prev);
+      }
       if (isDataLoaded) broadcast('SYNC_ACTIVE_ADV_ID', activeAdventureId);
   }, [activeAdventureId, isDataLoaded]);
 
@@ -244,8 +237,6 @@ export const GameProvider = ({ children }) => {
   }, [activePresetId, activeTool, isDataLoaded]);
 
 
-  // --- LÓGICA DO JOGO ---
-
   const generateUUID = () => crypto.randomUUID();
   const activeAdventure = adventures.find(a => a.id === activeAdventureId);
   const activeScene = activeAdventure?.scenes.find(s => s.id === activeAdventure.activeSceneId);
@@ -255,7 +246,6 @@ export const GameProvider = ({ children }) => {
       try { return await imageDB.saveImage(file); } catch (e) { console.error(e); return null; }
   };
 
-  // --- ADVENTURE CRUD ---
   const createAdventure = useCallback((name) => {
     const newSceneId = generateUUID();
     const newAdventure = {
@@ -283,7 +273,6 @@ export const GameProvider = ({ children }) => {
       setAdventures(prev => [...prev, copy]);
   }, [adventures]);
 
-  // --- EXPORT / IMPORT ADVENTURE ---
   const exportAdventure = useCallback(async (advId) => {
       const adv = adventures.find(a => a.id === advId);
       if (!adv) return;
@@ -328,8 +317,6 @@ export const GameProvider = ({ children }) => {
       } catch (e) { console.error(e); alert("Erro ao importar aventura."); }
   }, []);
 
-  // --- IMPORT/EXPORT SOUNDBOARD ---
-
   const exportSoundboard = useCallback(async () => {
       const zip = new JSZip();
       zip.file("soundboard_data.json", JSON.stringify(soundboard));
@@ -368,12 +355,9 @@ export const GameProvider = ({ children }) => {
       if (!file) return;
       try {
           const zip = await JSZip.loadAsync(file);
-          
           const jsonFile = zip.file("soundboard_data.json");
           if (!jsonFile) throw new Error("Arquivo de backup inválido (json ausente)");
-          
           const loadedState = JSON.parse(await jsonFile.async("string"));
-          
           const audioFolder = zip.folder("audio_files");
           if (audioFolder) {
               const audioPromises = [];
@@ -386,18 +370,15 @@ export const GameProvider = ({ children }) => {
               });
               await Promise.all(audioPromises);
           }
-
           setSoundboard(loadedState);
           broadcast('SYNC_SOUNDBOARD', loadedState);
           alert("Soundboard importada com sucesso!");
-
       } catch (e) {
           console.error("Erro na importação:", e);
           alert("Erro ao importar Soundboard: " + e.message);
       }
   }, [broadcast]);
 
-  // --- SCENE / TOKEN / FOG CRUD ---
   const addScene = useCallback((name) => {
       if (!activeAdventureId) return;
       const newId = generateUUID();
@@ -409,17 +390,14 @@ export const GameProvider = ({ children }) => {
       if (!activeAdventureId) return;
       setAdventures(prev => prev.map(adv => {
           if (adv.id !== activeAdventureId) return adv;
-          
           const originalScene = adv.scenes.find(s => s.id === sceneId);
           if (!originalScene) return adv;
-
           const copy = JSON.parse(JSON.stringify(originalScene));
           copy.id = generateUUID();
           copy.name = `${copy.name} (Cópia)`;
           copy.tokens = copy.tokens.map(t => ({ ...t, id: generateUUID() }));
           copy.fogOfWar = copy.fogOfWar.map(f => ({ ...f, id: generateUUID() }));
           copy.pins = copy.pins.map(p => ({ ...p, id: generateUUID() }));
-
           return { ...adv, scenes: [...adv.scenes, copy] };
       }));
   }, [activeAdventureId]);
@@ -488,13 +466,7 @@ export const GameProvider = ({ children }) => {
       if (!activeAdventureId) return;
       setAdventures(prev => prev.map(adv => {
           if (adv.id !== activeAdventureId) return adv;
-          return { 
-              ...adv, 
-              scenes: adv.scenes.map(s => s.id !== sceneId ? s : { 
-                  ...s, 
-                  pins: [...(s.pins || []), { ...pinData, id: generateUUID() }] 
-              }) 
-          };
+          return { ...adv, scenes: adv.scenes.map(s => s.id !== sceneId ? s : { ...s, pins: [...(s.pins || []), { ...pinData, id: generateUUID() }] }) };
       }));
   }, [activeAdventureId]);
 
@@ -502,13 +474,7 @@ export const GameProvider = ({ children }) => {
       if (!activeAdventureId) return;
       setAdventures(prev => prev.map(adv => {
           if (adv.id !== activeAdventureId) return adv;
-          return { 
-              ...adv, 
-              scenes: adv.scenes.map(s => s.id !== sceneId ? s : { 
-                  ...s, 
-                  pins: (s.pins || []).map(p => p.id === pinId ? { ...p, ...updates } : p) 
-              }) 
-          };
+          return { ...adv, scenes: adv.scenes.map(s => s.id !== sceneId ? s : { ...s, pins: (s.pins || []).map(p => p.id === pinId ? { ...p, ...updates } : p) }) };
       }));
   }, [activeAdventureId]);
 
@@ -516,13 +482,7 @@ export const GameProvider = ({ children }) => {
       if (!activeAdventureId) return;
       setAdventures(prev => prev.map(adv => {
           if (adv.id !== activeAdventureId) return adv;
-          return { 
-              ...adv, 
-              scenes: adv.scenes.map(s => s.id !== sceneId ? s : { 
-                  ...s, 
-                  pins: (s.pins || []).filter(p => p.id !== pinId) 
-              }) 
-          };
+          return { ...adv, scenes: adv.scenes.map(s => s.id !== sceneId ? s : { ...s, pins: (s.pins || []).filter(p => p.id !== pinId) }) };
       }));
   }, [activeAdventureId]);
 
@@ -531,29 +491,16 @@ export const GameProvider = ({ children }) => {
       const idsSet = new Set(pinIdsArray);
       setAdventures(prev => prev.map(adv => {
           if (adv.id !== activeAdventureId) return adv;
-          return { 
-              ...adv, 
-              scenes: adv.scenes.map(s => s.id !== sceneId ? s : { 
-                  ...s, 
-                  pins: (s.pins || []).filter(p => !idsSet.has(p.id)) 
-              }) 
-          };
+          return { ...adv, scenes: adv.scenes.map(s => s.id !== sceneId ? s : { ...s, pins: (s.pins || []).filter(p => !idsSet.has(p.id)) }) };
       }));
   }, [activeAdventureId]);
 
-  // --- TOKEN LIBRARY & FOLDERS ---
-  
   const addTokenToLibrary = useCallback(async (file, parentId = null) => {
       if (!activeAdventureId || !file) return;
       const imageId = await handleImageUpload(file);
       setAdventures(prev => prev.map(adv => adv.id !== activeAdventureId ? adv : { 
           ...adv, 
-          tokenLibrary: [...(adv.tokenLibrary || []), { 
-              id: generateUUID(), 
-              imageId, 
-              type: 'token', 
-              parentId: parentId || null 
-          }] 
+          tokenLibrary: [...(adv.tokenLibrary || []), { id: generateUUID(), imageId, type: 'token', parentId: parentId || null }] 
       }));
   }, [activeAdventureId]);
 
@@ -561,12 +508,7 @@ export const GameProvider = ({ children }) => {
       if (!activeAdventureId) return;
       setAdventures(prev => prev.map(adv => adv.id !== activeAdventureId ? adv : {
           ...adv,
-          tokenLibrary: [...(adv.tokenLibrary || []), {
-              id: generateUUID(),
-              name: name || "Nova Pasta",
-              type: 'folder',
-              parentId: parentId || null
-          }]
+          tokenLibrary: [...(adv.tokenLibrary || []), { id: generateUUID(), name: name || "Nova Pasta", type: 'folder', parentId: parentId || null }]
       }));
   }, [activeAdventureId]);
 
@@ -574,12 +516,7 @@ export const GameProvider = ({ children }) => {
       if (!activeAdventureId) return;
       setAdventures(prev => prev.map(adv => {
           if (adv.id !== activeAdventureId) return adv;
-          return {
-              ...adv,
-              tokenLibrary: adv.tokenLibrary.map(item => 
-                  item.id === itemId ? { ...item, parentId: targetFolderId } : item
-              )
-          };
+          return { ...adv, tokenLibrary: adv.tokenLibrary.map(item => item.id === itemId ? { ...item, parentId: targetFolderId } : item) };
       }));
   }, [activeAdventureId]);
 
@@ -587,24 +524,16 @@ export const GameProvider = ({ children }) => {
       if (!activeAdventureId) return;
       setAdventures(prev => prev.map(adv => {
           if (adv.id !== activeAdventureId) return adv;
-          return {
-              ...adv,
-              tokenLibrary: adv.tokenLibrary.map(item => 
-                  item.id === itemId ? { ...item, name: newName } : item
-              )
-          };
+          return { ...adv, tokenLibrary: adv.tokenLibrary.map(item => item.id === itemId ? { ...item, name: newName } : item) };
       }));
   }, [activeAdventureId]);
 
   const deleteLibraryItem = useCallback((itemId) => {
       if (!activeAdventureId) return;
-      
       setAdventures(prev => {
           const adv = prev.find(a => a.id === activeAdventureId);
           if (!adv) return prev;
-
           let idsToDelete = new Set([itemId]);
-
           const findChildren = (parentId) => {
               const children = adv.tokenLibrary.filter(t => t.parentId === parentId);
               children.forEach(c => {
@@ -612,23 +541,13 @@ export const GameProvider = ({ children }) => {
                   if (c.type === 'folder') findChildren(c.id);
               });
           };
-
           const targetItem = adv.tokenLibrary.find(t => t.id === itemId);
-          if (targetItem && targetItem.type === 'folder') {
-              findChildren(itemId);
-          }
-
-          return prev.map(a => a.id !== activeAdventureId ? a : {
-              ...a,
-              tokenLibrary: a.tokenLibrary.filter(t => !idsToDelete.has(t.id))
-          });
+          if (targetItem && targetItem.type === 'folder') { findChildren(itemId); }
+          return prev.map(a => a.id !== activeAdventureId ? a : { ...a, tokenLibrary: a.tokenLibrary.filter(t => !idsToDelete.has(t.id)) });
       });
   }, [activeAdventureId]);
-
   const removeTokenFromLibrary = deleteLibraryItem;
 
-
-  // --- TOKEN INSTANCES ON MAP ---
   const addTokenInstance = useCallback((sceneId, tokenData) => {
       if (!activeAdventureId) return;
       setAdventures(prev => prev.map(adv => {
@@ -641,14 +560,7 @@ export const GameProvider = ({ children }) => {
       if (!activeAdventureId) return;
       setAdventures(prev => prev.map(adv => {
           if (adv.id !== activeAdventureId) return adv;
-          return { 
-              ...adv, 
-              scenes: adv.scenes.map(s => 
-                  s.id === sceneId 
-                  ? { ...s, tokens: s.tokens.map(t => t.id === tokenId ? { ...t, ...updates } : t) } 
-                  : s
-              ) 
-          };
+          return { ...adv, scenes: adv.scenes.map(s => s.id === sceneId ? { ...s, tokens: s.tokens.map(t => t.id === tokenId ? { ...t, ...updates } : t) } : s) };
       }));
   }, [activeAdventureId]);
 
@@ -691,29 +603,17 @@ export const GameProvider = ({ children }) => {
     } catch (e) { console.error("Erro import char token:", e); return null; }
   }, [characters, activeAdventureId]);
 
-
-  // --- CHARACTERS ---
   const addCharacter = useCallback((charData) => {
     const systemId = charData.systemId || 'ecos_rpg_v1';
     const defaults = getSystemDefaultState(systemId);
-    const newChar = {
-      id: generateUUID(), 
-      systemId: systemId, 
-      name: "Novo Personagem", 
-      photo: null, 
-      ...defaults, 
-      ...charData 
-    };
-    
+    const newChar = { id: generateUUID(), systemId: systemId, name: "Novo Personagem", photo: null, ...defaults, ...charData };
     setCharacters(prev => [...prev, newChar]);
     return newChar.id;
   }, []);
-  
   const updateCharacter = useCallback((id, updates) => setCharacters(prev => prev.map(char => char.id === id ? { ...char, ...updates } : char)), []);
   const deleteCharacter = useCallback((id) => setCharacters(prev => prev.filter(char => char.id !== id)), []);
   const setAllCharacters = useCallback((list) => setCharacters(list), []);
 
-  // --- PRESETS ---
   const exportPreset = useCallback(async (presetId) => {
       const preset = presets.find(p => p.id === presetId);
       if (!preset) return;
@@ -751,10 +651,7 @@ export const GameProvider = ({ children }) => {
               }
           }
           const newPresetId = generateUUID();
-          const newCharacters = presetData.characters.map(char => ({
-              ...char,
-              id: generateUUID() 
-          }));
+          const newCharacters = presetData.characters.map(char => ({ ...char, id: generateUUID() }));
           const newPreset = { ...presetData, id: newPresetId, name: `${presetData.name}`, characters: newCharacters };
           setPresets(prev => [...prev, newPreset]);
       } catch (e) { console.error(e); alert("Erro ao importar grupo."); }
@@ -764,84 +661,30 @@ export const GameProvider = ({ children }) => {
     const newPreset = { id: generateUUID(), name, characters: [] };
     setCharacters([]); setPresets(prev => [...prev, newPreset]); return newPreset.id;
   }, []);
-  
-  const loadPreset = useCallback((pid) => { 
-      const p = presets.find(x => x.id === pid); 
-      if(p) { setCharacters([...p.characters]); setActivePresetId(pid); } 
-  }, [presets]);
-  
-  const saveToPreset = useCallback((pid) => { 
-      setPresets(prev => prev.map(p => p.id === pid ? { ...p, characters } : p)); 
-  }, [characters]);
-  
+  const loadPreset = useCallback((pid) => { const p = presets.find(x => x.id === pid); if(p) { setCharacters([...p.characters]); setActivePresetId(pid); } }, [presets]);
+  const saveToPreset = useCallback((pid) => { setPresets(prev => prev.map(p => p.id === pid ? { ...p, characters } : p)); }, [characters]);
   const exitPreset = useCallback(() => { setActivePresetId(null); setCharacters([]); }, []);
-  
-  const deletePreset = useCallback((id) => { 
-      setPresets(prev => prev.filter(p => p.id !== id)); 
-      if(activePresetId === id) { setActivePresetId(null); setCharacters([]); } 
-  }, [activePresetId]);
-  
-  const mergePresets = useCallback((list) => { 
-      setPresets(prev => { 
-          const ids = new Set(prev.map(p => p.id)); 
-          return [...prev, ...list.filter(p => !ids.has(p.id))]; 
-      }); 
-  }, []);
-
-  const updatePreset = useCallback((id, updates) => {
-    setPresets(prev => prev.map(p => p.id === id ? { ...p, ...updates } : p));
-  }, []);
+  const deletePreset = useCallback((id) => { setPresets(prev => prev.filter(p => p.id !== id)); if(activePresetId === id) { setActivePresetId(null); setCharacters([]); } }, [activePresetId]);
+  const mergePresets = useCallback((list) => { setPresets(prev => { const ids = new Set(prev.map(p => p.id)); return [...prev, ...list.filter(p => !ids.has(p.id))]; }); }, []);
+  const updatePreset = useCallback((id, updates) => { setPresets(prev => prev.map(p => p.id === id ? { ...p, ...updates } : p)); }, []);
   
   const resetAllData = async () => { 
-      if (window.electron) {
-      } else {
-          localStorage.clear(); 
-          await imageDB.clearAll(); 
-      }
+      if (!window.electron) { localStorage.clear(); await imageDB.clearAll(); }
       window.location.reload(); 
   };
 
-  // --- SOUNDBOARD ACTIONS ---
+  const updateSoundboard = useCallback((updates) => { setSoundboard(prev => ({ ...prev, ...updates })); }, []);
+  const addPlaylist = useCallback((name) => { setSoundboard(prev => ({ ...prev, playlists: [...prev.playlists, { id: generateUUID(), name, tracks: [] }] })); }, []);
   
-  const updateSoundboard = useCallback((updates) => {
-      setSoundboard(prev => ({ ...prev, ...updates }));
-  }, []);
-
-  const addPlaylist = useCallback((name) => {
-      setSoundboard(prev => ({
-          ...prev,
-          playlists: [...prev.playlists, { id: generateUUID(), name, tracks: [] }]
-      }));
-  }, []);
-
   const addTrackToPlaylist = useCallback(async (playlistId, file, duration = 0) => {
       const fileId = await audioDB.saveAudio(file);
       if(!fileId) return;
-      
-      const newTrack = {
-          id: generateUUID(),
-          title: file.name.replace(/\.[^/.]+$/, ""), // Remove extensão
-          fileId,
-          duration
-      };
-
-      setSoundboard(prev => ({
-          ...prev,
-          playlists: prev.playlists.map(pl => 
-              pl.id === playlistId ? { ...pl, tracks: [...pl.tracks, newTrack] } : pl
-          )
-      }));
+      const newTrack = { id: generateUUID(), title: file.name.replace(/\.[^/.]+$/, ""), fileId, duration };
+      setSoundboard(prev => ({ ...prev, playlists: prev.playlists.map(pl => pl.id === playlistId ? { ...pl, tracks: [...pl.tracks, newTrack] } : pl) }));
   }, []);
 
   const removeTrack = useCallback((playlistId, trackId) => {
-      setSoundboard(prev => ({
-          ...prev,
-          playlists: prev.playlists.map(pl => 
-              pl.id === playlistId 
-              ? { ...pl, tracks: pl.tracks.filter(t => t.id !== trackId) } 
-              : pl
-          )
-      }));
+      setSoundboard(prev => ({ ...prev, playlists: prev.playlists.map(pl => pl.id === playlistId ? { ...pl, tracks: pl.tracks.filter(t => t.id !== trackId) } : pl) }));
   }, []);
 
   const playTrack = useCallback((track, playlistId) => {
@@ -850,80 +693,33 @@ export const GameProvider = ({ children }) => {
           activeTrack: { 
               ...track, 
               playlistId, 
-              // [CORREÇÃO] Respeita o valor de isPlaying se ele vier no objeto track
-              // Se vier undefined (ex: clique duplo na lista), assume true.
               isPlaying: (track.isPlaying !== undefined) ? track.isPlaying : true, 
-              
-              // Mantém progresso se for a mesma faixa pausada, senão 0
               progress: (prev.activeTrack?.id === track.id) ? prev.activeTrack.progress : 0 
           }
       }));
   }, []);
 
-  const stopTrack = useCallback(() => {
-      setSoundboard(prev => ({
-          ...prev,
-          activeTrack: prev.activeTrack ? { ...prev.activeTrack, isPlaying: false } : null
-      }));
-  }, []);
-
-  // --- SFX ACTIONS ---
+  const stopTrack = useCallback(() => { setSoundboard(prev => ({ ...prev, activeTrack: prev.activeTrack ? { ...prev.activeTrack, isPlaying: false } : null })); }, []);
 
   const addSfx = useCallback(async (file) => {
       const fileId = await audioDB.saveAudio(file);
       if(!fileId) return;
-      
-      const newSfx = {
-          id: generateUUID(),
-          name: file.name.replace(/\.[^/.]+$/, "").substring(0, 12), // Nome curto
-          fileId,
-          volume: 1.0,
-          color: '#d084ff', // Cor padrão (Roxo Neon)
-          icon: 'Zap' // Ícone padrão
-      };
-
-      setSoundboard(prev => ({
-          ...prev,
-          sfxGrid: [...prev.sfxGrid, newSfx]
-      }));
+      const newSfx = { id: generateUUID(), name: file.name.replace(/\.[^/.]+$/, "").substring(0, 12), fileId, volume: 1.0, color: '#d084ff', icon: 'Zap' };
+      setSoundboard(prev => ({ ...prev, sfxGrid: [...prev.sfxGrid, newSfx] }));
   }, []);
 
-  const removeSfx = useCallback((id) => {
-      setSoundboard(prev => ({
-          ...prev,
-          sfxGrid: prev.sfxGrid.filter(s => s.id !== id)
-      }));
-  }, []);
-
-  const updateSfx = useCallback((id, updates) => {
-      setSoundboard(prev => ({
-          ...prev,
-          sfxGrid: prev.sfxGrid.map(s => s.id === id ? { ...s, ...updates } : s)
-      }));
-  }, []);
-
-  const setSfxMasterVolume = useCallback((val) => {
-      setSoundboard(prev => ({ ...prev, masterVolume: { ...prev.masterVolume, sfx: val } }));
-  }, []);
-
-  const triggerSfxRemote = useCallback((sfxItem) => {
-      // 1. Envia para os jogadores via Broadcast
-      broadcast('TRIGGER_SFX', sfxItem);
-      
-      // 2. Dispara localmente
-      window.dispatchEvent(new CustomEvent('ecos-sfx-trigger', { detail: sfxItem }));
-  }, [broadcast]);
-  
-  const setMusicVolume = useCallback((val) => {
-      setSoundboard(prev => ({ ...prev, masterVolume: { ...prev.masterVolume, music: val } }));
-  }, []);
+  const removeSfx = useCallback((id) => { setSoundboard(prev => ({ ...prev, sfxGrid: prev.sfxGrid.filter(s => s.id !== id) })); }, []);
+  const updateSfx = useCallback((id, updates) => { setSoundboard(prev => ({ ...prev, sfxGrid: prev.sfxGrid.map(s => s.id === id ? { ...s, ...updates } : s) })); }, []);
+  const setSfxMasterVolume = useCallback((val) => { setSoundboard(prev => ({ ...prev, masterVolume: { ...prev.masterVolume, sfx: val } })); }, []);
+  const triggerSfxRemote = useCallback((sfxItem) => { broadcast('TRIGGER_SFX', sfxItem); window.dispatchEvent(new CustomEvent('ecos-sfx-trigger', { detail: sfxItem })); }, [broadcast]);
+  const setMusicVolume = useCallback((val) => { setSoundboard(prev => ({ ...prev, masterVolume: { ...prev.masterVolume, music: val } })); }, []);
 
   const value = {
     isGMWindow, isGMWindowOpen,
     adventures, activeAdventureId, activeAdventure, activeScene,
     createAdventure, deleteAdventure, updateAdventure, duplicateAdventure, setActiveAdventureId,
     exportAdventure, importAdventure,
-    exportSoundboard, importSoundboard, // NOVAS FUNÇÕES EXPOSTAS
+    exportSoundboard, importSoundboard,
     addScene, duplicateScene, updateScene, updateSceneMap, setActiveScene, deleteScene,
     activeTool, setActiveTool, addFogArea, updateFogArea, deleteFogArea, deleteMultipleFogAreas,
     addTokenToLibrary, removeTokenFromLibrary, addTokenInstance, updateTokenInstance, deleteTokenInstance, deleteMultipleTokenInstances, importCharacterAsToken,
