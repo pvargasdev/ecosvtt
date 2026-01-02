@@ -28,7 +28,9 @@ export const GameProvider = ({ children }) => {
   
   const [activePresetId, setActivePresetId] = useState(null);
   const [activeTool, setActiveTool] = useState('select');
-  const [activeAdventureId, setActiveAdventureId] = useState(null);
+  
+  // O estado activeAdventureId interno (não exposto diretamente para evitar set direto sem limpeza)
+  const [internalActiveAdventureId, setInternalActiveAdventureId] = useState(null);
   
   const [isGMWindowOpen, setIsGMWindowOpen] = useState(false);
 
@@ -36,11 +38,11 @@ export const GameProvider = ({ children }) => {
   const broadcastChannel = useRef(null);
   const isRemoteUpdate = useRef(false); 
   
-  const stateRef = useRef({ adventures, characters, presets, activeAdventureId, isDataLoaded });
+  const stateRef = useRef({ adventures, characters, presets, activeAdventureId: internalActiveAdventureId, isDataLoaded });
 
   useEffect(() => {
-    stateRef.current = { adventures, characters, presets, activeAdventureId, isDataLoaded };
-  }, [adventures, characters, presets, activeAdventureId, isDataLoaded]);
+    stateRef.current = { adventures, characters, presets, activeAdventureId: internalActiveAdventureId, isDataLoaded };
+  }, [adventures, characters, presets, internalActiveAdventureId, isDataLoaded]);
 
   const handleIncomingMessage = useCallback((type, data) => {
       if (type === 'REQUEST_FULL_SYNC') {
@@ -67,7 +69,7 @@ export const GameProvider = ({ children }) => {
               setAdventures(data.adventures || []);
               setCharacters(data.characters || []);
               setPresets(data.presets || []);
-              setActiveAdventureId(urlAdvId || data.activeAdventureId);
+              setInternalActiveAdventureId(urlAdvId || data.activeAdventureId);
               setIsDataLoaded(true); 
               setTimeout(() => { isRemoteUpdate.current = false; }, 100);
           }
@@ -79,8 +81,7 @@ export const GameProvider = ({ children }) => {
           case 'SYNC_ADVENTURES': setAdventures(data); break;
           case 'SYNC_CHARACTERS': setCharacters(data); break;
           case 'SYNC_PRESETS': setPresets(data); break;
-          case 'SYNC_ACTIVE_ADV_ID': setActiveAdventureId(data); break;
-          // TRIGGER_SFX continua separado pois é um evento efêmero, não estado
+          case 'SYNC_ACTIVE_ADV_ID': setInternalActiveAdventureId(data); break;
           case 'TRIGGER_SFX': window.dispatchEvent(new CustomEvent('ecos-sfx-trigger', { detail: data })); break;
       }
       setTimeout(() => { isRemoteUpdate.current = false; }, 50);
@@ -139,11 +140,29 @@ export const GameProvider = ({ children }) => {
       if (!isDataLoaded) return; 
       if (isGMWindow) return;
 
+      // [FIX] Antes de salvar, garantimos que activeTrack.isPlaying seja false no disco
+      // Isso previne que ao recarregar a página, a música volte tocando sozinha.
+      let dataToSave = data;
+      if (key === STORAGE_ADVENTURES_KEY && Array.isArray(data)) {
+          dataToSave = data.map(adv => {
+              if (adv.soundboard && adv.soundboard.activeTrack) {
+                  return {
+                      ...adv,
+                      soundboard: {
+                          ...adv.soundboard,
+                          activeTrack: null // Nunca salva a música ativa no disco
+                      }
+                  };
+              }
+              return adv;
+          });
+      }
+
       if (window.electron) {
-          const cleanData = JSON.parse(JSON.stringify(data));
+          const cleanData = JSON.parse(JSON.stringify(dataToSave));
           await window.electron.writeJson(key, cleanData);
       } else {
-          try { localStorage.setItem(key, JSON.stringify(data)); } 
+          try { localStorage.setItem(key, JSON.stringify(dataToSave)); } 
           catch (e) { if (e.name === 'QuotaExceededError') console.error("LocalStorage cheio."); }
       }
   };
@@ -155,8 +174,27 @@ export const GameProvider = ({ children }) => {
       const init = async () => {
           const loadedChars = await loadData(STORAGE_CHARACTERS_KEY) || [];
           const loadedPresets = await loadData(PRESETS_KEY) || [];
-          const loadedAdventures = await loadData(STORAGE_ADVENTURES_KEY) || [];
+          let loadedAdventures = await loadData(STORAGE_ADVENTURES_KEY) || [];
           
+          // [FIX CRÍTICO] LOAD TIME SANITIZATION
+          // Garante que, ao dar F5, nenhuma aventura venha com activeTrack preenchido.
+          loadedAdventures = loadedAdventures.map(adv => {
+              if (adv.soundboard) {
+                  return {
+                      ...adv,
+                      soundboard: {
+                          ...adv.soundboard,
+                          activeTrack: null, // Força nulo
+                          playlists: adv.soundboard.playlists.map(pl => ({
+                             ...pl,
+                             tracks: pl.tracks.map(t => ({ ...t, isPlaying: false })) // Reseta tracks individuais
+                          }))
+                      }
+                  };
+              }
+              return adv;
+          });
+
           let loadedTool = 'select';
           let loadedActivePreset = null;
 
@@ -192,15 +230,14 @@ export const GameProvider = ({ children }) => {
       broadcast('SYNC_PRESETS', presets);
   }, [presets, isDataLoaded]);
 
-  // Sincroniza Aventuras (Agora inclui o Soundboard dentro de cada aventura)
   useEffect(() => { 
       saveData(STORAGE_ADVENTURES_KEY, adventures);
       broadcast('SYNC_ADVENTURES', adventures);
   }, [adventures, isDataLoaded]);
 
   useEffect(() => {
-      if (isDataLoaded) broadcast('SYNC_ACTIVE_ADV_ID', activeAdventureId);
-  }, [activeAdventureId, isDataLoaded]);
+      if (isDataLoaded) broadcast('SYNC_ACTIVE_ADV_ID', internalActiveAdventureId);
+  }, [internalActiveAdventureId, isDataLoaded]);
 
   useEffect(() => {
       if (!isDataLoaded || isGMWindow) return;
@@ -224,17 +261,79 @@ export const GameProvider = ({ children }) => {
   };
 
   const generateUUID = () => crypto.randomUUID();
-  const activeAdventure = adventures.find(a => a.id === activeAdventureId);
+  const activeAdventure = adventures.find(a => a.id === internalActiveAdventureId);
   const activeScene = activeAdventure?.scenes.find(s => s.id === activeAdventure.activeSceneId);
   
-  // Soundboard agora é uma propriedade da aventura ativa
   const soundboard = activeAdventure?.soundboard || defaultSoundboardState;
 
   // --- ACTIONS GERAIS ---
 
+  // [FIX CRÍTICO] OVERRIDE DE setActiveAdventureId
+  // Esta função substitui o setter padrão. Ela limpa o áudio ANTES de mudar a aventura.
+  const setActiveAdventureId = useCallback((adventureId) => {
+      if (adventureId === null) {
+          // Se estiver saindo (voltando pro menu), apenas sai.
+          // Opcional: Parar música ao voltar pro menu?
+          // Se quiser parar ao sair:
+          if (internalActiveAdventureId) {
+             setAdventures(prev => prev.map(adv => {
+                if (adv.id === internalActiveAdventureId && adv.soundboard?.activeTrack) {
+                    return { ...adv, soundboard: { ...adv.soundboard, activeTrack: null } };
+                }
+                return adv;
+             }));
+          }
+          setInternalActiveAdventureId(null);
+          return;
+      }
+
+      // Se estiver ENTRANDO em uma aventura:
+      setAdventures(prev => {
+          return prev.map(adv => {
+              // 1. Limpa a aventura que estava ativa antes (se houver)
+              if (adv.id === internalActiveAdventureId && adv.soundboard?.activeTrack) {
+                  return { ...adv, soundboard: { ...adv.soundboard, activeTrack: null } };
+              }
+              // 2. Limpa a aventura que VAI ser ativada (garante silêncio no início)
+              if (adv.id === adventureId) {
+                  // Mesmo se tiver algo salvo, resetamos para NULL aqui
+                  return { 
+                      ...adv, 
+                      soundboard: { 
+                          ...(adv.soundboard || defaultSoundboardState), 
+                          activeTrack: null, // SILÊNCIO FORÇADO
+                          playlists: (adv.soundboard?.playlists || []).map(pl => ({
+                             ...pl,
+                             tracks: pl.tracks.map(t => ({...t, isPlaying: false}))
+                          }))
+                      } 
+                  };
+              }
+              return adv;
+          });
+      });
+
+      // Só depois de limpar os dados, mudamos o ID ativo.
+      setInternalActiveAdventureId(adventureId);
+      
+      // Evento de segurança para forçar engines externos a pararem
+      window.dispatchEvent(new CustomEvent('ecos-audio-stop-all'));
+
+  }, [internalActiveAdventureId]);
+
   const handleImageUpload = async (file) => {
       if (!file) return null;
       try { return await imageDB.saveImage(file); } catch (e) { console.error(e); return null; }
+  };
+
+  const setActiveAdvSoundboard = (updateFn) => {
+      if (!internalActiveAdventureId) return;
+      setAdventures(prev => prev.map(adv => {
+          if (adv.id !== internalActiveAdventureId) return adv;
+          const currentSB = adv.soundboard || defaultSoundboardState;
+          const newSB = typeof updateFn === 'function' ? updateFn(currentSB) : updateFn;
+          return { ...adv, soundboard: newSB };
+      }));
   };
 
   const createAdventure = useCallback((name) => {
@@ -242,7 +341,6 @@ export const GameProvider = ({ children }) => {
     const newAdventure = {
         id: generateUUID(), name: name, activeSceneId: newSceneId, tokenLibrary: [], 
         scenes: [{ id: newSceneId, name: "Cena 1", mapImageId: null, mapScale: 1.0, tokens: [], fogOfWar: [], pins: [] }],
-        // Inicializa soundboard vazio na aventura
         soundboard: { ...defaultSoundboardState } 
     };
     setAdventures(prev => [...prev, newAdventure]);
@@ -250,8 +348,8 @@ export const GameProvider = ({ children }) => {
 
   const deleteAdventure = useCallback((id) => {
       setAdventures(prev => prev.filter(a => a.id !== id));
-      if (activeAdventureId === id) setActiveAdventureId(null);
-  }, [activeAdventureId]);
+      if (internalActiveAdventureId === id) setInternalActiveAdventureId(null);
+  }, [internalActiveAdventureId]);
 
   const updateAdventure = useCallback((id, updates) => {
     setAdventures(prev => prev.map(a => a.id === id ? { ...a, ...updates } : a));
@@ -266,20 +364,14 @@ export const GameProvider = ({ children }) => {
       setAdventures(prev => [...prev, copy]);
   }, [adventures]);
 
-  // --- EXPORT ADVENTURE (AGORA INCLUI ÁUDIO) ---
   const exportAdventure = useCallback(async (advId) => {
       const adv = adventures.find(a => a.id === advId);
       if (!adv) return;
       const zip = new JSZip();
-      
-      // 1. Salva JSON
       zip.file("adventure.json", JSON.stringify(adv));
-      
-      // 2. Pasta Imagens
       const imgFolder = zip.folder("images");
       const imageIds = new Set();
       
-      // Coleta IDs de imagem
       adv.scenes.forEach(scene => {
           if (scene.mapImageId) imageIds.add(scene.mapImageId);
           scene.tokens.forEach(t => { if (t.imageId) imageIds.add(t.imageId); });
@@ -293,22 +385,18 @@ export const GameProvider = ({ children }) => {
           if (blob) imgFolder.file(id, blob);
       }
 
-      // 3. Pasta Áudios (NOVO)
       const audioFolder = zip.folder("audio");
       const audioIds = new Set();
 
       if (adv.soundboard) {
-          // Playlists
           if (adv.soundboard.playlists) {
               adv.soundboard.playlists.forEach(pl => {
                   pl.tracks.forEach(t => { if (t.fileId) audioIds.add(t.fileId); });
               });
           }
-          // SFX
           if (adv.soundboard.sfxGrid) {
               adv.soundboard.sfxGrid.forEach(sfx => { if (sfx.fileId) audioIds.add(sfx.fileId); });
           }
-          // Active Track
           if (adv.soundboard.activeTrack?.fileId) {
               audioIds.add(adv.soundboard.activeTrack.fileId);
           }
@@ -323,7 +411,6 @@ export const GameProvider = ({ children }) => {
       saveAs(content, `adventure_${adv.name.replace(/\s+/g, '_')}.zip`);
   }, [adventures]);
 
-  // --- IMPORT ADVENTURE (AGORA INCLUI ÁUDIO) ---
   const importAdventure = useCallback(async (file) => {
       if (!file) return;
       try {
@@ -333,7 +420,6 @@ export const GameProvider = ({ children }) => {
           
           const advData = JSON.parse(await jsonFile.async("string"));
           
-          // Migração de dados legados (garante campos novos)
           advData.scenes = advData.scenes.map(scene => ({ 
               ...scene, 
               fogOfWar: scene.fogOfWar || [], 
@@ -344,7 +430,6 @@ export const GameProvider = ({ children }) => {
               advData.soundboard = { ...defaultSoundboardState };
           }
 
-          // 1. Processar Imagens
           const imgFolder = zip.folder("images");
           if (imgFolder) {
               const images = [];
@@ -355,7 +440,6 @@ export const GameProvider = ({ children }) => {
               }
           }
 
-          // 2. Processar Áudios (NOVO)
           const audioFolder = zip.folder("audio");
           if (audioFolder) {
               const audios = [];
@@ -366,51 +450,33 @@ export const GameProvider = ({ children }) => {
               }
           }
 
-          const newAdv = { ...advData, id: generateUUID(), name: `${advData.name}` };
+          const newAdv = { ...advData, id: generateUUID(), name: `${advData.name} (Imp)` };
           setAdventures(prev => [...prev, newAdv]);
       } catch (e) { console.error(e); alert("Erro ao importar aventura: " + e.message); }
   }, []);
 
-  // --- SOUNDBOARD FUNCTIONS (AGORA ALTERAM A AVENTURA ATIVA) ---
-  
-  // Helper para atualizar soundboard da aventura ativa
-  const setActiveAdvSoundboard = (updateFn) => {
-      if (!activeAdventureId) return;
-      setAdventures(prev => prev.map(adv => {
-          if (adv.id !== activeAdventureId) return adv;
-          const currentSB = adv.soundboard || defaultSoundboardState;
-          const newSB = typeof updateFn === 'function' ? updateFn(currentSB) : updateFn;
-          return { ...adv, soundboard: newSB };
-      }));
-  };
-
-  const updateSoundboard = useCallback((updates) => { 
-      setActiveAdvSoundboard(prev => ({ ...prev, ...updates })); 
-  }, [activeAdventureId]);
-
-  const addPlaylist = useCallback((name) => { 
-      setActiveAdvSoundboard(prev => ({
-          ...prev,
-          playlists: [...prev.playlists, { id: generateUUID(), name, tracks: [] }]
-      }));
-  }, [activeAdventureId]);
+  const updateSoundboard = useCallback((updates) => { setActiveAdvSoundboard(prev => ({ ...prev, ...updates })); }, [internalActiveAdventureId]);
+  const addPlaylist = useCallback((name) => { setActiveAdvSoundboard(prev => ({ ...prev, playlists: [...prev.playlists, { id: generateUUID(), name, tracks: [] }] })); }, [internalActiveAdventureId]);
   
   const addTrackToPlaylist = useCallback(async (playlistId, file, duration = 0) => {
       const fileId = await audioDB.saveAudio(file);
       if(!fileId) return;
       const newTrack = { id: generateUUID(), title: file.name.replace(/\.[^/.]+$/, ""), fileId, duration };
-      setActiveAdvSoundboard(prev => ({
-          ...prev,
-          playlists: prev.playlists.map(pl => pl.id === playlistId ? { ...pl, tracks: [...pl.tracks, newTrack] } : pl)
-      }));
-  }, [activeAdventureId]);
+      setActiveAdvSoundboard(prev => ({ ...prev, playlists: prev.playlists.map(pl => pl.id === playlistId ? { ...pl, tracks: [...pl.tracks, newTrack] } : pl) }));
+  }, [internalActiveAdventureId]);
 
   const removeTrack = useCallback((playlistId, trackId) => {
+      setActiveAdvSoundboard(prev => ({ ...prev, playlists: prev.playlists.map(pl => pl.id === playlistId ? { ...pl, tracks: pl.tracks.filter(t => t.id !== trackId) } : pl) }));
+  }, [internalActiveAdventureId]);
+
+  const reorderPlaylist = useCallback((playlistId, newTracksOrder) => {
       setActiveAdvSoundboard(prev => ({
           ...prev,
-          playlists: prev.playlists.map(pl => pl.id === playlistId ? { ...pl, tracks: pl.tracks.filter(t => t.id !== trackId) } : pl)
+          playlists: prev.playlists.map(pl =>
+              pl.id === playlistId ? { ...pl, tracks: newTracksOrder } : pl
+          )
       }));
-  }, [activeAdventureId]);
+  }, [internalActiveAdventureId]);
 
   const playTrack = useCallback((track, playlistId) => {
       setActiveAdvSoundboard(prev => ({
@@ -422,16 +488,15 @@ export const GameProvider = ({ children }) => {
               progress: (prev.activeTrack?.id === track.id) ? prev.activeTrack.progress : 0 
           }
       }));
-  }, [activeAdventureId]);
+  }, [internalActiveAdventureId]);
 
   const stopTrack = useCallback(() => { 
       setActiveAdvSoundboard(prev => ({ 
           ...prev, 
           activeTrack: prev.activeTrack ? { ...prev.activeTrack, isPlaying: false } : null 
       })); 
-  }, [activeAdventureId]);
+  }, [internalActiveAdventureId]);
 
-  // --- SFX (NOVA ESTRUTURA NA AVENTURA) ---
   const addSfx = useCallback(async (file, parentId = null) => {
       const fileId = await audioDB.saveAudio(file);
       if(!fileId) return;
@@ -446,11 +511,10 @@ export const GameProvider = ({ children }) => {
           parentId: parentId || null
       };
       setActiveAdvSoundboard(prev => ({ ...prev, sfxGrid: [...(prev.sfxGrid || []), newSfx] }));
-  }, [activeAdventureId]);
+  }, [internalActiveAdventureId]);
 
   const removeSfx = useCallback((id) => {
       setActiveAdvSoundboard(prev => {
-          // Deleta recursivamente se for pasta
           const grid = prev.sfxGrid || [];
           const idsToDelete = new Set([id]);
           const findChildren = (parentId) => {
@@ -461,51 +525,45 @@ export const GameProvider = ({ children }) => {
           };
           const target = grid.find(i => i.id === id);
           if (target && target.type === 'folder') findChildren(id);
-          
           return { ...prev, sfxGrid: grid.filter(s => !idsToDelete.has(s.id)) };
       });
-  }, [activeAdventureId]);
+  }, [internalActiveAdventureId]);
 
   const updateSfx = useCallback((id, updates) => {
+      setActiveAdvSoundboard(prev => ({ ...prev, sfxGrid: (prev.sfxGrid || []).map(s => s.id === id ? { ...s, ...updates } : s) }));
+  }, [internalActiveAdventureId]);
+
+  const reorderSfx = useCallback((newSfxOrder) => {
       setActiveAdvSoundboard(prev => ({
           ...prev,
-          sfxGrid: (prev.sfxGrid || []).map(s => s.id === id ? { ...s, ...updates } : s)
+          sfxGrid: newSfxOrder
       }));
-  }, [activeAdventureId]);
+  }, [internalActiveAdventureId]);
 
   const setSfxMasterVolume = useCallback((val) => {
       setActiveAdvSoundboard(prev => ({ ...prev, masterVolume: { ...(prev.masterVolume || {}), sfx: val } }));
-  }, [activeAdventureId]);
+  }, [internalActiveAdventureId]);
 
   const setMusicVolume = useCallback((val) => {
       setActiveAdvSoundboard(prev => ({ ...prev, masterVolume: { ...(prev.masterVolume || {}), music: val } }));
-  }, [activeAdventureId]);
+  }, [internalActiveAdventureId]);
 
-  // Trigger remoto não altera estado persistente, apenas avisa
   const triggerSfxRemote = useCallback((sfxItem) => {
       broadcast('TRIGGER_SFX', sfxItem);
       window.dispatchEvent(new CustomEvent('ecos-sfx-trigger', { detail: sfxItem }));
   }, [broadcast]);
 
-  // Reseta música ao sair da aventura
-  useEffect(() => {
-      if (!activeAdventureId) {
-          // Se não há aventura ativa, garante que o Player pare visualmente (o AudioController desmontado para o som)
-      }
-  }, [activeAdventureId]);
-
-  // --- MODIFICADORES DE CENA E DEMAIS (MANTIDOS) ---
   const addScene = useCallback((name) => {
-      if (!activeAdventureId) return;
+      if (!internalActiveAdventureId) return;
       const newId = generateUUID();
       const newScene = { id: newId, name: name || "Nova Cena", mapImageId: null, mapScale: 1.0, tokens: [], fogOfWar: [], pins: [] };
-      setAdventures(prev => prev.map(adv => adv.id !== activeAdventureId ? adv : { ...adv, scenes: [...adv.scenes, newScene] }));
-  }, [activeAdventureId]);
+      setAdventures(prev => prev.map(adv => adv.id !== internalActiveAdventureId ? adv : { ...adv, scenes: [...adv.scenes, newScene] }));
+  }, [internalActiveAdventureId]);
 
   const duplicateScene = useCallback((sceneId) => {
-      if (!activeAdventureId) return;
+      if (!internalActiveAdventureId) return;
       setAdventures(prev => prev.map(adv => {
-          if (adv.id !== activeAdventureId) return adv;
+          if (adv.id !== internalActiveAdventureId) return adv;
           const originalScene = adv.scenes.find(s => s.id === sceneId);
           if (!originalScene) return adv;
           const copy = JSON.parse(JSON.stringify(originalScene));
@@ -516,138 +574,138 @@ export const GameProvider = ({ children }) => {
           copy.pins = copy.pins.map(p => ({ ...p, id: generateUUID() }));
           return { ...adv, scenes: [...adv.scenes, copy] };
       }));
-  }, [activeAdventureId]);
+  }, [internalActiveAdventureId]);
 
   const updateSceneMap = useCallback(async (sceneId, file) => {
-      if (!activeAdventureId || !file) return;
+      if (!internalActiveAdventureId || !file) return;
       const imageId = await handleImageUpload(file);
-      setAdventures(prev => prev.map(adv => adv.id !== activeAdventureId ? adv : { ...adv, scenes: adv.scenes.map(s => s.id === sceneId ? { ...s, mapImageId: imageId } : s) }));
-  }, [activeAdventureId]);
+      setAdventures(prev => prev.map(adv => adv.id !== internalActiveAdventureId ? adv : { ...adv, scenes: adv.scenes.map(s => s.id === sceneId ? { ...s, mapImageId: imageId } : s) }));
+  }, [internalActiveAdventureId]);
 
   const updateScene = useCallback((sceneId, updates) => {
-      if (!activeAdventureId) return;
-      setAdventures(prev => prev.map(adv => adv.id !== activeAdventureId ? adv : { ...adv, scenes: adv.scenes.map(s => s.id === sceneId ? { ...s, ...updates } : s) }));
-  }, [activeAdventureId]);
+      if (!internalActiveAdventureId) return;
+      setAdventures(prev => prev.map(adv => adv.id !== internalActiveAdventureId ? adv : { ...adv, scenes: adv.scenes.map(s => s.id === sceneId ? { ...s, ...updates } : s) }));
+  }, [internalActiveAdventureId]);
 
   const setActiveScene = useCallback((sceneId) => {
-      if (!activeAdventureId) return;
-      setAdventures(prev => prev.map(adv => adv.id !== activeAdventureId ? adv : { ...adv, activeSceneId: sceneId }));
-  }, [activeAdventureId]);
+      if (!internalActiveAdventureId) return;
+      setAdventures(prev => prev.map(adv => adv.id !== internalActiveAdventureId ? adv : { ...adv, activeSceneId: sceneId }));
+  }, [internalActiveAdventureId]);
 
   const deleteScene = useCallback((sceneId) => {
-      if (!activeAdventureId) return;
+      if (!internalActiveAdventureId) return;
       setAdventures(prev => prev.map(adv => {
-          if (adv.id !== activeAdventureId) return adv;
+          if (adv.id !== internalActiveAdventureId) return adv;
           const newScenes = adv.scenes.filter(s => s.id !== sceneId);
           let newActive = adv.activeSceneId;
           if (sceneId === adv.activeSceneId) newActive = newScenes.length > 0 ? newScenes[0].id : null;
           return { ...adv, scenes: newScenes, activeSceneId: newActive };
       }));
-  }, [activeAdventureId]);
+  }, [internalActiveAdventureId]);
 
   const addFogArea = useCallback((sceneId, fogData) => {
-      if (!activeAdventureId) return;
+      if (!internalActiveAdventureId) return;
       setAdventures(prev => prev.map(adv => {
-          if (adv.id !== activeAdventureId) return adv;
+          if (adv.id !== internalActiveAdventureId) return adv;
           return { ...adv, scenes: adv.scenes.map(s => s.id !== sceneId ? s : { ...s, fogOfWar: [...(s.fogOfWar || []), { id: generateUUID(), ...fogData }] }) };
       }));
-  }, [activeAdventureId]);
+  }, [internalActiveAdventureId]);
 
   const updateFogArea = useCallback((sceneId, fogId, updates) => {
-      if (!activeAdventureId) return;
+      if (!internalActiveAdventureId) return;
       setAdventures(prev => prev.map(adv => {
-          if (adv.id !== activeAdventureId) return adv;
+          if (adv.id !== internalActiveAdventureId) return adv;
           return { ...adv, scenes: adv.scenes.map(s => s.id !== sceneId ? s : { ...s, fogOfWar: (s.fogOfWar || []).map(f => f.id === fogId ? { ...f, ...updates } : f) }) };
       }));
-  }, [activeAdventureId]);
+  }, [internalActiveAdventureId]);
 
   const deleteFogArea = useCallback((sceneId, fogId) => {
-      if (!activeAdventureId) return;
+      if (!internalActiveAdventureId) return;
       setAdventures(prev => prev.map(adv => {
-          if (adv.id !== activeAdventureId) return adv;
+          if (adv.id !== internalActiveAdventureId) return adv;
           return { ...adv, scenes: adv.scenes.map(s => s.id !== sceneId ? s : { ...s, fogOfWar: (s.fogOfWar || []).filter(f => f.id !== fogId) }) };
       }));
-  }, [activeAdventureId]);
+  }, [internalActiveAdventureId]);
 
   const deleteMultipleFogAreas = useCallback((sceneId, fogIdsArray) => {
-      if (!activeAdventureId) return;
+      if (!internalActiveAdventureId) return;
       const idsSet = new Set(fogIdsArray);
       setAdventures(prev => prev.map(adv => {
-          if (adv.id !== activeAdventureId) return adv;
+          if (adv.id !== internalActiveAdventureId) return adv;
           return { ...adv, scenes: adv.scenes.map(s => s.id !== sceneId ? s : { ...s, fogOfWar: (s.fogOfWar || []).filter(f => !idsSet.has(f.id)) }) };
       }));
-  }, [activeAdventureId]);
+  }, [internalActiveAdventureId]);
 
   const addPin = useCallback((sceneId, pinData) => {
-      if (!activeAdventureId) return;
+      if (!internalActiveAdventureId) return;
       setAdventures(prev => prev.map(adv => {
-          if (adv.id !== activeAdventureId) return adv;
+          if (adv.id !== internalActiveAdventureId) return adv;
           return { ...adv, scenes: adv.scenes.map(s => s.id !== sceneId ? s : { ...s, pins: [...(s.pins || []), { ...pinData, id: generateUUID() }] }) };
       }));
-  }, [activeAdventureId]);
+  }, [internalActiveAdventureId]);
 
   const updatePin = useCallback((sceneId, pinId, updates) => {
-      if (!activeAdventureId) return;
+      if (!internalActiveAdventureId) return;
       setAdventures(prev => prev.map(adv => {
-          if (adv.id !== activeAdventureId) return adv;
+          if (adv.id !== internalActiveAdventureId) return adv;
           return { ...adv, scenes: adv.scenes.map(s => s.id !== sceneId ? s : { ...s, pins: (s.pins || []).map(p => p.id === pinId ? { ...p, ...updates } : p) }) };
       }));
-  }, [activeAdventureId]);
+  }, [internalActiveAdventureId]);
 
   const deletePin = useCallback((sceneId, pinId) => {
-      if (!activeAdventureId) return;
+      if (!internalActiveAdventureId) return;
       setAdventures(prev => prev.map(adv => {
-          if (adv.id !== activeAdventureId) return adv;
+          if (adv.id !== internalActiveAdventureId) return adv;
           return { ...adv, scenes: adv.scenes.map(s => s.id !== sceneId ? s : { ...s, pins: (s.pins || []).filter(p => p.id !== pinId) }) };
       }));
-  }, [activeAdventureId]);
+  }, [internalActiveAdventureId]);
 
   const deleteMultiplePins = useCallback((sceneId, pinIdsArray) => {
-      if (!activeAdventureId) return;
+      if (!internalActiveAdventureId) return;
       const idsSet = new Set(pinIdsArray);
       setAdventures(prev => prev.map(adv => {
-          if (adv.id !== activeAdventureId) return adv;
+          if (adv.id !== internalActiveAdventureId) return adv;
           return { ...adv, scenes: adv.scenes.map(s => s.id !== sceneId ? s : { ...s, pins: (s.pins || []).filter(p => !idsSet.has(p.id)) }) };
       }));
-  }, [activeAdventureId]);
+  }, [internalActiveAdventureId]);
 
   const addTokenToLibrary = useCallback(async (file, parentId = null) => {
-      if (!activeAdventureId || !file) return;
+      if (!internalActiveAdventureId || !file) return;
       const imageId = await handleImageUpload(file);
-      setAdventures(prev => prev.map(adv => adv.id !== activeAdventureId ? adv : { 
+      setAdventures(prev => prev.map(adv => adv.id !== internalActiveAdventureId ? adv : { 
           ...adv, 
           tokenLibrary: [...(adv.tokenLibrary || []), { id: generateUUID(), imageId, type: 'token', parentId: parentId || null }] 
       }));
-  }, [activeAdventureId]);
+  }, [internalActiveAdventureId]);
 
   const addFolder = useCallback((name, parentId = null) => {
-      if (!activeAdventureId) return;
-      setAdventures(prev => prev.map(adv => adv.id !== activeAdventureId ? adv : {
+      if (!internalActiveAdventureId) return;
+      setAdventures(prev => prev.map(adv => adv.id !== internalActiveAdventureId ? adv : {
           ...adv,
           tokenLibrary: [...(adv.tokenLibrary || []), { id: generateUUID(), name: name || "Nova Pasta", type: 'folder', parentId: parentId || null }]
       }));
-  }, [activeAdventureId]);
+  }, [internalActiveAdventureId]);
 
   const moveLibraryItem = useCallback((itemId, targetFolderId) => {
-      if (!activeAdventureId) return;
+      if (!internalActiveAdventureId) return;
       setAdventures(prev => prev.map(adv => {
-          if (adv.id !== activeAdventureId) return adv;
+          if (adv.id !== internalActiveAdventureId) return adv;
           return { ...adv, tokenLibrary: adv.tokenLibrary.map(item => item.id === itemId ? { ...item, parentId: targetFolderId } : item) };
       }));
-  }, [activeAdventureId]);
+  }, [internalActiveAdventureId]);
 
   const renameLibraryItem = useCallback((itemId, newName) => {
-      if (!activeAdventureId) return;
+      if (!internalActiveAdventureId) return;
       setAdventures(prev => prev.map(adv => {
-          if (adv.id !== activeAdventureId) return adv;
+          if (adv.id !== internalActiveAdventureId) return adv;
           return { ...adv, tokenLibrary: adv.tokenLibrary.map(item => item.id === itemId ? { ...item, name: newName } : item) };
       }));
-  }, [activeAdventureId]);
+  }, [internalActiveAdventureId]);
 
   const deleteLibraryItem = useCallback((itemId) => {
-      if (!activeAdventureId) return;
+      if (!internalActiveAdventureId) return;
       setAdventures(prev => {
-          const adv = prev.find(a => a.id === activeAdventureId);
+          const adv = prev.find(a => a.id === internalActiveAdventureId);
           if (!adv) return prev;
           let idsToDelete = new Set([itemId]);
           const findChildren = (parentId) => {
@@ -659,43 +717,43 @@ export const GameProvider = ({ children }) => {
           };
           const targetItem = adv.tokenLibrary.find(t => t.id === itemId);
           if (targetItem && targetItem.type === 'folder') { findChildren(itemId); }
-          return prev.map(a => a.id !== activeAdventureId ? a : { ...a, tokenLibrary: a.tokenLibrary.filter(t => !idsToDelete.has(t.id)) });
+          return prev.map(a => a.id !== internalActiveAdventureId ? a : { ...a, tokenLibrary: a.tokenLibrary.filter(t => !idsToDelete.has(t.id)) });
       });
-  }, [activeAdventureId]);
+  }, [internalActiveAdventureId]);
   const removeTokenFromLibrary = deleteLibraryItem;
 
   const addTokenInstance = useCallback((sceneId, tokenData) => {
-      if (!activeAdventureId) return;
+      if (!internalActiveAdventureId) return;
       setAdventures(prev => prev.map(adv => {
-          if (adv.id !== activeAdventureId) return adv;
+          if (adv.id !== internalActiveAdventureId) return adv;
           return { ...adv, scenes: adv.scenes.map(s => s.id !== sceneId ? s : { ...s, tokens: [...s.tokens, { id: generateUUID(), x: 0, y: 0, scale: 1, ...tokenData }] }) };
       }));
-  }, [activeAdventureId]);
+  }, [internalActiveAdventureId]);
 
   const updateTokenInstance = useCallback((sceneId, tokenId, updates) => {
-      if (!activeAdventureId) return;
+      if (!internalActiveAdventureId) return;
       setAdventures(prev => prev.map(adv => {
-          if (adv.id !== activeAdventureId) return adv;
+          if (adv.id !== internalActiveAdventureId) return adv;
           return { ...adv, scenes: adv.scenes.map(s => s.id === sceneId ? { ...s, tokens: s.tokens.map(t => t.id === tokenId ? { ...t, ...updates } : t) } : s) };
       }));
-  }, [activeAdventureId]);
+  }, [internalActiveAdventureId]);
 
   const deleteTokenInstance = useCallback((sceneId, tokenId) => {
-    if (!activeAdventureId) return;
+    if (!internalActiveAdventureId) return;
     setAdventures(prev => prev.map(adv => {
-        if (adv.id !== activeAdventureId) return adv;
+        if (adv.id !== internalActiveAdventureId) return adv;
         return { ...adv, scenes: adv.scenes.map(s => s.id !== sceneId ? s : { ...s, tokens: s.tokens.filter(t => t.id !== tokenId) }) };
     }));
-  }, [activeAdventureId]);
+  }, [internalActiveAdventureId]);
 
   const deleteMultipleTokenInstances = useCallback((sceneId, tokenIdsArray) => {
-      if (!activeAdventureId) return;
+      if (!internalActiveAdventureId) return;
       const idsSet = new Set(tokenIdsArray);
       setAdventures(prev => prev.map(adv => {
-          if (adv.id !== activeAdventureId) return adv;
+          if (adv.id !== internalActiveAdventureId) return adv;
           return { ...adv, scenes: adv.scenes.map(s => s.id !== sceneId ? s : { ...s, tokens: s.tokens.filter(t => !idsSet.has(t.id)) }) };
       }));
-  }, [activeAdventureId]);
+  }, [internalActiveAdventureId]);
 
   const importCharacterAsToken = useCallback(async (characterId) => {
     const char = characters.find(c => c.id === characterId);
@@ -707,9 +765,9 @@ export const GameProvider = ({ children }) => {
             const blob = await res.blob();
             imageId = await imageDB.saveImage(blob);
         } else { imageId = await imageDB.saveImage(char.photo); }
-        if (imageId && activeAdventureId) {
+        if (imageId && internalActiveAdventureId) {
            setAdventures(prev => prev.map(adv => {
-               if (adv.id !== activeAdventureId) return adv;
+               if (adv.id !== internalActiveAdventureId) return adv;
                const exists = adv.tokenLibrary?.some(t => t.imageId === imageId);
                if (exists) return adv;
                return { ...adv, tokenLibrary: [...(adv.tokenLibrary || []), { id: generateUUID(), imageId, type: 'token', parentId: null }] };
@@ -717,7 +775,7 @@ export const GameProvider = ({ children }) => {
         }
         return imageId;
     } catch (e) { console.error("Erro import char token:", e); return null; }
-  }, [characters, activeAdventureId]);
+  }, [characters, internalActiveAdventureId]);
 
   const addCharacter = useCallback((charData) => {
     const systemId = charData.systemId || 'ecos_rpg_v1';
@@ -791,12 +849,11 @@ export const GameProvider = ({ children }) => {
 
   const value = {
     isGMWindow, isGMWindowOpen,
-    adventures, activeAdventureId, activeAdventure, activeScene,
+    adventures, activeAdventureId: internalActiveAdventureId, activeAdventure, activeScene,
     createAdventure, deleteAdventure, updateAdventure, duplicateAdventure, setActiveAdventureId,
     exportAdventure, importAdventure,
-    // [MODIFICADO] Soundboard Actions agora alteram a aventura
-    soundboard, updateSoundboard, addPlaylist, addTrackToPlaylist, removeTrack, playTrack, stopTrack, setMusicVolume,
-    addSfx, removeSfx, updateSfx, setSfxMasterVolume, triggerSfxRemote,
+    soundboard, updateSoundboard, addPlaylist, addTrackToPlaylist, removeTrack, reorderPlaylist, playTrack, stopTrack, setMusicVolume,
+    addSfx, removeSfx, updateSfx, reorderSfx, setSfxMasterVolume, triggerSfxRemote,
     addScene, duplicateScene, updateScene, updateSceneMap, setActiveScene, deleteScene,
     activeTool, setActiveTool, addFogArea, updateFogArea, deleteFogArea, deleteMultipleFogAreas,
     addTokenToLibrary, removeTokenFromLibrary, addTokenInstance, updateTokenInstance, deleteTokenInstance, deleteMultipleTokenInstances, importCharacterAsToken,
