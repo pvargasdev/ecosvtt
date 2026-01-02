@@ -3,7 +3,7 @@ import { useGame } from '../../context/GameContext';
 import { X, ListMusic, Grid, Volume2 } from 'lucide-react';
 import PlaylistView from './PlaylistView';
 import PlayerBar from './PlayerBar';
-// import SFXGrid from './SFXGrid'; // Faremos na próxima
+import SFXGrid from './SFXGrid';
 
 // Reutilizamos o WindowWrapper definido no VTTLayout (ou importamos se estiver exportado)
 // Assumindo que você exportará o WindowWrapper do VTTLayout ou duplicará aqui por simplicidade.
@@ -26,12 +26,8 @@ const SoundboardWindow = ({ onClose, containerRef, WindowWrapperComponent }) => 
         if (activeTab === 'music') {
             return <PlaylistView />;
         }
-        return (
-            <div className="flex items-center justify-center h-full text-text-muted flex-col gap-2">
-                <Grid size={48} className="opacity-20"/>
-                <p>Efeitos Sonoros (SFX) em breve...</p>
-            </div>
-        );
+        // AGORA RENDERIZA A GRADE REAL
+        return <SFXGrid />;
     };
 
     const Wrapper = WindowWrapperComponent || 'div'; // Fallback

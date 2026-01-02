@@ -1,9 +1,8 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useGame } from '../../context/GameContext';
-import { Settings, Image as ImageIcon, Box, ArrowLeft, Map, Plus, Trash2, X, ChevronDown, LogOut, Edit2, RotateCcw, Check, Search, Square, MousePointer, AlertTriangle, Folder, FolderPlus, CornerLeftUp, Copy, HelpCircle, Import} from 'lucide-react';
+import { Settings, Image as ImageIcon, Box, ArrowLeft, Map, Plus, Trash2, X, ChevronDown, LogOut, Edit2, RotateCcw, Check, Search, Square, MousePointer, AlertTriangle, Folder, FolderPlus, CornerLeftUp, Copy, HelpCircle, Import, Music } from 'lucide-react';
 import { imageDB } from '../../context/db';
 import SoundboardWindow from '../Soundboard/SoundboardWindow';
-import { Music } from 'lucide-react'; // Adicione 'Music' aos imports do lucide-react
 
 // --- VARIÁVEL DE CONTROLE DE DRAG ---
 // Permite que os componentes saibam quem está sendo arrastado 
@@ -644,8 +643,8 @@ export const VTTLayout = ({ zoomValue, onZoomChange, activeTool, setActiveTool }
 
   const closeAllMenus = useCallback(() => {
       setUiState(prev => {
-          if (prev.menuOpen || prev.libraryOpen || prev.mapConfigOpen || prev.helpOpen) {
-              return { menuOpen: false, libraryOpen: false, mapConfigOpen: false, helpOpen: false };
+          if (prev.menuOpen || prev.libraryOpen || prev.mapConfigOpen || prev.helpOpen || prev.soundboardOpen) {
+              return { menuOpen: false, libraryOpen: false, mapConfigOpen: false, helpOpen: false, soundboardOpen: false };
           }
           return prev;
       });
@@ -655,7 +654,7 @@ export const VTTLayout = ({ zoomValue, onZoomChange, activeTool, setActiveTool }
       const handleOutsideInteraction = (event) => {
           if (headerRef.current && headerRef.current.contains(event.target)) return;
           if (event.target.closest('[data-ecos-window="true"]')) return;
-          if (uiState.menuOpen || uiState.libraryOpen || uiState.mapConfigOpen || uiState.helpOpen) closeAllMenus();
+          if (uiState.menuOpen || uiState.libraryOpen || uiState.mapConfigOpen || uiState.helpOpen || uiState.soundboardOpen) closeAllMenus();
       };
       
       const handleKeyDown = (e) => { if (e.key === 'ArrowUp' || e.key === 'ArrowDown') closeAllMenus(); };
@@ -675,6 +674,7 @@ export const VTTLayout = ({ zoomValue, onZoomChange, activeTool, setActiveTool }
         libraryOpen: key === 'libraryOpen' ? !prev.libraryOpen : false,
         mapConfigOpen: key === 'mapConfigOpen' ? !prev.mapConfigOpen : false,
         helpOpen: key === 'helpOpen' ? !prev.helpOpen : false,
+        soundboardOpen: key === 'soundboardOpen' ? !prev.soundboardOpen : false,
     }));
   };
 
@@ -742,7 +742,18 @@ export const VTTLayout = ({ zoomValue, onZoomChange, activeTool, setActiveTool }
                 
                 <div className="w-px h-6 bg-glass-border mx-1"></div>
 
-                                <button onClick={(e) => toggle('helpOpen', e)} className={`p-2 rounded hover:bg-white/10 transition ${uiState.helpOpen ? 'text-white' : 'text-text-muted'}`} title="Ajuda / Comandos"><HelpCircle size={18}/></button>
+                {/* BOTÃO DA SOUNDBOARD ADICIONADO AQUI */}
+                <button 
+                    onClick={(e) => toggle('soundboardOpen', e)} 
+                    className={`p-2 rounded hover:bg-white/10 transition ${uiState.soundboardOpen ? 'text-pink-500' : 'text-text-muted'}`} 
+                    title="Soundboard / Músicas"
+                >
+                    <Music size={18}/>
+                </button>
+
+                <div className="w-px h-6 bg-glass-border mx-1"></div>
+
+                <button onClick={(e) => toggle('helpOpen', e)} className={`p-2 rounded hover:bg-white/10 transition ${uiState.helpOpen ? 'text-white' : 'text-text-muted'}`} title="Ajuda / Comandos"><HelpCircle size={18}/></button>
                 
                 <button onClick={(e) => { 
                     e.stopPropagation(); 
@@ -752,10 +763,20 @@ export const VTTLayout = ({ zoomValue, onZoomChange, activeTool, setActiveTool }
               </div>
           </div>
 
+          {/* JANELAS RENDERIZADAS CONDICIONALMENTE */}
           <MapConfigModal isOpen={uiState.mapConfigOpen} onClose={() => setUiState(p => ({...p, mapConfigOpen: false}))} />
           <AssetDock isOpen={uiState.libraryOpen} onClose={() => setUiState(p => ({...p, libraryOpen: false}))} />
           <SceneSelector isOpen={uiState.menuOpen} />
           <HelpWindow isOpen={uiState.helpOpen} onClose={() => setUiState(p => ({...p, helpOpen: false}))} />
+          
+          {/* JANELA SOUNDBOARD ADICIONADA AQUI */}
+          {uiState.soundboardOpen && (
+              <SoundboardWindow 
+                  onClose={() => setUiState(p => ({...p, soundboardOpen: false}))} 
+                  WindowWrapperComponent={WindowWrapper} 
+              />
+          )}
+
           <ConfirmationModal />
       </div>
   );

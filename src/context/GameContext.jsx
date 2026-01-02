@@ -90,6 +90,7 @@ export const GameProvider = ({ children }) => {
           case 'SYNC_PRESETS': setPresets(data); break;
           case 'SYNC_ACTIVE_ADV_ID': setActiveAdventureId(data); break;
           case 'SYNC_SOUNDBOARD': setSoundboard(data); break;
+          case 'TRIGGER_SFX': window.dispatchEvent(new CustomEvent('ecos-sfx-trigger', { detail: data })); break;
       }
       setTimeout(() => { isRemoteUpdate.current = false; }, 50);
   }, [isGMWindow, urlAdvId]); 
@@ -791,6 +792,59 @@ export const GameProvider = ({ children }) => {
           activeTrack: prev.activeTrack ? { ...prev.activeTrack, isPlaying: false } : null
       }));
   }, []);
+
+  // --- SFX ACTIONS ---
+
+  const addSfx = useCallback(async (file) => {
+      const fileId = await audioDB.saveAudio(file);
+      if(!fileId) return;
+      
+      const newSfx = {
+          id: generateUUID(),
+          name: file.name.replace(/\.[^/.]+$/, "").substring(0, 12), // Nome curto
+          fileId,
+          volume: 1.0,
+          color: '#d084ff', // Cor padrão (Roxo Neon)
+          icon: 'Zap' // Ícone padrão
+      };
+
+      setSoundboard(prev => ({
+          ...prev,
+          sfxGrid: [...prev.sfxGrid, newSfx]
+      }));
+  }, []);
+
+  const removeSfx = useCallback((id) => {
+      setSoundboard(prev => ({
+          ...prev,
+          sfxGrid: prev.sfxGrid.filter(s => s.id !== id)
+      }));
+      // Idealmente limparíamos do audioDB se não usado
+  }, []);
+
+  const updateSfx = useCallback((id, updates) => {
+      setSoundboard(prev => ({
+          ...prev,
+          sfxGrid: prev.sfxGrid.map(s => s.id === id ? { ...s, ...updates } : s)
+      }));
+  }, []);
+
+  // MASTER SFX VOLUME
+  const setSfxMasterVolume = useCallback((val) => {
+      setSoundboard(prev => ({ ...prev, masterVolume: { ...prev.masterVolume, sfx: val } }));
+  }, []);
+
+  // DISPARO SINCRONIZADO (TRIGGER)
+  // Esta função não altera estado persistente, apenas emite o evento
+  const triggerSfxRemote = useCallback((sfxItem) => {
+      // 1. Envia para os jogadores via Broadcast
+      broadcast('TRIGGER_SFX', sfxItem);
+      
+      // 2. Dispara localmente também (O AudioEngine local decidirá se toca ou se está mutado pelo modo GM)
+      // Precisamos de uma forma de comunicar com o AudioController local sem estado.
+      // Vamos usar um CustomEvent local para o hook useAudioEngine pegar.
+      window.dispatchEvent(new CustomEvent('ecos-sfx-trigger', { detail: sfxItem }));
+  }, [broadcast]);
   
   const setMusicVolume = useCallback((val) => {
       setSoundboard(prev => ({ ...prev, masterVolume: { ...prev.masterVolume, music: val } }));
@@ -809,6 +863,7 @@ export const GameProvider = ({ children }) => {
     gameState: { characters }, addCharacter, updateCharacter, deleteCharacter, setAllCharacters,
     presets, activePresetId, createPreset, loadPreset, saveToPreset, deletePreset, mergePresets, exitPreset, updatePreset, exportPreset, importPreset,
     soundboard, updateSoundboard, addPlaylist, addTrackToPlaylist, removeTrack, playTrack, stopTrack, setMusicVolume,
+    addSfx, removeSfx, updateSfx, setSfxMasterVolume, triggerSfxRemote,
     resetAllData
   };
 

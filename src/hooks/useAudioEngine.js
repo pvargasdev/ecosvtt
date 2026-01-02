@@ -27,6 +27,17 @@ export const useAudioEngine = () => {
         }
     }, [isGMWindow, soundboard.masterVolume.music]);
 
+    // --- 5. LISTENER DE SFX (EVENTO DISPARADO REMOTA OU LOCALMENTE) ---
+    useEffect(() => {
+        const handleSfxEvent = (e) => {
+            const sfxItem = e.detail;
+            if (sfxItem) triggerSfx(sfxItem);
+        };
+
+        window.addEventListener('ecos-sfx-trigger', handleSfxEvent);
+        return () => window.removeEventListener('ecos-sfx-trigger', handleSfxEvent);
+    }, [soundboard.masterVolume.sfx]); // Recria se o volume master mudar
+
 
     // --- 2. GERENCIAMENTO DA FAIXA DE MÚSICA (CROSSFADE) ---
     useEffect(() => {
