@@ -87,8 +87,7 @@ const PlaylistView = () => {
                                         <div className="w-4 flex justify-center">
                                             {isPlaying ? (
                                                 <div className="flex gap-[2px] h-3 items-end"><div className="w-[2px] bg-neon-green animate-[bounce_1s_infinite] h-2"></div><div className="w-[2px] bg-neon-green animate-[bounce_1.2s_infinite] h-3"></div><div className="w-[2px] bg-neon-green animate-[bounce_0.8s_infinite] h-1"></div></div>
-                                            ) : <span className="group-hover:hidden">{index + 1}</span>}
-                                            <Play size={12} className={`hidden group-hover:block ${isCurrent ? 'text-neon-green' : 'text-white'}`} fill="currentColor"/>
+                                            ) : <span className="">{index + 1}</span>}
                                         </div>
                                     </td>
                                     <td className={`p-2 text-sm font-medium ${isCurrent ? 'text-neon-green' : 'text-gray-300'}`}>{track.title}</td>

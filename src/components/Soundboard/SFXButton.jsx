@@ -1,70 +1,57 @@
 import React, { useState, useEffect } from 'react';
 import { useGame } from '../../context/GameContext';
-import { Volume2, Trash2, Edit2, Zap, Check, X } from 'lucide-react';
+import { Volume2, Trash2, Edit2, Zap, Check, X, StopCircle } from 'lucide-react';
 import * as Icons from 'lucide-react';
 
 const SFXButton = ({ data }) => {
     const { triggerSfxRemote, updateSfx, removeSfx } = useGame();
-    const [isPressed, setIsPressed] = useState(false);
     
-    // Estados de UI
+    // Estados
+    const [isPlaying, setIsPlaying] = useState(false);
     const [mode, setMode] = useState('idle'); // 'idle', 'editing', 'deleting'
     const [editName, setEditName] = useState(data.name);
     const [editVolume, setEditVolume] = useState(data.volume || 1);
 
-    // Listener para feedback visual remoto
+    // Listener para saber se ESTE som está tocando (iniciado por qualquer pessoa)
     useEffect(() => {
-        const handleRemoteTrigger = (e) => {
-            if (e.detail && e.detail.id === data.id) animatePress();
-        };
-        window.addEventListener('ecos-sfx-trigger', handleRemoteTrigger);
-        return () => window.removeEventListener('ecos-sfx-trigger', handleRemoteTrigger);
-    }, [data.id]);
+        const onStart = () => setIsPlaying(true);
+        const onEnd = () => setIsPlaying(false);
 
-    const animatePress = () => {
-        setIsPressed(true);
-        setTimeout(() => setIsPressed(false), 200);
-    };
+        // O Engine emitirá esses eventos
+        window.addEventListener(`ecos-sfx-start-${data.id}`, onStart);
+        window.addEventListener(`ecos-sfx-end-${data.id}`, onEnd);
+
+        return () => {
+            window.removeEventListener(`ecos-sfx-start-${data.id}`, onStart);
+            window.removeEventListener(`ecos-sfx-end-${data.id}`, onEnd);
+        };
+    }, [data.id]);
 
     const handlePress = (e) => {
         if (mode !== 'idle') return; 
         if (e.button !== 0) return; 
-        animatePress();
+        
+        // Dispara o comando. O Engine decidirá se Toca ou Para.
         triggerSfxRemote(data);
     };
 
-    // --- LÓGICA DE DRAG AND DROP ---
-    const handleDragStart = (e) => {
-        if (mode !== 'idle') {
-            e.preventDefault();
-            return;
-        }
-        e.dataTransfer.setData('application/json', JSON.stringify({
-            type: 'sfx_item',
-            id: data.id
-        }));
-    };
-
     const handleSaveEdit = (e) => {
-        e.stopPropagation(); // Importante
+        e.stopPropagation();
         updateSfx(data.id, { name: editName, volume: editVolume });
         setMode('idle');
     };
 
     const handleDelete = (e) => {
-        e.stopPropagation(); // Importante
+        e.stopPropagation();
         removeSfx(data.id);
     };
-
-    // Impede que o clique no botão de ação dispare o som (que está no container pai onMouseDown)
-    const stopProp = (e) => e.stopPropagation();
 
     const IconComponent = Icons[data.icon] || Zap;
 
     // --- MODO EDIÇÃO ---
     if (mode === 'editing') {
         return (
-            <div className="aspect-square rounded-xl border border-neon-green bg-black/90 flex flex-col p-2 gap-2 relative shadow-[0_0_15px_rgba(74,222,128,0.2)] animate-in fade-in zoom-in-95 cursor-default" onMouseDown={stopProp}>
+            <div className="aspect-square rounded-xl border border-neon-green bg-black/90 flex flex-col p-2 gap-2 relative shadow-[0_0_15px_rgba(74,222,128,0.2)] animate-in fade-in cursor-default" onMouseDown={e => e.stopPropagation()}>
                 <input 
                     className="w-full bg-white/10 border-none rounded px-1 py-0.5 text-xs text-center text-white outline-none focus:ring-1 focus:ring-neon-green"
                     value={editName}
@@ -92,7 +79,7 @@ const SFXButton = ({ data }) => {
     // --- MODO CONFIRMAÇÃO ---
     if (mode === 'deleting') {
         return (
-            <div className="aspect-square rounded-xl border-2 border-red-500 bg-red-900/40 flex flex-col items-center justify-center p-2 relative animate-in fade-in cursor-default" onMouseDown={stopProp}>
+            <div className="aspect-square rounded-xl border-2 border-red-500 bg-red-900/40 flex flex-col items-center justify-center p-2 relative animate-in fade-in cursor-default" onMouseDown={e => e.stopPropagation()}>
                 <span className="text-xs font-bold text-white mb-2 text-center leading-tight">Excluir SFX?</span>
                 <div className="flex gap-2 w-full">
                     <button onMouseDown={() => setMode('idle')} className="flex-1 py-1.5 bg-black/40 hover:bg-black/60 rounded text-white flex justify-center"><X size={14}/></button>
@@ -102,40 +89,43 @@ const SFXButton = ({ data }) => {
         );
     }
 
-    // --- MODO NORMAL ---
+    // --- MODO NORMAL (Botão) ---
     return (
         <div 
             className="relative group select-none h-full"
             onMouseDown={handlePress}
-            draggable={mode === 'idle'}
-            onDragStart={handleDragStart}
         >
             <div 
                 className={`
-                    w-full h-full aspect-square rounded-xl border-2 flex flex-col items-center justify-center cursor-pointer transition-all duration-100 shadow-lg relative overflow-hidden
-                    ${isPressed ? 'brightness-120 border-white shadow-[0_0_20px_rgba(255,255,255,0.5)]' : 'hover:brightness-150'}
+                    w-full h-full aspect-square rounded-xl border-2 flex flex-col items-center justify-center cursor-pointer transition-all duration-150 relative overflow-hidden
+                    ${isPlaying 
+                        ? 'border-neon-green bg-neon-green/10 shadow-[0_0_20px_rgba(74,222,128,0.4)]' // Estilo ATIVO (Tocando)
+                        : 'border-white/10 bg-white/5 hover:border-white/30 hover:bg-white/10' // Estilo Inativo
+                    }
                 `}
                 style={{
-                    backgroundColor: `${data.color}20`, 
-                    borderColor: isPressed ? '#fff' : data.color,
-                    boxShadow: isPressed ? `0 0 30px ${data.color}` : 'none'
+                    // Se estiver tocando, usa a cor do item para o brilho, senão usa padrão
+                    borderColor: isPlaying ? data.color : undefined,
+                    boxShadow: isPlaying ? `0 0 25px ${data.color}40` : 'none'
                 }}
             >
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent pointer-events-none" />
+
+
+                <div className={`absolute inset-0 bg-gradient-to-t from-black/80 to-transparent pointer-events-none ${isPlaying ? 'opacity-80' : 'opacity-100'}`} />
                 
                 <IconComponent 
                     size={32} 
                     style={{ color: data.color }} 
-                    className={`z-10 mb-2 transition-transform duration-75 ${isPressed ? 'text-white' : ''}`} 
+                    className={`z-10 mb-2 transition-transform duration-200 ${isPlaying ? 'scale-110 animate-pulse' : ''}`} 
                 />
                 
-                <span className="z-10 text-[10px] font-bold uppercase tracking-wider text-white text-center px-1 truncate w-full shadow-black drop-shadow-md">
-                    {data.name}
+                <span className={`z-10 text-[10px] font-bold uppercase tracking-wider text-center px-1 truncate w-full shadow-black drop-shadow-md ${isPlaying ? 'text-neon-green' : 'text-white'}`}>
+                    {isPlaying ? 'TOCANDO...' : data.name}
                 </span>
             </div>
 
-            {/* Ações de Hover - CORRIGIDO: onMouseDown com stopPropagation */}
-            {!isPressed && (
+            {/* Ações de Hover (Só aparecem se não estiver tocando para não atrapalhar o stop) */}
+            {!isPlaying && (
                 <div className="absolute top-1 right-1 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-20">
                     <button 
                         onMouseDown={(e) => { e.stopPropagation(); setEditName(data.name); setEditVolume(data.volume || 1); setMode('editing'); }} 
