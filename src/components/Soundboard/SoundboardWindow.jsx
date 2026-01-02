@@ -1,18 +1,15 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useGame } from '../../context/GameContext';
-import { X, ListMusic, Grid, Volume2 } from 'lucide-react';
+import { X, ListMusic, Grid, Save, Upload, MoreVertical } from 'lucide-react';
 import PlaylistView from './PlaylistView';
 import PlayerBar from './PlayerBar';
 import SFXGrid from './SFXGrid';
 
-// Reutilizamos o WindowWrapper definido no VTTLayout (ou importamos se estiver exportado)
-// Assumindo que você exportará o WindowWrapper do VTTLayout ou duplicará aqui por simplicidade.
-// Para este exemplo, vou assumir que ele é passado como prop ou importado.
-// Se não for possível importar, use uma div simples com as mesmas classes.
-
 const SoundboardWindow = ({ onClose, containerRef, WindowWrapperComponent }) => {
-    const { soundboard, addPlaylist } = useGame();
-    const [activeTab, setActiveTab] = useState('music'); // 'music' | 'sfx'
+    const { soundboard, addPlaylist, exportSoundboard, importSoundboard } = useGame();
+    const [activeTab, setActiveTab] = useState('music');
+    const [showMenu, setShowMenu] = useState(false); // Estado para dropdown
+    const importRef = useRef(null);
 
     // Garante que exista pelo menos uma playlist ao abrir
     useEffect(() => {
@@ -26,7 +23,6 @@ const SoundboardWindow = ({ onClose, containerRef, WindowWrapperComponent }) => 
         if (activeTab === 'music') {
             return <PlaylistView />;
         }
-        // AGORA RENDERIZA A GRADE REAL
         return <SFXGrid />;
     };
 
@@ -51,7 +47,52 @@ const SoundboardWindow = ({ onClose, containerRef, WindowWrapperComponent }) => 
                         <Grid size={14} /> EFEITOS (SFX)
                     </button>
                 </div>
-                <button onClick={onClose} className="p-2 text-text-muted hover:text-white mb-1"><X size={18}/></button>
+                
+                <div className="flex items-center gap-1 mb-1">
+                    {/* Botão de Menu de Dados */}
+                    <div className="relative">
+                        <button 
+                            onClick={() => setShowMenu(!showMenu)}
+                            className="p-2 text-text-muted hover:text-white hover:bg-white/10 rounded transition"
+                            title="Opções e Backup"
+                        >
+                            <MoreVertical size={18}/>
+                        </button>
+
+                        {/* Dropdown Menu */}
+                        {showMenu && (
+                            <div className="absolute right-0 top-full mt-1 w-48 bg-black/95 border border-glass-border rounded-lg shadow-xl z-50 flex flex-col p-1 animate-in fade-in zoom-in-95">
+                                <button 
+                                    onClick={() => { exportSoundboard(); setShowMenu(false); }}
+                                    className="flex items-center gap-2 px-3 py-2 text-xs text-text-muted hover:text-white hover:bg-white/10 rounded text-left transition"
+                                >
+                                    <Save size={14} /> Exportar Backup (.zip)
+                                </button>
+                                
+                                <button 
+                                    onClick={() => { importRef.current.click(); setShowMenu(false); }}
+                                    className="flex items-center gap-2 px-3 py-2 text-xs text-text-muted hover:text-white hover:bg-white/10 rounded text-left transition"
+                                >
+                                    <Upload size={14} /> Importar Backup
+                                </button>
+                                {/* Input invisível para importação */}
+                                <input 
+                                    ref={importRef} 
+                                    type="file" 
+                                    accept=".zip" 
+                                    className="hidden" 
+                                    onChange={(e) => { 
+                                        const file = e.target.files[0]; 
+                                        if(file) importSoundboard(file); 
+                                        e.target.value = null; 
+                                    }}
+                                />
+                            </div>
+                        )}
+                    </div>
+
+                    <button onClick={onClose} className="p-2 text-text-muted hover:text-white"><X size={18}/></button>
+                </div>
             </div>
 
             {/* Conteúdo Principal */}

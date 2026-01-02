@@ -1,5 +1,6 @@
 import React, { createContext, useState, useContext, useEffect, useCallback, useRef } from 'react';
 import { imageDB } from './db';
+import { audioDB } from './audioDb'; // Importando o banco de áudio
 import JSZip from 'jszip'; 
 import { saveAs } from 'file-saver'; 
 import { getSystemDefaultState } from '../systems'; 
@@ -317,6 +318,93 @@ export const GameProvider = ({ children }) => {
       } catch (e) { console.error(e); alert("Erro ao importar aventura."); }
   }, []);
 
+  // --- IMPORT/EXPORT SOUNDBOARD ---
+
+  const exportSoundboard = useCallback(async () => {
+      // 1. Prepara o ZIP
+      const zip = new JSZip();
+      
+      // 2. Salva o Estado (JSON)
+      zip.file("soundboard_data.json", JSON.stringify(soundboard));
+      
+      // 3. Pasta para arquivos de áudio
+      const audioFolder = zip.folder("audio_files");
+      const processedIds = new Set(); // Evita duplicatas
+
+      // 4. Coleta IDs das Playlists
+      for (const playlist of soundboard.playlists) {
+          for (const track of playlist.tracks) {
+              if (track.fileId && !processedIds.has(track.fileId)) {
+                  processedIds.add(track.fileId);
+              }
+          }
+      }
+
+      // 5. Coleta IDs da Grade SFX
+      for (const sfx of soundboard.sfxGrid) {
+          if (sfx.fileId && !processedIds.has(sfx.fileId)) {
+              processedIds.add(sfx.fileId);
+          }
+      }
+
+      // 6. Busca os Blobs no Banco e adiciona ao ZIP
+      for (const id of processedIds) {
+          const blob = await audioDB.getAudio(id);
+          if (blob) {
+              audioFolder.file(id, blob);
+          }
+      }
+
+      // 7. Gera e Baixa o Arquivo
+      const content = await zip.generateAsync({ type: "blob" });
+      const dateStr = new Date().toISOString().slice(0, 10);
+      saveAs(content, `ecos_soundboard_backup_${dateStr}.zip`);
+
+  }, [soundboard]);
+
+  const importSoundboard = useCallback(async (file) => {
+      if (!file) return;
+      try {
+          const zip = await JSZip.loadAsync(file);
+          
+          // 1. Lê o JSON de estado
+          const jsonFile = zip.file("soundboard_data.json");
+          if (!jsonFile) throw new Error("Arquivo de backup inválido (json ausente)");
+          
+          const loadedState = JSON.parse(await jsonFile.async("string"));
+          
+          // 2. Processa arquivos de áudio
+          const audioFolder = zip.folder("audio_files");
+          if (audioFolder) {
+              const audioPromises = [];
+              
+              audioFolder.forEach((relativePath, fileEntry) => {
+                  const promise = async () => {
+                      const blob = await fileEntry.async("blob");
+                      // Salva no audioDB com o ID original (nome do arquivo)
+                      // O ID é o relativePath (ex: "uuid-1234")
+                      await audioDB.saveAudio(blob, relativePath);
+                  };
+                  audioPromises.push(promise());
+              });
+
+              await Promise.all(audioPromises);
+          }
+
+          // 3. Atualiza o Estado
+          setSoundboard(loadedState);
+          
+          // Sincroniza com janelas remotas
+          broadcast('SYNC_SOUNDBOARD', loadedState);
+          
+          alert("Soundboard importada com sucesso!");
+
+      } catch (e) {
+          console.error("Erro na importação:", e);
+          alert("Erro ao importar Soundboard: " + e.message);
+      }
+  }, [broadcast]);
+
   // --- SCENE / TOKEN / FOG CRUD ---
   const addScene = useCallback((name) => {
       if (!activeAdventureId) return;
@@ -325,7 +413,6 @@ export const GameProvider = ({ children }) => {
       setAdventures(prev => prev.map(adv => adv.id !== activeAdventureId ? adv : { ...adv, scenes: [...adv.scenes, newScene] }));
   }, [activeAdventureId]);
 
-  // NOVO: Duplicar Cena
   const duplicateScene = useCallback((sceneId) => {
       if (!activeAdventureId) return;
       setAdventures(prev => prev.map(adv => {
@@ -334,14 +421,9 @@ export const GameProvider = ({ children }) => {
           const originalScene = adv.scenes.find(s => s.id === sceneId);
           if (!originalScene) return adv;
 
-          // Cria cópia profunda
           const copy = JSON.parse(JSON.stringify(originalScene));
-          
-          // Regenera ID da Cena
           copy.id = generateUUID();
           copy.name = `${copy.name} (Cópia)`;
-
-          // Regenera IDs internos para evitar conflito de referência
           copy.tokens = copy.tokens.map(t => ({ ...t, id: generateUUID() }));
           copy.fogOfWar = copy.fogOfWar.map(f => ({ ...f, id: generateUUID() }));
           copy.pins = copy.pins.map(p => ({ ...p, id: generateUUID() }));
@@ -768,11 +850,8 @@ export const GameProvider = ({ children }) => {
               : pl
           )
       }));
-      // Nota: Idealmente deletaríamos do audioDB também se não for usado em outro lugar
   }, []);
 
-  // Esta função apenas atualiza o ESTADO de que algo deve tocar. 
-  // O AudioEngine (que faremos na próxima etapa) reagirá a essa mudança de estado.
   const playTrack = useCallback((track, playlistId) => {
       setSoundboard(prev => ({
           ...prev,
@@ -819,7 +898,6 @@ export const GameProvider = ({ children }) => {
           ...prev,
           sfxGrid: prev.sfxGrid.filter(s => s.id !== id)
       }));
-      // Idealmente limparíamos do audioDB se não usado
   }, []);
 
   const updateSfx = useCallback((id, updates) => {
@@ -829,20 +907,15 @@ export const GameProvider = ({ children }) => {
       }));
   }, []);
 
-  // MASTER SFX VOLUME
   const setSfxMasterVolume = useCallback((val) => {
       setSoundboard(prev => ({ ...prev, masterVolume: { ...prev.masterVolume, sfx: val } }));
   }, []);
 
-  // DISPARO SINCRONIZADO (TRIGGER)
-  // Esta função não altera estado persistente, apenas emite o evento
   const triggerSfxRemote = useCallback((sfxItem) => {
       // 1. Envia para os jogadores via Broadcast
       broadcast('TRIGGER_SFX', sfxItem);
       
-      // 2. Dispara localmente também (O AudioEngine local decidirá se toca ou se está mutado pelo modo GM)
-      // Precisamos de uma forma de comunicar com o AudioController local sem estado.
-      // Vamos usar um CustomEvent local para o hook useAudioEngine pegar.
+      // 2. Dispara localmente
       window.dispatchEvent(new CustomEvent('ecos-sfx-trigger', { detail: sfxItem }));
   }, [broadcast]);
   
@@ -855,7 +928,8 @@ export const GameProvider = ({ children }) => {
     adventures, activeAdventureId, activeAdventure, activeScene,
     createAdventure, deleteAdventure, updateAdventure, duplicateAdventure, setActiveAdventureId,
     exportAdventure, importAdventure,
-    addScene, duplicateScene, updateScene, updateSceneMap, setActiveScene, deleteScene, // duplicateScene adicionado
+    exportSoundboard, importSoundboard, // NOVAS FUNÇÕES EXPOSTAS
+    addScene, duplicateScene, updateScene, updateSceneMap, setActiveScene, deleteScene,
     activeTool, setActiveTool, addFogArea, updateFogArea, deleteFogArea, deleteMultipleFogAreas,
     addTokenToLibrary, removeTokenFromLibrary, addTokenInstance, updateTokenInstance, deleteTokenInstance, deleteMultipleTokenInstances, importCharacterAsToken,
     addFolder, moveLibraryItem, renameLibraryItem, deleteLibraryItem, 

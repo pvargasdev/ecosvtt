@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useGame } from '../../context/GameContext';
-import { Volume2, Trash2, Edit2, Zap, Skull, Bell, CloudRain, Sword, Shield, Music, Check } from 'lucide-react';
-import * as Icons from 'lucide-react'; // Para renderizar ícones dinamicamente
+import { Volume2, Trash2, Edit2, Zap } from 'lucide-react';
+import * as Icons from 'lucide-react';
 
 const SFXButton = ({ data }) => {
     const { triggerSfxRemote, updateSfx, removeSfx } = useGame();
@@ -9,10 +9,27 @@ const SFXButton = ({ data }) => {
     const [showSettings, setShowSettings] = useState(false);
     const [localName, setLocalName] = useState(data.name);
 
-    const handlePress = () => {
+    // --- NOVO: Listener para Sincronia Visual Remota ---
+    useEffect(() => {
+        const handleRemoteTrigger = (e) => {
+            // Se o evento recebido for para este botão, ativa a animação
+            if (e.detail && e.detail.id === data.id) {
+                animatePress();
+            }
+        };
+
+        window.addEventListener('ecos-sfx-trigger', handleRemoteTrigger);
+        return () => window.removeEventListener('ecos-sfx-trigger', handleRemoteTrigger);
+    }, [data.id]);
+
+    const animatePress = () => {
         setIsPressed(true);
-        triggerSfxRemote(data);
-        setTimeout(() => setIsPressed(false), 200); // Animação de "click"
+        setTimeout(() => setIsPressed(false), 200);
+    };
+
+    const handlePress = () => {
+        animatePress(); // Feedback local imediato
+        triggerSfxRemote(data); // Envia sinal para tocar áudio (e acender botões remotos)
     };
 
     const handleRightClick = (e) => {
@@ -20,39 +37,40 @@ const SFXButton = ({ data }) => {
         setShowSettings(!showSettings);
     };
 
-    // Ícone Dinâmico
     const IconComponent = Icons[data.icon] || Zap;
 
     return (
         <div className="relative group select-none">
-            {/* O Botão Principal */}
             <div 
                 onMouseDown={handlePress}
                 onContextMenu={handleRightClick}
                 className={`
                     aspect-square rounded-xl border-2 flex flex-col items-center justify-center cursor-pointer transition-all duration-100 shadow-lg relative overflow-hidden
-                    ${isPressed ? 'scale-95 brightness-150 border-white' : 'hover:scale-105 hover:brightness-110'}
+                    ${isPressed ? 'scale-95 brightness-150 border-white shadow-[0_0_20px_rgba(255,255,255,0.5)]' : 'hover:scale-105 hover:brightness-110'}
                 `}
                 style={{
-                    backgroundColor: `${data.color}20`, // 20% opacidade
+                    backgroundColor: `${data.color}20`, 
                     borderColor: isPressed ? '#fff' : data.color,
-                    boxShadow: isPressed ? `0 0 20px ${data.color}` : 'none'
+                    // Se estiver pressionado (remota ou localmente), aumenta o brilho da cor
+                    boxShadow: isPressed ? `0 0 30px ${data.color}` : 'none'
                 }}
             >
-                {/* Brilho de Fundo */}
                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent pointer-events-none" />
                 
-                <IconComponent size={32} style={{ color: data.color }} className={`z-10 mb-2 transition-transform ${isPressed ? 'scale-110' : ''}`} />
+                <IconComponent 
+                    size={32} 
+                    style={{ color: data.color }} 
+                    className={`z-10 mb-2 transition-transform duration-75 ${isPressed ? 'scale-125 text-white' : ''}`} 
+                />
                 
                 <span className="z-10 text-[10px] font-bold uppercase tracking-wider text-white text-center px-1 truncate w-full shadow-black drop-shadow-md">
                     {data.name}
                 </span>
             </div>
 
-            {/* Painel de Configurações (Overlay) */}
+            {/* Menu de Configurações (Mantido igual) */}
             {showSettings && (
                 <div className="absolute inset-0 z-20 bg-black/95 rounded-xl border border-white/20 flex flex-col p-2 animate-in fade-in zoom-in-95">
-                    {/* Input Nome */}
                     <input 
                         className="w-full bg-transparent border-b border-white/20 text-xs text-center text-white outline-none mb-2 pb-1 focus:border-neon-green"
                         value={localName}
@@ -60,8 +78,6 @@ const SFXButton = ({ data }) => {
                         onBlur={() => updateSfx(data.id, { name: localName })}
                         autoFocus
                     />
-                    
-                    {/* Slider Volume Individual */}
                     <div className="flex items-center gap-1 mb-2">
                         <Volume2 size={10} className="text-text-muted"/>
                         <input 
@@ -71,13 +87,10 @@ const SFXButton = ({ data }) => {
                             className="w-full h-1 bg-white/20 rounded-full appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-2 [&::-webkit-slider-thumb]:h-2 [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:rounded-full"
                         />
                     </div>
-
-                    {/* Botões de Ação */}
                     <div className="flex justify-between mt-auto">
                         <button 
                             onClick={() => {
-                                // Troca de cor aleatória simples para exemplo
-                                const colors = ['#d084ff', '#00ff9d', '#ff0055', '#00eaff', '#ffcc00'];
+                                const colors = ['#d084ff', '#00ff9d', '#ff0055', '#00eaff', '#ffcc00', '#ff8800'];
                                 const nextColor = colors[Math.floor(Math.random() * colors.length)];
                                 updateSfx(data.id, { color: nextColor });
                             }} 
@@ -89,7 +102,7 @@ const SFXButton = ({ data }) => {
                             <Trash2 size={12}/>
                         </button>
                         <button onClick={() => setShowSettings(false)} className="p-1 text-neon-green hover:text-white">
-                            <Check size={12}/>
+                            <Zap size={12}/>
                         </button>
                     </div>
                 </div>
