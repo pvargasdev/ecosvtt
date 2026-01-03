@@ -3,7 +3,8 @@ import { useGame } from '../../context/GameContext';
 import Token from './Token';
 import { VTTLayout } from './VTTLayout';
 import { imageDB } from '../../context/db';
-import { Plus, Trash2, Import, Upload, Copy, Edit2, X, Check, Monitor, ArrowLeft } from 'lucide-react';
+// ADICIONADO: Loader2 para animações de carregamento
+import { Plus, Trash2, Import, Upload, Copy, Edit2, X, Check, Monitor, ArrowLeft, Loader2 } from 'lucide-react';
 
 import Pin from './Pins/Pin';
 import PinModal from './Pins/PinModal';
@@ -58,6 +59,10 @@ const Board = ({ showUI }) => {
   const [selectedFogIds, setSelectedFogIds] = useState(new Set());
   const [selectedPinIds, setSelectedPinIds] = useState(new Set());
 
+  // --- NOVOS ESTADOS PARA CONTROLE DE LOADING ---
+  const [exportingId, setExportingId] = useState(null);
+  const [isImporting, setIsImporting] = useState(false);
+
   const [interaction, setInteraction] = useState({ 
     mode: 'IDLE', startX: 0, startY: 0, initialVal: 0, 
     activeTokenId: null, activeFogId: null, activePinId: null, 
@@ -84,6 +89,8 @@ const Board = ({ showUI }) => {
 
   const [transitionOpacity, setTransitionOpacity] = useState(1); 
   const [displayScene, setDisplayScene] = useState(null); 
+
+  // ... (Funções forceSetView, Efeitos useEffect permanecem iguais até a parte de renderização) ...
 
   const forceSetView = (newView) => {
       setView(newView);
@@ -185,6 +192,43 @@ const Board = ({ showUI }) => {
 
   useEffect(() => { return () => { if (animationRef.current) cancelAnimationFrame(animationRef.current); }; }, []);
 
+  // --- MANIPULADORES DE IMPORTAÇÃO/EXPORTAÇÃO ---
+  const handleExportAdventure = async (e, id) => {
+    e.stopPropagation();
+    if (exportingId) return; // Evita duplo clique
+    setExportingId(id);
+    
+    // Pequeno timeout para garantir que o React renderize o loader antes do processo pesado começar
+    setTimeout(async () => {
+        try {
+            await exportAdventure(id);
+        } catch (error) {
+            console.error("Erro ao exportar:", error);
+        } finally {
+            setExportingId(null);
+        }
+    }, 50);
+  };
+
+  const handleImportAdventure = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    
+    setIsImporting(true);
+    // Limpa o input para permitir importar o mesmo arquivo novamente se necessário
+    e.target.value = null;
+
+    setTimeout(async () => {
+        try {
+            await importAdventure(file);
+        } catch (error) {
+            console.error("Erro ao importar:", error);
+        } finally {
+            setIsImporting(false);
+        }
+    }, 50);
+  };
+
   // --- CONTROLE DE TECLADO ---
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -193,9 +237,9 @@ const Board = ({ showUI }) => {
         if (e.code === 'Space' && !e.repeat) setIsSpacePressed(true);
 
         const key = e.key.toLowerCase();
-
+        
+        // ... (Lógica de teclado existente mantida) ...
         if (selectedIds.size > 0 && activeScene) {
-            
             if (key === 'f') {
                 e.preventDefault();
                 selectedIds.forEach(id => {
@@ -224,7 +268,7 @@ const Board = ({ showUI }) => {
                     }
                 });
             }
-
+            // ... resto do código de teclado ...
             if (key === '=' || key === '+') { 
                 e.preventDefault();
                 selectedIds.forEach(id => {
@@ -432,6 +476,7 @@ const Board = ({ showUI }) => {
   };
 
   const handleTokenDown = (e, id) => {
+    // ... (Mantido igual) ...
     if (e.button === 1 || e.button === 2 || isSpacePressed || activeTool !== 'select') return;
     e.stopPropagation();
 
@@ -456,6 +501,7 @@ const Board = ({ showUI }) => {
   };
 
   const handleFogDown = (e, id) => {
+      // ... (Mantido igual) ...
     if (e.button === 1 || e.button === 2 || activeTool !== 'select') return;
     e.stopPropagation();
     const isMultiSelect = e.ctrlKey || e.metaKey;
@@ -469,6 +515,7 @@ const Board = ({ showUI }) => {
   };
 
   const handlePinDown = (e, id) => {
+      // ... (Mantido igual) ...
     if (e.button === 1 || e.button === 2 || activeTool !== 'select') return;
     e.stopPropagation();
     const isMultiSelect = e.ctrlKey || e.metaKey;
@@ -483,6 +530,7 @@ const Board = ({ showUI }) => {
   };
 
   const handleMouseMove = (e) => {
+      // ... (Mantido igual) ...
     mousePosRef.current = { x: e.clientX, y: e.clientY };
     if (fogDrawing.isDrawing && activeTool === 'fogOfWar') {
         const rect = containerRef.current.getBoundingClientRect();
@@ -515,6 +563,7 @@ const Board = ({ showUI }) => {
   };
 
   const handleMouseUp = () => {
+      // ... (Mantido igual) ...
       if (fogDrawing.isDrawing && activeTool === 'fogOfWar') {
           const { startX, startY, currentX, currentY } = fogDrawing;
           const w = currentX - startX;
@@ -528,6 +577,7 @@ const Board = ({ showUI }) => {
   };
 
   const handleDrop = async (e) => {
+      // ... (Mantido igual) ...
       e.preventDefault();
       try {
           const dataString = e.dataTransfer.getData('application/json');
@@ -576,7 +626,7 @@ const Board = ({ showUI }) => {
                     {window.electron && ( <button onClick={() => window.electron.openGMWindow()} className={`flex items-center gap-2 px-3 py-1.5 rounded text-xs font-bold transition border ${isGMWindowOpen ? 'bg-neon-green/20 text-neon-green border-neon-green shadow-[0_0_10px_rgba(0,255,0,0.3)]' : 'bg-white/5 text-text-muted border-glass-border hover:text-white hover:bg-white/10'}`} title="Abrir janela secundária para o Mestre"><Monitor size={14} />{isGMWindowOpen ? 'TELA DO MESTRE ATIVA' : 'ABRIR TELA DO MESTRE'}</button> )}
                 </div>
                 <div ref={adventuresListRef} className="relative min-h-[120px] max-h-[300px] overflow-y-auto space-y-2 mb-4 scrollbar-thin pr-2 scroll-smooth">
-                    {adventures.length === 0 && ( <div className="absolute inset-0 flex items-center justify-center pointer-events-none"><p className="text-text-muted text-sm animate-pulse">Nenhuma aventura criada.</p></div> )}
+                    {adventures.length === 0 && !isImporting && ( <div className="absolute inset-0 flex items-center justify-center pointer-events-none"><p className="text-text-muted text-sm animate-pulse">Nenhuma aventura criada.</p></div> )}
                     {adventures.map(adv => (
                         <div key={adv.id} onClick={() => { if(renamingId !== adv.id) setActiveAdventureId(adv.id); }} className={`animate-enter group flex justify-between items-center p-3 rounded bg-white/5 border border-transparent transition-all ${renamingId === adv.id ? 'bg-white/10' : 'hover:bg-neon-green/10 hover:border-neon-green/30 cursor-pointer'}`}>
                             {renamingId === adv.id ? (
@@ -589,7 +639,20 @@ const Board = ({ showUI }) => {
                                 <>
                                     <span className="truncate font-medium">{adv.name}</span>
                                     <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                        <button onClick={(e)=>{e.stopPropagation(); exportAdventure(adv.id)}} className="p-1.5 rounded hover:bg-white/20 text-text-muted hover:text-neon-blue transition"><Upload size={14}/></button>
+                                        {/* BOTÃO DE EXPORTAR COM LOADING STATE */}
+                                        <button 
+                                            onClick={(e)=> handleExportAdventure(e, adv.id)} 
+                                            className="p-1.5 rounded hover:bg-white/20 text-text-muted hover:text-neon-blue transition"
+                                            disabled={exportingId === adv.id}
+                                            title="Exportar Aventura"
+                                        >
+                                            {exportingId === adv.id ? (
+                                                <Loader2 size={14} className="animate-spin text-neon-blue"/>
+                                            ) : (
+                                                <Upload size={14}/>
+                                            )}
+                                        </button>
+
                                         <button onClick={(e)=>{e.stopPropagation(); duplicateAdventure(adv.id)}} className="p-1.5 rounded hover:bg-white/20 text-text-muted hover:text-white transition"><Copy size={14}/></button>
                                         <button onClick={(e)=>{e.stopPropagation(); setRenamingId(adv.id); setRenameValue(adv.name);}} className="p-1.5 rounded hover:bg-white/20 text-text-muted hover:text-yellow-400 transition"><Edit2 size={14}/></button>
                                         <button onClick={(e)=>{e.stopPropagation(); setDeleteModal(adv.id);}} className="p-1.5 rounded hover:bg-red-500/20 text-text-muted hover:text-red-500 transition"><Trash2 size={14}/></button>
@@ -598,14 +661,26 @@ const Board = ({ showUI }) => {
                             )}
                         </div>
                     ))}
+
+                    {/* ITEM DE PLACEHOLDER DURANTE IMPORTAÇÃO */}
+                    {isImporting && (
+                        <div className="p-3 rounded bg-white/5 border border-neon-green/30 flex items-center gap-3 animate-pulse opacity-80 cursor-wait">
+                            <Loader2 size={16} className="animate-spin text-neon-green shrink-0"/>
+                            <div className="flex flex-col gap-1 w-full">
+                                <div className="h-3 bg-white/10 rounded w-3/4"></div>
+                                <div className="h-2 bg-white/5 rounded w-1/2"></div>
+                            </div>
+                        </div>
+                    )}
                 </div>
                 <div className="pt-4 border-t border-glass-border">
                     {!isCreatingAdventure ? (
                         <div className="flex gap-2">
                             <button onClick={() => setIsCreatingAdventure(true)} className="flex-1 py-3 bg-neon-green/10 border border-neon-green/40 text-neon-green font-bold rounded-lg hover:bg-neon-green hover:text-black hover:shadow-[0_0_15px_rgba(0,255,0,0.4)] transition-all flex items-center justify-center gap-2 group"><Plus size={18} strokeWidth={3} className="group-hover:scale-110 transition-transform"/> NOVA AVENTURA</button>
                             <div className="relative">
-                                <button onClick={() => importInputRef.current?.click()} className="h-full px-4 bg-glass border border-glass-border text-text-muted hover:text-white rounded-lg hover:bg-white/10 transition flex items-center justify-center"><Import size={20}/></button>
-                                <input ref={importInputRef} type="file" accept=".zip" className="hidden" onChange={(e) => { const file = e.target.files[0]; if(file) importAdventure(file); e.target.value = null; }}/>
+                                {/* INPUT DE IMPORTAÇÃO ATUALIZADO */}
+                                <button disabled={isImporting} onClick={() => importInputRef.current?.click()} className={`h-full px-4 bg-glass border border-glass-border text-text-muted hover:text-white rounded-lg hover:bg-white/10 transition flex items-center justify-center ${isImporting ? 'opacity-50 cursor-not-allowed' : ''}`}><Import size={20}/></button>
+                                <input ref={importInputRef} type="file" accept=".zip" className="hidden" onChange={handleImportAdventure}/>
                             </div>
                         </div>
                     ) : (

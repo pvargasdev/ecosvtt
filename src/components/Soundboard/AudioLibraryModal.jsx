@@ -109,7 +109,7 @@ const AudioLibraryModal = ({ isOpen, onClose, onSelect, acceptMultiple = false, 
         onClose();
     };
 
-    // --- UPLOAD ---
+    // --- UPLOAD COM DEDUPLICAÇÃO ---
     const handleFileUpload = async (e) => {
         const files = Array.from(e.target.files);
         if (files.length === 0) return;
@@ -118,18 +118,42 @@ const AudioLibraryModal = ({ isOpen, onClose, onSelect, acceptMultiple = false, 
         const addedIds = new Set();
 
         try {
+            // 1. Buscar metadados atuais para verificar duplicatas (Nome + Tamanho)
+            // Isso evita salvar o mesmo arquivo binário duas vezes.
+            const existingMetadata = await audioDB.getAllAudioMetadata();
+            const existingAudioMap = new Map();
+            
+            existingMetadata.forEach(meta => {
+                const uniqueKey = `${meta.name}|${meta.size}`;
+                existingAudioMap.set(uniqueKey, meta.id);
+            });
+
             for (const file of files) {
-                const audioId = await audioDB.saveAudio(file, category);
+                const uniqueKey = `${file.name}|${file.size}`;
+                let audioId = null;
+
+                if (existingAudioMap.has(uniqueKey)) {
+                    // --- DEDUPLICAÇÃO ---
+                    // O arquivo já existe! Reutilizamos o ID e não salvamos nada novo.
+                    audioId = existingAudioMap.get(uniqueKey);
+                    // Opcional: Log para debug
+                    // console.log(`Arquivo deduplicado (já existe): ${file.name}`);
+                } else {
+                    // --- ARQUIVO NOVO ---
+                    // Salva normalmente no banco/disco
+                    audioId = await audioDB.saveAudio(file, category);
+                }
                 
                 if (audioId) {
                     addedIds.add(audioId);
                 }
             }
             
-            // Recarrega a lista
+            // Recarrega a lista para mostrar (ou atualizar) a UI
             await loadLibrary();
             
-            // Marca os novos arquivos
+            // Marca os itens como "novos" para o usuário ver o feedback visual (bolinha verde),
+            // independentemente de terem sido upload real ou deduplicação.
             setNewItems(prev => {
                 const next = new Set(prev);
                 addedIds.forEach(id => next.add(id));
