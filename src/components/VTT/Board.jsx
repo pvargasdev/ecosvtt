@@ -20,7 +20,6 @@ const ZOOM_SPEED_FACTOR = 0.001;
 const TOKEN_ROTATION_STEP = 30; 
 const FADE_DURATION = 600; 
 
-// [ALTERAÇÃO]: Recebendo showUI via props
 const Board = ({ showUI }) => {
   const { 
     activeAdventureId, activeAdventure, activeScene, 
@@ -170,11 +169,13 @@ const Board = ({ showUI }) => {
 
   useEffect(() => { return () => { if (animationRef.current) cancelAnimationFrame(animationRef.current); }; }, []);
 
+  // --- CONTROLE DE TECLADO ---
   useEffect(() => {
     const handleKeyDown = (e) => {
         if (['INPUT', 'TEXTAREA'].includes(document.activeElement?.tagName)) return;
         if (e.code === 'Space' && !e.repeat) setIsSpacePressed(true);
 
+        // FLIP E ROTAÇÃO
         if (selectedIds.size > 0 && activeScene && (e.ctrlKey || e.metaKey)) {
             if (e.key === 'f' || e.key === 'F') {
                 e.preventDefault();
@@ -200,6 +201,36 @@ const Board = ({ showUI }) => {
                     if (t) {
                         const currentRot = t.rotation || 0;
                         updateTokenInstance(activeScene.id, id, { rotation: currentRot + TOKEN_ROTATION_STEP });
+                    }
+                });
+            }
+
+            // --- REDIMENSIONAMENTO VIA TECLADO (NOVO) ---
+            if (e.key === '=' || e.key === '+') { // Ctrl + (+)
+                e.preventDefault();
+                selectedIds.forEach(id => {
+                    const t = activeScene.tokens.find(token => token.id === id);
+                    if (t) {
+                        // Calcula 10% a mais
+                        const currentScale = t.scale || 1;
+                        // Arredonda para 1 casa decimal para evitar erros de ponto flutuante
+                        let newScale = Math.round((currentScale + 0.1) * 10) / 10;
+                        if (newScale > MAX_SCALE) newScale = MAX_SCALE;
+                        updateTokenInstance(activeScene.id, id, { scale: newScale });
+                    }
+                });
+            }
+
+            if (e.key === '-' || e.key === '_') { // Ctrl + (-)
+                e.preventDefault();
+                selectedIds.forEach(id => {
+                    const t = activeScene.tokens.find(token => token.id === id);
+                    if (t) {
+                        // Calcula 10% a menos
+                        const currentScale = t.scale || 1;
+                        let newScale = Math.round((currentScale - 0.1) * 10) / 10;
+                        if (newScale < MIN_SCALE) newScale = MIN_SCALE;
+                        updateTokenInstance(activeScene.id, id, { scale: newScale });
                     }
                 });
             }
@@ -441,13 +472,6 @@ const Board = ({ showUI }) => {
     setInteraction({ mode: 'DRAGGING_PIN', activePinId: id, startX: e.clientX, startY: e.clientY, initialPositions });
   };
 
-  const handleTokenResizeStart = (e, id) => {
-      e.stopPropagation();
-      if (!activeScene || activeTool !== 'select') return;
-      const token = activeScene.tokens.find(t => t.id === id);
-      if (token) setInteraction({ mode: 'RESIZING', activeTokenId: id, startX: e.clientX, initialVal: token.scale || 1 });
-  };
-
   const handleMouseMove = (e) => {
     mousePosRef.current = { x: e.clientX, y: e.clientY };
     if (fogDrawing.isDrawing && activeTool === 'fogOfWar') {
@@ -477,10 +501,6 @@ const Board = ({ showUI }) => {
         const dx = (e.clientX - interaction.startX) / view.scale;
         const dy = (e.clientY - interaction.startY) / view.scale;
         Object.keys(interaction.initialPositions).forEach(pinId => { const initialPos = interaction.initialPositions[pinId]; if (initialPos) { updatePin(activeScene.id, pinId, { x: initialPos.x + dx, y: initialPos.y + dy }); } });
-    } else if (interaction.mode === 'RESIZING' && activeScene) {
-        const deltaX = (e.clientX - interaction.startX);
-        const newScale = Math.max(0.5, interaction.initialVal + (deltaX / 100));
-        updateTokenInstance(activeScene.id, interaction.activeTokenId, { scale: newScale });
     }
   };
 
@@ -530,7 +550,6 @@ const Board = ({ showUI }) => {
       if (isGMWindow) {
           return (
             <div className="w-full h-full bg-[#15151a] flex flex-col items-center justify-center text-white p-6">
-                {/* REMOVIDO AudioController DAQUI */}
                 <Monitor size={64} className="text-neon-green mb-4 opacity-50 animate-pulse"/>
                 <h1 className="text-2xl font-rajdhani font-bold text-neon-green tracking-widest mb-2">TELA DO MESTRE</h1>
                 <p className="text-text-muted">Aguardando seleção de aventura na tela principal...</p>
@@ -539,7 +558,6 @@ const Board = ({ showUI }) => {
       }
       return (
         <div className="w-full h-full bg-ecos-bg flex flex-col items-center justify-center p-6 text-white relative z-50">
-            {/* REMOVIDO AudioController DAQUI */}
             <style>{`@keyframes enter-slide { 0% { opacity: 0; transform: translateY(-15px) scale(0.95); max-height: 0; margin-bottom: 0; } 40% { max-height: 60px; margin-bottom: 0.5rem; } 100% { opacity: 1; transform: translateY(0) scale(1); max-height: 60px; margin-bottom: 0.5rem; } } .animate-enter { animation: enter-slide 0.45s cubic-bezier(0.2, 0.8, 0.2, 1) forwards; }`}</style>
             <h1 className="text-5xl font-rajdhani font-bold text-neon-green mb-8 tracking-widest">TABULEIRO</h1>
             <div className="bg-glass border border-glass-border rounded-xl p-6 shadow-2xl w-full max-w-lg relative">
@@ -620,7 +638,6 @@ const Board = ({ showUI }) => {
         onDragOver={e => e.preventDefault()}
         onAuxClick={handleAuxClick} 
     >
-        {/* AudioController PRESENTE APENAS AQUI (DENTRO DA AVENTURA) */}
         <AudioController /> 
 
         {isGMWindow && <div className="absolute top-4 left-4 z-50 bg-neon-green/20 border border-neon-green px-3 py-1 rounded text-neon-green font-bold font-rajdhani text-sm pointer-events-none select-none">VISÃO DO MESTRE</div>}
@@ -631,21 +648,15 @@ const Board = ({ showUI }) => {
             {mapParams.url && <div style={{ transform: `scale(${displayScene?.mapScale || 1})`, transformOrigin: '0 0' }}><img src={mapParams.url} className="max-w-none pointer-events-none select-none opacity-90 shadow-2xl" alt="Map Layer"/></div>}
             
             {displayScene?.tokens.map(t => {
-            // LÓGICA DE DETECÇÃO DE ARRASTO LOCAL
-            // O token é considerado "arrastado localmente" se:
-            // 1. O modo de interação for 'DRAGGING'
-            // 2. E este token estiver dentro do conjunto de itens selecionados (selectedIds)
-            // Isso garante que tanto o token clicado quanto os outros do grupo se movam instantaneamente.
             const isBeingDragged = interaction.mode === 'DRAGGING' && selectedIds.has(t.id);
 
             return (
                 <Token 
                     key={t.id} 
                     data={t} 
-                    isDragging={isBeingDragged} // <--- AQUI ESTÁ O SEGREDO
+                    isDragging={isBeingDragged} 
                     isSelected={selectedIds.has(t.id)} 
                     onMouseDown={handleTokenDown} 
-                    onResizeStart={handleTokenResizeStart}
                 />
             );
         })}
@@ -690,7 +701,6 @@ const Board = ({ showUI }) => {
             }}
         />
 
-        {/* [ALTERAÇÃO]: Passando showUI para VTTLayout e condicionando a renderização de menus */}
         <div className="vtt-ui-layer absolute inset-0 pointer-events-none z-[50]" onMouseDown={(e) => e.stopPropagation()} onMouseUp={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()} onDoubleClick={(e) => e.stopPropagation()}>
             <VTTLayout 
                 zoomValue={sliderValue} 
