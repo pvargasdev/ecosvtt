@@ -22,7 +22,7 @@ const formatDate = (timestamp) => {
 };
 
 const AudioLibraryModal = ({ isOpen, onClose, onSelect, acceptMultiple = false, category = 'music' }) => {
-    const { deleteGlobalAudio } = useGame();
+    const { deleteGlobalAudio, refreshAudioSystem } = useGame();
     
     // States
     const [libraryFiles, setLibraryFiles] = useState([]);
@@ -44,7 +44,7 @@ const AudioLibraryModal = ({ isOpen, onClose, onSelect, acceptMultiple = false, 
             loadLibrary();
             setSearchQuery("");
             setSelectedIds(new Set());
-            setNewItems(new Set()); // Limpa as bolinhas ao abrir a biblioteca (reset de sessão)
+            setNewItems(new Set()); // Limpa as bolinhas ao abrir a biblioteca
         }
     }, [isOpen]);
 
@@ -93,7 +93,6 @@ const AudioLibraryModal = ({ isOpen, onClose, onSelect, acceptMultiple = false, 
     };
 
     const handleRowClick = (id) => {
-        // Ao clicar no item, remove o marcador de "Novo"
         if (newItems.has(id)) {
             setNewItems(prev => {
                 const next = new Set(prev);
@@ -109,7 +108,7 @@ const AudioLibraryModal = ({ isOpen, onClose, onSelect, acceptMultiple = false, 
         onClose();
     };
 
-    // --- UPLOAD COM DEDUPLICAÇÃO ---
+    // --- UPLOAD COM DEDUPLICAÇÃO E AUTOCURA ---
     const handleFileUpload = async (e) => {
         const files = Array.from(e.target.files);
         if (files.length === 0) return;
@@ -118,8 +117,7 @@ const AudioLibraryModal = ({ isOpen, onClose, onSelect, acceptMultiple = false, 
         const addedIds = new Set();
 
         try {
-            // 1. Buscar metadados atuais para verificar duplicatas (Nome + Tamanho)
-            // Isso evita salvar o mesmo arquivo binário duas vezes.
+            // 1. Buscar metadados atuais para verificar duplicatas
             const existingMetadata = await audioDB.getAllAudioMetadata();
             const existingAudioMap = new Map();
             
@@ -133,15 +131,13 @@ const AudioLibraryModal = ({ isOpen, onClose, onSelect, acceptMultiple = false, 
                 let audioId = null;
 
                 if (existingAudioMap.has(uniqueKey)) {
-                    // --- DEDUPLICAÇÃO ---
-                    // O arquivo já existe! Reutilizamos o ID e não salvamos nada novo.
+                    // DEDUPLICAÇÃO
                     audioId = existingAudioMap.get(uniqueKey);
-                    // Opcional: Log para debug
-                    // console.log(`Arquivo deduplicado (já existe): ${file.name}`);
                 } else {
-                    // --- ARQUIVO NOVO ---
-                    // Salva normalmente no banco/disco
+                    // ARQUIVO NOVO
                     audioId = await audioDB.saveAudio(file, category);
+                    // [CORREÇÃO] Atualiza o mapa local para que a próxima iteração saiba deste arquivo
+                    if (audioId) existingAudioMap.set(uniqueKey, audioId);
                 }
                 
                 if (audioId) {
@@ -149,11 +145,15 @@ const AudioLibraryModal = ({ isOpen, onClose, onSelect, acceptMultiple = false, 
                 }
             }
             
-            // Recarrega a lista para mostrar (ou atualizar) a UI
+            // Recarrega lista visual
             await loadLibrary();
             
-            // Marca os itens como "novos" para o usuário ver o feedback visual (bolinha verde),
-            // independentemente de terem sido upload real ou deduplicação.
+            // [NOVO] Dispara o sistema de autocura global do Context
+            // Se o arquivo subido preencher um "buraco" em uma playlist, ele será reconectado
+            if (addedIds.size > 0 && refreshAudioSystem) {
+                await refreshAudioSystem();
+            }
+
             setNewItems(prev => {
                 const next = new Set(prev);
                 addedIds.forEach(id => next.add(id));
@@ -164,7 +164,6 @@ const AudioLibraryModal = ({ isOpen, onClose, onSelect, acceptMultiple = false, 
             console.error("Erro ao fazer upload:", error);
         } finally {
             setIsLoading(false);
-            // Reseta o valor do input para permitir selecionar o mesmo arquivo novamente se necessário
             if (fileInputRef.current) {
                 fileInputRef.current.value = '';
             }
@@ -173,6 +172,10 @@ const AudioLibraryModal = ({ isOpen, onClose, onSelect, acceptMultiple = false, 
 
     const handleDelete = async (id) => {
         await deleteGlobalAudio(id);
+        
+        // [NOVO] Atualiza estado global para mostrar ícones de "Link Quebrado"
+        if (refreshAudioSystem) await refreshAudioSystem();
+
         setDeletingId(null);
         setLibraryFiles(prev => prev.filter(f => f.id !== id));
         if (selectedIds.has(id)) {
@@ -270,7 +273,6 @@ const AudioLibraryModal = ({ isOpen, onClose, onSelect, acceptMultiple = false, 
                                     return (
                                         <div 
                                             key={file.id} 
-                                            // min-h-[44px] adicionado para consistência
                                             className="px-6 py-2 min-h-[44px] rounded-lg bg-red-900/30 border border-red-500/50 flex justify-between items-center fade-in duration-200"
                                             onClick={(e) => e.stopPropagation()}
                                         >
@@ -302,7 +304,6 @@ const AudioLibraryModal = ({ isOpen, onClose, onSelect, acceptMultiple = false, 
                                     <div 
                                         key={file.id}
                                         onClick={() => handleRowClick(file.id)}
-                                        // min-h-[44px] adicionado para evitar colapso de altura ao trocar os ícones
                                         className={`
                                             relative group grid grid-cols-[1fr_100px_100px_60px] items-center px-6 py-2 min-h-[44px] rounded-lg cursor-pointer border transition-all duration-200
                                             ${isSelected 
@@ -336,7 +337,6 @@ const AudioLibraryModal = ({ isOpen, onClose, onSelect, acceptMultiple = false, 
                                         {/* Action Buttons */}
                                         <div className="flex justify-end items-center gap-2" onClick={(e) => e.stopPropagation()}>
                                             {isSelected ? (
-                                                // w-[26px] h-[26px] iguala a altura exata do botão de lixeira (p-1.5 + icon 14px = 26px)
                                                 <div className={`w-[26px] h-[26px] rounded-full flex items-center justify-center ${category === 'music' ? 'bg-pink-500 text-black' : 'bg-pink-500 text-black'} shadow-lg scale-in`}>
                                                     <Check size={12} strokeWidth={3}/>
                                                 </div>

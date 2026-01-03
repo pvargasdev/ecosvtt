@@ -1,6 +1,6 @@
 import React, { useRef, useState } from 'react';
 import { useGame } from '../../context/GameContext';
-import { Music, Trash2, Plus, Loader2, Search, X, GripVertical, ArrowLeft } from 'lucide-react';
+import { Music, Trash2, Plus, Loader2, Search, X, GripVertical, ArrowLeft, Link2Off } from 'lucide-react';
 
 // DND-KIT IMPORTS
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
@@ -9,8 +9,8 @@ import { CSS } from '@dnd-kit/utilities';
 
 import AudioLibraryModal from './AudioLibraryModal';
 
-// --- COMPONENTE DE LINHA SORTABLE (Inalterado) ---
-const SortableTrackRow = ({ track, index, isCurrent, isPlaying, isDeleting, onDeleteClick, onPlayClick, onCancelDelete, onConfirmDelete, playlistId }) => {
+// --- COMPONENTE DE LINHA SORTABLE ---
+const SortableTrackRow = ({ track, index, isCurrent, isPlaying, isDeleting, onDeleteClick, onPlayClick, onCancelDelete, onConfirmDelete, playlistId, isMissing }) => {
     const {
         attributes,
         listeners,
@@ -54,10 +54,12 @@ const SortableTrackRow = ({ track, index, isCurrent, isPlaying, isDeleting, onDe
         <tr 
             ref={setNodeRef}
             style={style}
-            onClick={() => onPlayClick({ ...track, isPlaying: true }, playlistId)}
+            // Se estiver faltando (isMissing), desabilita o click de tocar
+            onClick={() => !isMissing && onPlayClick({ ...track, isPlaying: true }, playlistId)}
             className={`
-                h-10 group border-black last:border-0 transition-colors cursor-pointer
-                ${isCurrent ? 'bg-white/10' : 'hover:bg-white/5'}
+                h-10 group border-black last:border-0 transition-colors 
+                ${isMissing ? 'cursor-not-allowed bg-red-900/10' : 'cursor-pointer'} 
+                ${isCurrent ? 'bg-white/10' : isMissing ? '' : 'hover:bg-white/5'}
                 ${isDragging ? 'opacity-50 bg-black/50 shadow-inner' : ''}
             `}
         >
@@ -73,7 +75,10 @@ const SortableTrackRow = ({ track, index, isCurrent, isPlaying, isDeleting, onDe
             </td>
             <td className="p-2 text-xs text-center text-text-muted group-hover:text-white w-8">
                 <div className="w-4 flex justify-center">
-                    {isPlaying ? (
+                    {/* Se estiver faltando, mostra ícone de link quebrado */}
+                    {isMissing ? (
+                         <Link2Off size={14} className="text-red-500" title="Arquivo não encontrado na biblioteca global"/>
+                    ) : isPlaying ? (
                         <div className="flex gap-[2px] h-3 items-end">
                             <div className="w-[2px] bg-pink-400 animate-[bounce_1s_infinite] h-2"></div>
                             <div className="w-[2px] bg-pink-400 animate-[bounce_1.2s_infinite] h-3"></div>
@@ -84,7 +89,10 @@ const SortableTrackRow = ({ track, index, isCurrent, isPlaying, isDeleting, onDe
                     )}
                 </div>
             </td>
-            <td className={`p-2 text-sm font-medium truncate max-w-[160px] ${isCurrent ? 'text-pink-400' : 'text-gray-300'}`}>
+            <td className={`p-2 text-sm font-medium truncate max-w-[160px] 
+                ${isMissing ? 'text-red-400/70 italic decoration-red-500/50 line-through' : ''}
+                ${isCurrent && !isMissing ? 'text-pink-400' : !isMissing ? 'text-gray-300' : ''}
+            `}>
                 {track.title}
             </td>
             <td className="p-2 text-xs text-right text-text-muted font-mono w-16">
@@ -105,7 +113,7 @@ const SortableTrackRow = ({ track, index, isCurrent, isPlaying, isDeleting, onDe
 
 // --- COMPONENTE PRINCIPAL ---
 const PlaylistView = () => {
-    const { soundboard, addTrackToPlaylist, playTrack, removeTrack, reorderPlaylist } = useGame();
+    const { soundboard, addTrackToPlaylist, playTrack, removeTrack, reorderPlaylist, availableFiles } = useGame();
     const [isLibraryOpen, setIsLibraryOpen] = useState(false);
     const [isUploading, setIsUploading] = useState(false);
     const [deletingId, setDeletingId] = useState(null); 
@@ -134,7 +142,6 @@ const PlaylistView = () => {
             for (const item of items) {
                 if (item instanceof File) {
                     const duration = await getAudioDuration(item);
-                    // Passamos 'music' explicitamente para o Context, se suportado, ou o Context deduz
                     await addTrackToPlaylist(playlistId, item, duration); 
                 } 
                 else if (typeof item === 'string') {
@@ -220,8 +227,17 @@ const PlaylistView = () => {
                                             const isCurrent = soundboard.activeTrack?.id === track.id;
                                             const isPlaying = isCurrent && soundboard.activeTrack?.isPlaying;
                                             const isDeleting = deletingId === track.id;
-                                            if (!isDragEnabled) return ( <tr key={track.id} onClick={() => playTrack({ ...track, isPlaying: true }, playlistId)} className={`h-10 group border-black hover:bg-white/5 cursor-pointer ${isCurrent ? 'bg-white/10' : ''}`} > <td className="w-2"></td> <td className="p-2 text-xs text-center text-text-muted w-8">{index + 1}</td> <td className={`p-2 text-sm font-medium truncate max-w-[180px] ${isCurrent ? 'text-pink-400' : 'text-gray-300'}`}>{track.title}</td> <td className="p-2 text-xs text-right text-text-muted font-mono w-16">{Math.floor(track.duration/60)}:{(Math.floor(track.duration%60)).toString().padStart(2,'0')}</td> <td className="p-2 text-right w-8"></td> </tr> );
-                                            return <SortableTrackRow key={track.id} track={track} index={index} isCurrent={isCurrent} isPlaying={isPlaying} isDeleting={isDeleting} playlistId={playlistId} onPlayClick={playTrack} onDeleteClick={(e) => { e.stopPropagation(); setDeletingId(track.id); }} onCancelDelete={(e) => { e.stopPropagation(); setDeletingId(null); }} onConfirmDelete={(e) => { e.stopPropagation(); removeTrack(playlistId, track.id); setDeletingId(null); }} />
+                                            
+                                            // INTEGRIDADE: Verifica se o arquivo existe na lista global
+                                            const isMissing = track.fileId && availableFiles && !availableFiles.has(track.fileId);
+
+                                            if (!isDragEnabled) return ( 
+                                                // Fallback simples sem drag (pode usar o mesmo Sortable mas sem listeners se preferir, ou replicar a UI)
+                                                // Aqui simplifico chamando o mesmo componente mas sem lógica de sort ativo visualmente se não houver handle
+                                                 <SortableTrackRow key={track.id} track={track} index={index} isCurrent={isCurrent} isPlaying={isPlaying} isDeleting={isDeleting} playlistId={playlistId} isMissing={isMissing} onPlayClick={playTrack} onDeleteClick={(e) => { e.stopPropagation(); setDeletingId(track.id); }} onCancelDelete={(e) => { e.stopPropagation(); setDeletingId(null); }} onConfirmDelete={(e) => { e.stopPropagation(); removeTrack(playlistId, track.id); setDeletingId(null); }} />
+                                            );
+                                            
+                                            return <SortableTrackRow key={track.id} track={track} index={index} isCurrent={isCurrent} isPlaying={isPlaying} isDeleting={isDeleting} playlistId={playlistId} isMissing={isMissing} onPlayClick={playTrack} onDeleteClick={(e) => { e.stopPropagation(); setDeletingId(track.id); }} onCancelDelete={(e) => { e.stopPropagation(); setDeletingId(null); }} onConfirmDelete={(e) => { e.stopPropagation(); removeTrack(playlistId, track.id); setDeletingId(null); }} />
                                         })}
                                     </SortableContext>
                                 </tbody>
@@ -231,10 +247,10 @@ const PlaylistView = () => {
                 </div>
             </div>
 
-            {/* MODAL DE IMPORTAÇÃO CONFIGURADO PARA MUSICA */}
+            {/* MODAL DE IMPORTAÇÃO */}
             <AudioLibraryModal 
                 isOpen={isLibraryOpen}
-                category="music" // <--- CONFIGURAÇÃO EXPLICITA
+                category="music"
                 onClose={() => setIsLibraryOpen(false)}
                 onSelect={handleAddAudio}
                 acceptMultiple={true}

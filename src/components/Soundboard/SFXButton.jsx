@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useGame } from '../../context/GameContext';
-import { Volume2, Trash2, Edit2, Zap, Check, X, StopCircle } from 'lucide-react';
+import { Volume2, Trash2, Edit2, Zap, Check, X, AlertTriangle } from 'lucide-react';
 import * as Icons from 'lucide-react';
 
 const SFXButton = ({ data }) => {
-    const { triggerSfxRemote, updateSfx, removeSfx } = useGame();
+    const { triggerSfxRemote, updateSfx, removeSfx, availableFiles } = useGame();
     
     // Estados
     const [isPlaying, setIsPlaying] = useState(false);
@@ -12,12 +12,14 @@ const SFXButton = ({ data }) => {
     const [editName, setEditName] = useState(data.name);
     const [editVolume, setEditVolume] = useState(data.volume || 1);
 
-    // Listener para saber se ESTE som está tocando (iniciado por qualquer pessoa)
+    // INTEGRIDADE: Verifica se o arquivo existe
+    const isMissing = data.fileId && availableFiles && !availableFiles.has(data.fileId);
+
+    // Listener para saber se ESTE som está tocando
     useEffect(() => {
         const onStart = () => setIsPlaying(true);
         const onEnd = () => setIsPlaying(false);
 
-        // O Engine emitirá esses eventos
         window.addEventListener(`ecos-sfx-start-${data.id}`, onStart);
         window.addEventListener(`ecos-sfx-end-${data.id}`, onEnd);
 
@@ -31,7 +33,9 @@ const SFXButton = ({ data }) => {
         if (mode !== 'idle') return; 
         if (e.button !== 0) return; 
         
-        // Dispara o comando. O Engine decidirá se Toca ou Para.
+        // Se estiver faltando o arquivo, não faz nada
+        if (isMissing) return;
+
         triggerSfxRemote(data);
     };
 
@@ -51,7 +55,6 @@ const SFXButton = ({ data }) => {
     // --- MODO EDIÇÃO ---
     if (mode === 'editing') {
         return (
-            // [CORREÇÃO] Ajustada a shadow para rosa (rgba: 244, 114, 182) para combinar com border-pink-400
             <div className="aspect-square rounded-xl border border-pink-400 bg-black/90 flex flex-col p-2 gap-2 relative shadow-[0_0_15px_rgba(244,114,182,0.2)] animate-in fade-in cursor-default" onMouseDown={e => e.stopPropagation()}>
                 <input 
                     className="w-full bg-white/10 border-none rounded px-1 py-0.5 text-xs text-center text-white outline-none focus:ring-1 focus:ring-pink-400"
@@ -93,39 +96,44 @@ const SFXButton = ({ data }) => {
     // --- MODO NORMAL (Botão) ---
     return (
         <div 
-            className="relative group select-none h-full"
+            className={`relative group select-none h-full ${isMissing ? 'cursor-not-allowed opacity-90' : ''}`}
             onMouseDown={handlePress}
         >
             <div 
                 className={`
                     w-full h-full aspect-square rounded-xl border-2 flex flex-col items-center justify-center cursor-pointer transition-all duration-150 relative overflow-hidden
-                    ${isPlaying 
-                        ? 'border-pink-500 bg-pink-500/10 shadow-[0_0_20px_rgba(236,72,153,0.4)]' // Estilo ATIVO (Tocando) - Pink vibrante
-                        : 'border-white/10 bg-white/5 hover:border-white/30 hover:bg-white/10' // Estilo Inativo
+                    ${isMissing
+                        ? 'border-red-900/50 bg-red-900/10' // Estilo de ERRO
+                        : isPlaying 
+                            ? 'border-pink-500 bg-pink-500/10 shadow-[0_0_20px_rgba(236,72,153,0.4)]' 
+                            : 'border-white/10 bg-white/5 hover:border-white/30 hover:bg-white/10'
                     }
                 `}
-                // [CORREÇÃO] Removidos estilos inline que forçavam data.color (roxo)
             >
                 {/* Indicador de "Parar" ao passar o mouse enquanto toca */}
-                {isPlaying && (
+                {isPlaying && !isMissing && (
                     <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-10">
                     </div>
                 )}
 
                 <div className={`absolute inset-0 bg-gradient-to-t from-black/80 to-transparent pointer-events-none ${isPlaying ? 'opacity-80' : 'opacity-100'}`} />
                 
-                {/* [CORREÇÃO] Ícone agora é sempre Pink fixo, ignorando data.color */}
-                <IconComponent 
-                    size={32} 
-                    className={`z-10 mb-2 transition-transform duration-200 text-pink-500 ${isPlaying ? 'scale-110 animate-pulse text-pink-400' : ''}`} 
-                />
+                {/* ÍCONE: Se faltar, mostra Alerta. Se não, mostra o ícone escolhido */}
+                {isMissing ? (
+                     <AlertTriangle size={32} className="z-10 mb-2 text-red-500 animate-pulse" />
+                ) : (
+                    <IconComponent 
+                        size={32} 
+                        className={`z-10 mb-2 transition-transform duration-200 text-pink-500 ${isPlaying ? 'scale-110 animate-pulse text-pink-400' : ''}`} 
+                    />
+                )}
                 
-                <span className={`z-10 text-[10px] font-bold uppercase tracking-wider text-center px-1 truncate w-full shadow-black drop-shadow-md ${isPlaying ? 'text-pink-400' : 'text-white'}`}>
-                    {isPlaying ? 'TOCANDO...' : data.name}
+                <span className={`z-10 text-[10px] font-bold uppercase tracking-wider text-center px-1 truncate w-full shadow-black drop-shadow-md ${isMissing ? 'text-red-400' : isPlaying ? 'text-pink-400' : 'text-white'}`}>
+                    {isMissing ? data.name : (isPlaying ? 'TOCANDO...' : data.name)}
                 </span>
             </div>
 
-            {/* Ações de Hover */}
+            {/* Ações de Hover (Permite Editar/Excluir mesmo se quebrado) */}
             {!isPlaying && (
                 <div className="absolute top-1 right-1 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-20">
                     <button 

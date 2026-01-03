@@ -34,8 +34,12 @@ const PlayerBar = () => {
 
     const toggleMute = () => {
         if (isMuted) {
-            const vol = localVolume || 50; // Restaura anterior ou 50%
+            // Se o volume estava em 0 (arrastado manualmente), restaura para 50
+            // Se não, restaura para o volume que estava antes de clicar em mutar
+            const vol = localVolume === 0 ? 50 : localVolume;
+            
             setMusicVolume(vol / 100);
+            setLocalVolume(vol); // Atualiza o visual do slider
             setIsMuted(false);
         } else {
             setMusicVolume(0);
