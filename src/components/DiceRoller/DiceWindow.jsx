@@ -35,18 +35,14 @@ const DiceWindow = ({ onClose, WindowWrapperComponent }) => {
   const [showResult, setShowResult] = useState(false);
   const scrollRef = useRef(null);
 
-  // Calcula estatísticas para highlight
   const resultStats = useMemo(() => {
-      if (!showResult || pool.length < 2) return { max: null, min: null }; // Só destaca se tiver 2+ dados
-      
+      if (!showResult || pool.length < 2) return { max: null, min: null };
       let max = -1;
       let min = 9999;
       pool.forEach(d => {
           if (d.value > max) max = d.value;
           if (d.value < min) min = d.value;
       });
-      
-      // Se todos forem iguais, não destaca nenhum como min/max
       if (max === min) return { max: null, min: null };
       return { max, min };
   }, [pool, showResult]);
@@ -66,8 +62,6 @@ const DiceWindow = ({ onClose, WindowWrapperComponent }) => {
     const newDie = { id: crypto.randomUUID(), type, value: null };
     setPool(prev => [...prev, newDie]);
     setShowResult(false);
-    
-    // Pequeno timeout para garantir que o scroll vá para o fim
     setTimeout(() => {
         if(scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }, 10);
@@ -100,7 +94,6 @@ const DiceWindow = ({ onClose, WindowWrapperComponent }) => {
         currentTotal += val;
         return { ...d, value: val };
       });
-
       setPool(rolledPool);
       setTotal(currentTotal);
       setIsRolling(false);
@@ -110,34 +103,39 @@ const DiceWindow = ({ onClose, WindowWrapperComponent }) => {
   };
 
   return (
-    // WindowWrapper style copiado do AssetDock no VTTLayout para consistência
-    <WindowWrapperComponent className="absolute top-24 left-1/2 transform -translate-x-1/2 w-[380px] bg-black/90 border border-glass-border backdrop-blur-sm rounded-xl flex flex-col z-50 shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-5 duration-300">
+    // Adicionei max-h-[60vh] para limitar o tamanho da janela
+    <WindowWrapperComponent className="absolute top-24 right-4 w-[380px] bg-black/90 border border-glass-border backdrop-blur-sm rounded-xl flex flex-col z-50 shadow-2xl overflow-hidden max-h-[60vh]">
       <DiceStyles />
       
-      {/* --- HEADER (Consistente com AssetDock) --- */}
-      <div className="p-3 border-b border-glass-border flex justify-between items-center bg-white/5 rounded-t-xl shrink-0 z-20">
+      {/* --- HEADER --- */}
+      <div className="p-3 py-3 border-b border-glass-border flex justify-between items-center bg-white/5 rounded-t-xl shrink-0 z-20">
         <h3 className="font-rajdhani font-bold text-white flex items-center gap-2">
             <Dices size={18} className="text-neon-purple"/> Rolagem de Dados
         </h3>
-        <button onClick={onClose} className="p-1 hover:bg-white/10 rounded text-text-muted hover:text-white transition"><X size={16}/></button>
+        
+        {/* Caixa de Total e Botão Fechar */}
+        <div className="flex items-center gap-3">
+            {/* Box do Total (Aparece Condicionalmente) */}
+            <div 
+                className={`
+                    flex items-center gap-2 px-3 py-0.5 rounded border border-neon-purple/30 bg-neon-purple/10
+                    transition-all duration-300 transform origin-right animate-in fade-in
+                    ${showResult ? 'opacity-100 scale-100' : 'opacity-0 scale-75 pointer-events-none hidden'}
+                `}
+            >
+                <span className="text-[10px] font-bold text-neon-purple uppercase tracking-wider">Total</span>
+                <span className="text-[10px] font-bold text-white uppercase tracking-wider">{total}</span>
+            </div>
+
+            <button onClick={onClose} className="p-1 hover:bg-white/10 rounded text-text-muted hover:text-white transition"><X size={16}/></button>
+        </div>
       </div>
 
       {/* --- MESA / ÁREA DE ROLAGEM --- */}
-      <div className="relative flex-1 bg-black/20 min-h-[100px] flex flex-col overflow-hidden">
+      <div className="relative flex-1 bg-black/20 min-h-[96px] flex flex-col overflow-hidden">
         
-        {/* BARRA DE TOTAL (Fixa no topo, estilo Notification) */}
-        <div 
-            className={`
-                w-full py-1 bg-neon-green/10 border-b border-neon-green/30 flex justify-center items-center gap-1.5 transition-all duration-300
-                ${showResult ? 'translate-y-0 opacity-100' : '-translate-y-full opacity-0 absolute'}
-            `}
-        >
-            <span className="text-[12px] uppercase font-bold tracking-[0.2em] text-neon-green">Total -</span>
-            <span className="text-[12px] uppercase font-bold tracking-[0.2em] text-white">{total}</span>
-        </div>
-
-        {/* CONTAINER DOS DADOS (Com scroll e centralização vertical) */}
-        <div ref={scrollRef} className="flex-1 overflow-y-auto scrollbar-thin relative">
+        {/* CONTAINER DOS DADOS (Com scroll vertical e centralização flex) */}
+        <div ref={scrollRef} className="flex-1 overflow-y-auto scrollbar-thin relative p-4">
              {pool.length === 0 && (
                 <div className="absolute inset-0 flex flex-col items-center justify-center text-white/10 pointer-events-none select-none">
                     <Dices size={48} strokeWidth={1} className="mb-2 opacity-50"/>
@@ -145,29 +143,27 @@ const DiceWindow = ({ onClose, WindowWrapperComponent }) => {
                 </div>
             )}
             
-            {/* Flex container interno com min-height full para centralização vertical */}
-            <div className="min-h-full w-full flex flex-col items-center justify-center p-4">
-                <div className="flex flex-wrap gap-2 justify-center content-center">
-                    {pool.map((die, idx) => (
-                        <Die 
-                            key={die.id} 
-                            type={die.type} 
-                            value={die.value} 
-                            isRolling={isRolling} 
-                            index={idx} 
-                            onRemove={() => handleRemoveDie(die.id)}
-                            showResult={showResult}
-                            isMax={die.value === resultStats.max}
-                            isMin={die.value === resultStats.min}
-                        />
-                    ))}
-                </div>
+            {/* Layout Flex para centralizar quando tem poucos dados, mas permitir scroll quando tem muitos */}
+            <div className={`flex flex-wrap gap-3 justify-center ${pool.length > 8 ? 'content-start' : 'content-center h-full'}`}>
+                {pool.map((die, idx) => (
+                    <Die 
+                        key={die.id} 
+                        type={die.type} 
+                        value={die.value} 
+                        isRolling={isRolling} 
+                        index={idx} 
+                        onRemove={() => handleRemoveDie(die.id)}
+                        showResult={showResult}
+                        isMax={die.value === resultStats.max}
+                        isMin={die.value === resultStats.min}
+                    />
+                ))}
             </div>
         </div>
       </div>
 
       {/* --- CONTROLES (Painel Inferior) --- */}
-      <div className="p-3 bg-black/40 border-t border-glass-border space-y-3 z-20">
+      <div className="p-3 bg-black/40 border-t border-glass-border space-y-3 z-20 shrink-0">
         
         {/* Seletor (D4 - D20) */}
         <div className="flex justify-between gap-1">
@@ -198,8 +194,8 @@ const DiceWindow = ({ onClose, WindowWrapperComponent }) => {
                 className={`
                     flex-1 flex items-center justify-center gap-2 rounded font-rajdhani font-bold text-lg tracking-wider transition-all
                     ${isRolling 
-                        ? 'bg-neon-green/20 text-neon-green cursor-wait border border-neon-green/30' 
-                        : 'bg-neon-green text-black hover:bg-white hover:scale-[1.02] active:scale-95 shadow-[0_0_15px_rgba(74,222,128,0.3)]'
+                        ? 'bg-neon-purple/20 text-neon-purple cursor-wait border border-neon-purple/30' 
+                        : 'bg-neon-purple text-black hover:bg-white active:scale-95 shadow-[0_0_15px_rgba(74,222,128,0.3)]'
                     }
                     disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none disabled:bg-white/10 disabled:text-text-muted disabled:shadow-none
                 `}

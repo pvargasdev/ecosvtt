@@ -1,23 +1,43 @@
 import React from 'react';
 
-// --- ÍCONES SVG GEOMÉTRICOS ---
+const showSmaller = false;
+
+// --- ÍCONES SVG GEOMÉTRICOS (Apenas Outline) ---
+
 const D4Icon = ({ className }) => (
-  <svg viewBox="0 0 100 100" className={className} fill="none" stroke="currentColor" strokeWidth="6" strokeLinejoin="round"><path d="M50 15 L85 80 L15 80 Z" /></svg>
+  <svg viewBox="0 0 100 100" className={className} fill="none" stroke="currentColor" strokeWidth="6" strokeLinejoin="round">
+    <path d="M50 15 L85 80 L15 80 Z" />
+  </svg>
 );
+
 const D6Icon = ({ className }) => (
-  <svg viewBox="0 0 100 100" className={className} fill="none" stroke="currentColor" strokeWidth="6" strokeLinejoin="round"><rect x="20" y="20" width="60" height="60" rx="12" /></svg>
+  <svg viewBox="0 0 100 100" className={className} fill="none" stroke="currentColor" strokeWidth="6" strokeLinejoin="round">
+    <rect x="15" y="15" width="70" height="70" rx="10" />
+  </svg>
 );
+
 const D8Icon = ({ className }) => (
-  <svg viewBox="0 0 100 100" className={className} fill="none" stroke="currentColor" strokeWidth="6" strokeLinejoin="round"><path d="M50 10 L85 50 L50 90 L15 50 Z" /><path d="M15 50 L85 50" strokeWidth="3" opacity="0.5"/></svg>
+  <svg viewBox="0 0 100 100" className={className} fill="none" stroke="currentColor" strokeWidth="6" strokeLinejoin="round">
+    <path d="M50 10 L85 50 L50 90 L15 50 Z" />
+  </svg>
 );
+
 const D10Icon = ({ className }) => (
-  <svg viewBox="0 0 100 100" className={className} fill="none" stroke="currentColor" strokeWidth="6" strokeLinejoin="round"><path d="M50 10 L85 40 L50 90 L15 40 Z" /><path d="M15 40 L85 40" strokeWidth="3" opacity="0.5"/><path d="M50 10 L50 90" strokeWidth="3" opacity="0.5"/></svg>
+  <svg viewBox="0 0 100 100" className={className} fill="none" stroke="currentColor" strokeWidth="6" strokeLinejoin="round">
+    <path d="M50 10 L90 37 L90 63 L50 90 L10 63 L10 37 Z" />
+  </svg>
 );
+
 const D12Icon = ({ className }) => (
-  <svg viewBox="0 0 100 100" className={className} fill="none" stroke="currentColor" strokeWidth="6" strokeLinejoin="round"><path d="M50 10 L88 38 L73 82 L27 82 L12 38 Z" /><path d="M12 38 L27 82 L73 82 L88 38" strokeWidth="3" opacity="0.5"/></svg>
+  <svg viewBox="0 0 100 100" className={className} fill="none" stroke="currentColor" strokeWidth="6" strokeLinejoin="round">
+    <path d="M50 10 L90 38 L75 85 L25 85 L10 38 Z" />
+  </svg>
 );
+
 const D20Icon = ({ className }) => (
-  <svg viewBox="0 0 100 100" className={className} fill="none" stroke="currentColor" strokeWidth="6" strokeLinejoin="round"><path d="M50 5 L90 28 L90 72 L50 95 L10 72 L10 28 Z" /><path d="M10 28 L50 50 L90 28" strokeWidth="3" opacity="0.5"/><path d="M50 50 L50 95" strokeWidth="3" opacity="0.5"/><path d="M10 72 L50 50 L90 72" strokeWidth="3" opacity="0.5"/></svg>
+  <svg viewBox="0 0 100 100" className={className} fill="none" stroke="currentColor" strokeWidth="6" strokeLinejoin="round">
+    <path d="M50 10 L88 30 L88 70 L50 90 L13 70 L13 30 Z" />
+  </svg>
 );
 
 const ICON_MAP = { d4: D4Icon, d6: D6Icon, d8: D8Icon, d10: D10Icon, d12: D12Icon, d20: D20Icon };
@@ -26,60 +46,67 @@ const ICON_MAP = { d4: D4Icon, d6: D6Icon, d8: D8Icon, d10: D10Icon, d12: D12Ico
 export const Die = ({ type, value, isRolling, index, onRemove, isMax, isMin, showResult }) => {
   const IconComponent = ICON_MAP[type] || D6Icon;
   
-  // CORREÇÃO DO DELAY: Só aplica delay se estiver rolando. 
-  // Se for apenas adição, é instantâneo (0s).
   const animationDelay = isRolling ? `${index * 0.05}s` : '0s';
 
-  // Define a cor baseada no resultado (Crítico/Max, Falha/Min ou Normal)
-  let containerClass = "";
-  let iconClass = "text-neon-green";
-  let textClass = "text-white";
+  // Lógica de Classes Condicionais
+  // Prioridade: Rolling > Hover (Remove) > Max/Min Result > Default
 
-  if (showResult && !isRolling) {
-      if (isMax) {
-          // Efeito "Sucesso Crítico" / Maior Valor
-          containerClass = "scale-110 drop-shadow-[0_0_8px_rgba(255,215,0,0.6)] z-10"; // Dourado/Brilho
-          iconClass = "text-yellow-400";
-          textClass = "text-yellow-100";
-      } else if (isMin) {
-          // Efeito "Falha" / Menor Valor
-          containerClass = "opacity-60 scale-95 grayscale-[0.5]"; 
-          iconClass = "text-red-400";
-      }
+  let containerClass = "relative w-16 h-16 flex items-center justify-center transition-all duration-500 select-none";
+  let iconClass = "w-full h-full transition-all duration-300";
+  let textClass = "absolute inset-0 flex items-center justify-center font-rajdhani font-bold text-2xl drop-shadow-[0_2px_4px_rgba(0,0,0,1)] z-10 pointer-events-none transition-colors duration-300";
+
+  // 1. Estado: ROLANDO
+  if (isRolling) {
+    containerClass += " opacity-90 animate-shake-blur";
+    iconClass += " text-neon-purple blur-[1px]";
+    textClass += " text-white";
+  } 
+  // 2. Estado: PARADO (Resultado ou Espera)
+  else {
+    containerClass += " cursor-pointer hover:scale-105 group animate-pop-in";
+
+    // Definição Base (Cor e Efeito)
+    if (showResult && isMax) {
+      // É o Maior Valor? (Dourado)
+      containerClass += " scale-110 z-10";
+      iconClass += " text-neon-purple drop-shadow-[0_0_10px_rgba(191,0,255,1)]";
+      textClass += " text-white drop-shadow-[0_0_10px_rgba(191,0,255,1)]";
+    } else if (showResult && isMin && showSmaller) {
+      // É o Menor Valor? (Apagado)
+      containerClass += " opacity-60 scale-95";
+      iconClass += " text-neon-purple";
+      textClass += " text-white";
+    } else {
+      // Normal
+      iconClass += " text-neon-purple";
+      textClass += " text-white";
+    }
+
+    // OVERRIDE DE HOVER (O Polimento)
+    // O group-hover aqui garante que, independente se é Max ou Min, ao passar o mouse, vira "Remover" (Vermelho)
+    iconClass += " group-hover:text-red-500 group-hover:drop-shadow-[0_0_10px_rgba(239,68,68,0.8)] group-hover:scale-95";
+    textClass += " group-hover:text-red-100";
   }
 
   return (
     <div 
       onClick={!isRolling ? onRemove : undefined}
-      className={`
-        relative w-16 h-16 flex items-center justify-center 
-        transition-all duration-500 select-none
-        ${!isRolling ? 'cursor-pointer hover:scale-105 group' : ''}
-        ${isRolling ? 'opacity-90 animate-shake-blur' : 'animate-pop-in'}
-        ${containerClass}
-      `}
+      className={containerClass}
       style={{ animationDelay }}
       title={!isRolling ? "Clique para remover" : ""}
     >
-      {/* Background Icon */}
-      <IconComponent 
-        className={`
-          w-full h-full transition-colors duration-300
-          ${isRolling ? 'text-neon-green blur-[1px]' : iconClass}
-          ${!isRolling && !showResult ? 'group-hover:text-red-500' : ''} 
-        `} 
-      />
+      <IconComponent className={iconClass} />
 
-      {/* Valor Numérico (Resultado) */}
+      {/* Valor Numérico */}
       {!isRolling && value !== null && (
-        <span className={`absolute inset-0 flex items-center justify-center font-rajdhani font-bold text-2xl drop-shadow-[0_2px_4px_rgba(0,0,0,1)] z-10 pointer-events-none ${textClass}`}>
+        <span className={textClass}>
           {value}
         </span>
       )}
       
-      {/* Label do tipo (enquanto espera rolar) */}
+      {/* Label do tipo (d20, d6...) - só aparece antes de rolar */}
       {value === null && !isRolling && (
-        <span className="absolute inset-0 flex items-center justify-center font-rajdhani font-bold text-xs text-neon-green/60 group-hover:text-red-500/60 pointer-events-none pb-0.5">
+        <span className="absolute inset-0 flex items-center justify-center font-rajdhani font-bold text-xs text-neon-purple/60 group-hover:text-red-500/60 pointer-events-none pb-0.5 transition-colors">
           {type}
         </span>
       )}
@@ -87,20 +114,20 @@ export const Die = ({ type, value, isRolling, index, onRemove, isMax, isMin, sho
   );
 };
 
-// --- BOTÃO SELETOR (TOOLBAR) ---
+// --- BOTÃO SELETOR ---
 export const DieSelector = ({ type, count, onClick }) => {
   const IconComponent = ICON_MAP[type];
   return (
     <button 
       onClick={onClick}
-      className="relative group flex flex-col items-center justify-center w-12 h-12 bg-white/5 border border-white/10 rounded-lg hover:bg-neon-green/10 hover:border-neon-green active:scale-95 transition-all"
+      className="relative group flex flex-col items-center justify-center w-12 h-12 bg-white/5 border border-white/10 rounded-lg hover:bg-neon-purple/10 hover:border-neon-purple active:scale-95 transition-all"
     >
-      <IconComponent className="w-6 h-6 text-text-muted group-hover:text-neon-green transition-colors" />
+      <IconComponent className="w-6 h-6 text-text-muted group-hover:text-neon-purple transition-colors" />
       <span className="text-[9px] uppercase font-bold text-text-muted mt-1 group-hover:text-white transition-colors">{type}</span>
       
       {/* Badge de Contagem */}
       {count > 0 && (
-        <div className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-neon-green text-black text-[10px] font-bold rounded-full flex items-center justify-center shadow-lg border border-black animate-in zoom-in duration-200">
+        <div className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-neon-purple text-black text-[10px] font-bold rounded-full flex items-center justify-center shadow-lg border border-black animate-in zoom-in duration-200">
             {count}
         </div>
       )}
