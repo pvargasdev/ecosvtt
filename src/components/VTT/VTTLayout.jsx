@@ -10,10 +10,12 @@ let currentDraggingId = null;
 
 // --- COMPONENTES AUXILIARES ---
 
+// [ALTERAÇÃO: Adicionado data-ecos-ui="true"]
 const WindowWrapper = ({ children, className, containerRef }) => (
     <div 
         ref={containerRef} 
         data-ecos-window="true" 
+        data-ecos-ui="true"
         className={`pointer-events-auto ${className}`} 
         onMouseDown={e => e.stopPropagation()} 
         onClick={e => e.stopPropagation()} 
@@ -582,8 +584,9 @@ const HelpWindow = ({ isOpen, onClose }) => {
         { key: "Double Click", desc: "Criar/Editar Pin" },
         { key: "Ctrl + Click", desc: "Seleção Múltipla" },
         { key: "Ctrl + C / V", desc: "Copiar e Colar Tokens" },
-        { key: "Ctrl + F", desc: "Flip de Token (Espelhar)" },
-        { key: "Ctrl + Q / E", desc: "Rotacionar Tokens" },
+        { key: "F", desc: "Espelhar Token" },
+        { key: "Q / E", desc: "Rotacionar Token" },
+        { key: "+ / -", desc: "Aumentar/Diminuir Token" },
         { key: "Backspace", desc: "Excluir Seleção" },
     ];
 
@@ -609,7 +612,6 @@ const HelpWindow = ({ isOpen, onClose }) => {
 
 // --- COMPONENTE PRINCIPAL ---
 
-// [ALTERAÇÃO]: Recebendo showUI via props
 export const VTTLayout = ({ zoomValue, onZoomChange, activeTool, setActiveTool, showUI }) => {
   const { activeAdventure, activeScene, setActiveAdventureId } = useGame();
 
@@ -678,7 +680,8 @@ export const VTTLayout = ({ zoomValue, onZoomChange, activeTool, setActiveTool, 
   const ConfirmationModal = () => { 
       if (!confirmModal.open) return null; 
       return ( 
-          <div className="absolute inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm pointer-events-auto" onMouseDown={e=>e.stopPropagation()}>
+          // [ALTERAÇÃO: data-ecos-ui adicionado ao modal]
+          <div data-ecos-ui="true" className="absolute inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm pointer-events-auto" onMouseDown={e=>e.stopPropagation()}>
               <div className="bg-ecos-bg border border-glass-border p-6 rounded-xl shadow-2xl max-w-sm w-full mx-4">
                   <h3 className="text-xl font-bold text-white mb-2">Confirmação</h3>
                   <p className="text-text-muted mb-6">{confirmModal.message}</p>
@@ -692,13 +695,15 @@ export const VTTLayout = ({ zoomValue, onZoomChange, activeTool, setActiveTool, 
   };
 
   return (
-      <div className="absolute inset-0 pointer-events-none z-50">
+      // [ALTERAÇÃO: data-ecos-ui adicionado para garantir que cliques na área UI sejam detectados]
+      <div data-ecos-ui="true" className="absolute inset-0 pointer-events-none z-50">
           
           <InternalAlert message={alertMessage} clearAlert={clearAlert} />
 
           <div 
              ref={headerRef}
-             // [ALTERAÇÃO]: Classes CSS condicionais para esconder a barra superior suavemente
+             // [ALTERAÇÃO: data-ecos-ui adicionado ao Header]
+             data-ecos-ui="true"
              className={`
                 absolute top-4 right-4 flex flex-col bg-black/80 rounded-lg border border-glass-border shadow-lg backdrop-blur-sm pointer-events-auto z-40 w-max overflow-hidden scale-90 origin-top-right transition-all duration-300
                 ${showUI ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-10 pointer-events-none'}

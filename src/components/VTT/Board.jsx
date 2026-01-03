@@ -92,6 +92,25 @@ const Board = ({ showUI }) => {
       setSliderValue(Math.round(newView.scale * 100));
   };
 
+  // --- EFEITO: CLICK OUTSIDE (Limpa Seleção ao clicar na UI) ---
+  useEffect(() => {
+    const handleGlobalClick = (e) => {
+        // Verifica se o clique foi em um elemento marcado como UI (Sidebar, Menus, Layout)
+        // O atributo 'data-ecos-ui' deve ser adicionado nos componentes de UI
+        const isUiClick = e.target.closest('[data-ecos-ui="true"]') || e.target.closest('.vtt-ui-layer');
+        
+        if (isUiClick) {
+            // Se clicou na UI, limpa todas as seleções para evitar comandos acidentais
+            if (selectedIds.size > 0) setSelectedIds(new Set());
+            if (selectedFogIds.size > 0) setSelectedFogIds(new Set());
+            if (selectedPinIds.size > 0) setSelectedPinIds(new Set());
+        }
+    };
+
+    window.addEventListener('mousedown', handleGlobalClick);
+    return () => window.removeEventListener('mousedown', handleGlobalClick);
+  }, [selectedIds.size, selectedFogIds.size, selectedPinIds.size]);
+
   useEffect(() => {
       if (!displayScene || isGMWindow) return;
       const saveTimer = setTimeout(() => {
@@ -172,19 +191,27 @@ const Board = ({ showUI }) => {
   // --- CONTROLE DE TECLADO ---
   useEffect(() => {
     const handleKeyDown = (e) => {
-        if (['INPUT', 'TEXTAREA'].includes(document.activeElement?.tagName)) return;
+        // SEGURANÇA: Se estiver digitando, ignora tudo.
+        if (['INPUT', 'TEXTAREA', 'CONTENTEDITABLE'].includes(document.activeElement?.tagName)) return;
+        
         if (e.code === 'Space' && !e.repeat) setIsSpacePressed(true);
 
-        // FLIP E ROTAÇÃO
-        if (selectedIds.size > 0 && activeScene && (e.ctrlKey || e.metaKey)) {
-            if (e.key === 'f' || e.key === 'F') {
+        const key = e.key.toLowerCase();
+
+        // --- COMANDOS QUE EXIGEM SELEÇÃO ATIVA ---
+        if (selectedIds.size > 0 && activeScene) {
+            
+            // FLIP (Horizontal) - Sem CTRL
+            if (key === 'f') {
                 e.preventDefault();
                 selectedIds.forEach(id => {
                     const t = activeScene.tokens.find(token => token.id === id);
                     if (t) updateTokenInstance(activeScene.id, id, { mirrorX: !t.mirrorX });
                 });
             }
-            if (e.key === 'q' || e.key === 'Q') {
+
+            // ROTAÇÃO (Q/E) - Sem CTRL
+            if (key === 'q') {
                 e.preventDefault();
                 selectedIds.forEach(id => {
                     const t = activeScene.tokens.find(token => token.id === id);
@@ -194,7 +221,7 @@ const Board = ({ showUI }) => {
                     }
                 });
             }
-            if (e.key === 'e' || e.key === 'E') {
+            if (key === 'e') {
                 e.preventDefault();
                 selectedIds.forEach(id => {
                     const t = activeScene.tokens.find(token => token.id === id);
@@ -205,28 +232,24 @@ const Board = ({ showUI }) => {
                 });
             }
 
-            // --- REDIMENSIONAMENTO VIA TECLADO (NOVO) ---
-            if (e.key === '=' || e.key === '+') { // Ctrl + (+)
+            // REDIMENSIONAMENTO (+/-) - Sem CTRL
+            if (key === '=' || key === '+') { 
                 e.preventDefault();
                 selectedIds.forEach(id => {
                     const t = activeScene.tokens.find(token => token.id === id);
                     if (t) {
-                        // Calcula 10% a mais
                         const currentScale = t.scale || 1;
-                        // Arredonda para 1 casa decimal para evitar erros de ponto flutuante
                         let newScale = Math.round((currentScale + 0.1) * 10) / 10;
                         if (newScale > MAX_SCALE) newScale = MAX_SCALE;
                         updateTokenInstance(activeScene.id, id, { scale: newScale });
                     }
                 });
             }
-
-            if (e.key === '-' || e.key === '_') { // Ctrl + (-)
+            if (key === '-' || key === '_') { 
                 e.preventDefault();
                 selectedIds.forEach(id => {
                     const t = activeScene.tokens.find(token => token.id === id);
                     if (t) {
-                        // Calcula 10% a menos
                         const currentScale = t.scale || 1;
                         let newScale = Math.round((currentScale - 0.1) * 10) / 10;
                         if (newScale < MIN_SCALE) newScale = MIN_SCALE;
@@ -234,13 +257,22 @@ const Board = ({ showUI }) => {
                     }
                 });
             }
-        }
 
-        if ((e.key === 'Delete' || e.key === 'Backspace')) {
-            if (selectedIds.size > 0 && activeScene) {
+            // DELETE
+            if ((key === 'delete' || key === 'backspace')) {
                 deleteMultipleTokenInstances(activeScene?.id, Array.from(selectedIds));
                 setSelectedIds(new Set());
             }
+
+            // COPY (Mantém Ctrl para padrão de SO)
+            if ((e.ctrlKey || e.metaKey) && key === 'c') {
+                const tokensToCopy = activeScene.tokens.filter(t => selectedIds.has(t.id));
+                if (tokensToCopy.length > 0) clipboardRef.current = tokensToCopy;
+            }
+        }
+
+        // DELEÇÃO DE OUTROS ITENS
+        if ((key === 'delete' || key === 'backspace')) {
             if (selectedFogIds.size > 0 && activeScene) {
                 deleteMultipleFogAreas(activeScene?.id, Array.from(selectedFogIds));
                 setSelectedFogIds(new Set());
@@ -251,15 +283,10 @@ const Board = ({ showUI }) => {
             }
         }
 
-        if ((e.ctrlKey || e.metaKey) && e.key === 'c') {
-            if (selectedIds.size > 0 && activeScene) {
-                const tokensToCopy = activeScene.tokens.filter(t => selectedIds.has(t.id));
-                if (tokensToCopy.length > 0) clipboardRef.current = tokensToCopy;
-            }
-        }
-
-        if ((e.ctrlKey || e.metaKey) && e.key === 'v') {
+        // PASTE (Global, se mouse estiver sobre o board)
+        if ((e.ctrlKey || e.metaKey) && key === 'v') {
             if (clipboardRef.current.length > 0 && activeScene) {
+                // Só cola se o mouse estiver sobre o Board e não sobre uma janela
                 if (isMouseOverRef.current && containerRef.current) {
                     const rect = containerRef.current.getBoundingClientRect();
                     const mouseX = mousePosRef.current.x - rect.left;
@@ -280,22 +307,18 @@ const Board = ({ showUI }) => {
                             y: worldMouseY + (tokenData.y - centerY)
                         });
                     });
-                } else {
-                    clipboardRef.current.forEach(token => {
-                        const { id, ...tokenData } = token;
-                        addTokenInstance(activeScene.id, { ...tokenData, x: tokenData.x + 20, y: tokenData.y + 20 });
-                    });
                 }
             }
         }
 
-        if (['ArrowUp', 'ArrowDown'].includes(e.key) && !e.repeat) {
+        if (['arrowup', 'arrowdown'].includes(key) && !e.repeat) {
             e.preventDefault();
-            zoomKeyRef.current = e.key === 'ArrowUp' ? 1 : -1;
+            zoomKeyRef.current = key === 'arrowup' ? 1 : -1;
             zoomSpeedRef.current = 0.01;
             lastZoomTimeRef.current = Date.now();
         }
     };
+
     const handleKeyUp = (e) => {
         if (['INPUT', 'TEXTAREA'].includes(document.activeElement?.tagName)) return;
         if (e.code === 'Space') setIsSpacePressed(false);
@@ -549,7 +572,7 @@ const Board = ({ showUI }) => {
   if (!activeAdventureId || !activeAdventure) {
       if (isGMWindow) {
           return (
-            <div className="w-full h-full bg-[#15151a] flex flex-col items-center justify-center text-white p-6">
+            <div data-ecos-ui="true" className="w-full h-full bg-[#15151a] flex flex-col items-center justify-center text-white p-6">
                 <Monitor size={64} className="text-neon-green mb-4 opacity-50 animate-pulse"/>
                 <h1 className="text-2xl font-rajdhani font-bold text-neon-green tracking-widest mb-2">TELA DO MESTRE</h1>
                 <p className="text-text-muted">Aguardando seleção de aventura na tela principal...</p>
@@ -557,7 +580,7 @@ const Board = ({ showUI }) => {
           );
       }
       return (
-        <div className="w-full h-full bg-ecos-bg flex flex-col items-center justify-center p-6 text-white relative z-50">
+        <div data-ecos-ui="true" className="w-full h-full bg-ecos-bg flex flex-col items-center justify-center p-6 text-white relative z-50">
             <style>{`@keyframes enter-slide { 0% { opacity: 0; transform: translateY(-15px) scale(0.95); max-height: 0; margin-bottom: 0; } 40% { max-height: 60px; margin-bottom: 0.5rem; } 100% { opacity: 1; transform: translateY(0) scale(1); max-height: 60px; margin-bottom: 0.5rem; } } .animate-enter { animation: enter-slide 0.45s cubic-bezier(0.2, 0.8, 0.2, 1) forwards; }`}</style>
             <h1 className="text-5xl font-rajdhani font-bold text-neon-green mb-8 tracking-widest">TABULEIRO</h1>
             <div className="bg-glass border border-glass-border rounded-xl p-6 shadow-2xl w-full max-w-lg relative">
@@ -701,7 +724,8 @@ const Board = ({ showUI }) => {
             }}
         />
 
-        <div className="vtt-ui-layer absolute inset-0 pointer-events-none z-[50]" onMouseDown={(e) => e.stopPropagation()} onMouseUp={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()} onDoubleClick={(e) => e.stopPropagation()}>
+        {/* NOTA: Adicionado data-ecos-ui="true" para que o click aqui limpe a seleção */}
+        <div data-ecos-ui="true" className="vtt-ui-layer absolute inset-0 pointer-events-none z-[50]" onMouseDown={(e) => e.stopPropagation()} onMouseUp={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()} onDoubleClick={(e) => e.stopPropagation()}>
             <VTTLayout 
                 zoomValue={sliderValue} 
                 onZoomChange={handleSliderZoom} 

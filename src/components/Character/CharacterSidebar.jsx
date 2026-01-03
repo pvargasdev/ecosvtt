@@ -292,7 +292,7 @@ const CharacterSidebar = ({ isCollapsed, setIsCollapsed }) => {
   // ==========================================
   if (isCollapsed) {
     return (
-        <div className="h-full flex flex-col items-center py-4 bg-black/80 border-r border-glass-border gap-6 overflow-hidden">
+        <div data-ecos-ui="true" className="h-full flex flex-col items-center py-4 bg-black/80 border-r border-glass-border gap-6 overflow-hidden">
              <button onClick={() => setIsCollapsed(false)} className="p-2 rounded-full bg-glass hover:bg-white/10 text-text-muted hover:text-white transition" title="Expandir"><Menu size={20} /></button>
              <div className="flex-1 flex items-center justify-center">
                 <span className={`font-rajdhani font-bold tracking-[0.3em] text-xl rotate-90 whitespace-nowrap opacity-100 select-none text-text-muted`}>PERSONAGENS</span>
@@ -306,85 +306,87 @@ const CharacterSidebar = ({ isCollapsed, setIsCollapsed }) => {
   // ==========================================
   if (!activePresetId || view === 'manager') {
       return (
-        <FadeInView key="manager" className="p-6 bg-black/80 text-text-main border-r border-glass-border items-center relative">
-            <style>{`
-                @keyframes enter-slide {
-                    0% { opacity: 0; transform: translateY(-15px) scale(0.95); max-height: 0; margin-bottom: 0; }
-                    40% { max-height: 60px; margin-bottom: 0.5rem; }
-                    100% { opacity: 1; transform: translateY(0) scale(1); max-height: 60px; margin-bottom: 0.5rem; }
-                }
-                .animate-enter { animation: enter-slide 0.45s cubic-bezier(0.2, 0.8, 0.2, 1) forwards; }
-            `}</style>
-            
-            <ConfirmationOverlay />
-            <button onClick={() => setIsCollapsed(true)} className="absolute top-2 right-2 p-2 rounded-full text-text-muted hover:text-white hover:bg-white/5 transition z-50" title="Recolher"><Menu size={20} /></button>
-            <h1 className={`text-3xl font-rajdhani font-bold ${THEME_PURPLE} mb-2 tracking-widest mt-10`}>PERSONAGENS</h1>
-            <p className="text-text-muted text-sm text-center mb-8">Selecione um grupo para começar.</p>
-            
-            <div className="w-full max-w-xs flex flex-col flex-1 h-full min-h-0">
-                <div className="w-full mb-4 px-1 pt-1">
-                    {!isCreatingPreset ? (
-                        <div className="flex gap-2">
-                             {/* BOTÃO NOVO GRUPO */}
-                            <button onClick={() => setIsCreatingPreset(true)} className={`flex-1 py-3 bg-[#d084ff]/10 border border-[#d084ff]/40 text-[#d084ff] font-bold rounded-lg hover:bg-[#d084ff] hover:text-black hover:shadow-[0_0_15px_rgba(208,132,255,0.4)] transition-all flex items-center justify-center gap-2 group`}>
-                                <Plus size={18} strokeWidth={3} className="group-hover:scale-110 transition-transform"/> NOVO GRUPO
-                            </button>
-                            
-                            {/* BOTÃO IMPORTAR GRUPO (NOVO) */}
-                            <div className="relative">
-                                <button onClick={() => importInputRef.current?.click()} className="h-full px-4 bg-glass border border-glass-border text-text-muted hover:text-white rounded-lg hover:bg-white/10 transition flex items-center justify-center" title="Importar Grupo (.zip)">
-                                    <Import size={20}/>
+        <div data-ecos-ui="true" className="h-full">
+            <FadeInView key="manager" className="p-6 bg-black/80 text-text-main border-r border-glass-border items-center relative">
+                <style>{`
+                    @keyframes enter-slide {
+                        0% { opacity: 0; transform: translateY(-15px) scale(0.95); max-height: 0; margin-bottom: 0; }
+                        40% { max-height: 60px; margin-bottom: 0.5rem; }
+                        100% { opacity: 1; transform: translateY(0) scale(1); max-height: 60px; margin-bottom: 0.5rem; }
+                    }
+                    .animate-enter { animation: enter-slide 0.45s cubic-bezier(0.2, 0.8, 0.2, 1) forwards; }
+                `}</style>
+                
+                <ConfirmationOverlay />
+                <button onClick={() => setIsCollapsed(true)} className="absolute top-2 right-2 p-2 rounded-full text-text-muted hover:text-white hover:bg-white/5 transition z-50" title="Recolher"><Menu size={20} /></button>
+                <h1 className={`text-3xl font-rajdhani font-bold ${THEME_PURPLE} mb-2 tracking-widest mt-10`}>PERSONAGENS</h1>
+                <p className="text-text-muted text-sm text-center mb-8">Selecione um grupo para começar.</p>
+                
+                <div className="w-full max-w-xs flex flex-col flex-1 h-full min-h-0">
+                    <div className="w-full mb-4 px-1 pt-1">
+                        {!isCreatingPreset ? (
+                            <div className="flex gap-2">
+                                {/* BOTÃO NOVO GRUPO */}
+                                <button onClick={() => setIsCreatingPreset(true)} className={`flex-1 py-3 bg-[#d084ff]/10 border border-[#d084ff]/40 text-[#d084ff] font-bold rounded-lg hover:bg-[#d084ff] hover:text-black hover:shadow-[0_0_15px_rgba(208,132,255,0.4)] transition-all flex items-center justify-center gap-2 group`}>
+                                    <Plus size={18} strokeWidth={3} className="group-hover:scale-110 transition-transform"/> NOVO GRUPO
                                 </button>
-                                <input ref={importInputRef} type="file" className="hidden" accept=".zip" onChange={(e) => { const file = e.target.files[0]; if(file) importPreset(file); e.target.value = null; }}/>
-                            </div>
-                        </div>
-                    ) : (
-                        <div className="flex flex-col gap-2" style={{ animation: 'fadeInUp 0.2s ease-out' }}>
-                            <input autoFocus placeholder="Nome do Grupo..." className="w-full bg-[#15151a] border border-[#d084ff] text-white placeholder-white/20 rounded-lg p-3 outline-none shadow-[0_0_10px_rgba(208,132,255,0.15)] focus:shadow-[0_0_15px_rgba(208,132,255,0.3)] transition-all" value={newPresetName} onChange={e => setNewPresetName(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') handleCreateNewPreset(); if (e.key === 'Escape') setIsCreatingPreset(false); }} />
-                            <div className="flex items-center justify-end gap-2 px-1">
-                                <button onClick={() => setIsCreatingPreset(false)} className="text-xs font-medium text-zinc-500 hover:text-white transition-colors px-3 py-2">CANCELAR</button>
-                                <button onClick={handleCreateNewPreset} className="flex items-center gap-2 px-4 py-2 bg-[#d084ff] text-black font-bold rounded text-xs hover:bg-white transition-all shadow-lg shadow-purple-900/20"><Check size={14} strokeWidth={3}/> CRIAR</button>
-                            </div>
-                        </div>
-                    )}
-                </div>
-
-                <div className="flex items-center gap-2 text-text-muted text-xs uppercase my-2 shrink-0">
-                    <div className="h-px bg-glass-border flex-1"></div>
-                    <span>Grupos Salvos</span>
-                    <div className="h-px bg-glass-border flex-1"></div>
-                </div>
-
-                <div ref={presetsListRef} className="flex-1 overflow-y-auto scrollbar-none pb-4 relative min-h-[100px] space-y-2">
-                     {presets.length === 0 && (
-                        <div className="absolute inset-0 flex items-center justify-center pointer-events-none"><p className="text-text-muted italic text-sm opacity-50">Vazio.</p></div>
-                    )}
-                    {presets.map(p => (
-                        <div key={p.id} onClick={() => { if(renamingPresetId !== p.id) loadPreset(p.id); }} className={`animate-enter bg-black/20 border border-glass-border rounded-lg p-3 flex justify-between items-center cursor-pointer transition group min-h-[66px] ${renamingPresetId === p.id ? 'bg-white/10' : 'hover:bg-white/5'}`}>
-                            {renamingPresetId === p.id ? (
-                                <div className="flex items-center gap-2 w-full animate-in fade-in duration-200" onClick={e => e.stopPropagation()}>
-                                    <input autoFocus onFocus={(e) => e.target.select()} className="flex-1 bg-black/50 border border-white/50 rounded px-2 py-1 text-white text-sm outline-none" value={renamePresetValue} onChange={e => setRenamePresetValue(e.target.value)} onKeyDown={e => { if(e.key === 'Enter') handleRenamePreset(p.id); if(e.key === 'Escape') setRenamingPresetId(null); }} />
-                                    <button onClick={() => setRenamingPresetId(null)} className="p-1 rounded bg-black/40 hover:bg-white/20 text-text-muted hover:text-white transition"><ArrowLeft size={16}/></button>
-                                    <button onClick={() => handleRenamePreset(p.id)} className="p-1 rounded bg-neon-green hover:bg-white text-black transition"><Check size={16}/></button>           
+                                
+                                {/* BOTÃO IMPORTAR GRUPO (NOVO) */}
+                                <div className="relative">
+                                    <button onClick={() => importInputRef.current?.click()} className="h-full px-4 bg-glass border border-glass-border text-text-muted hover:text-white rounded-lg hover:bg-white/10 transition flex items-center justify-center" title="Importar Grupo (.zip)">
+                                        <Import size={20}/>
+                                    </button>
+                                    <input ref={importInputRef} type="file" className="hidden" accept=".zip" onChange={(e) => { const file = e.target.files[0]; if(file) importPreset(file); e.target.value = null; }}/>
                                 </div>
-                            ) : (
-                                <>
-                                    <div><h3 className="font-bold text-white font-rajdhani truncate max-w-[180px]">{p.name}</h3><div className="text-xs text-text-muted">{p.characters.length} Personagens</div></div>
-                                    <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity gap-1">
-                                        {/* BOTAO EXPORTAR INDIVIDUAL */}
-                                        <button onClick={(e) => { e.stopPropagation(); exportPreset(p.id); }} className="p-2 hover:bg-white/10 hover:text-neon-blue rounded text-text-muted transition" title="Exportar Grupo"><Upload size={16}/></button>
-                                        
-                                        <button onClick={(e) => { e.stopPropagation(); setRenamingPresetId(p.id); setRenamePresetValue(p.name); }} className="p-2 hover:bg-white/10 hover:text-yellow-400 rounded text-text-muted transition" title="Renomear"><Edit2 size={16}/></button>
-                                        <button onClick={(e) => { e.stopPropagation(); showConfirm("Apagar Grupo", "Não poderá ser desfeito.", () => deletePreset(p.id)); }} className="p-2 hover:bg-red-900/50 hover:text-red-500 rounded text-text-muted transition" title="Excluir"><Trash2 size={16}/></button>
+                            </div>
+                        ) : (
+                            <div className="flex flex-col gap-2" style={{ animation: 'fadeInUp 0.2s ease-out' }}>
+                                <input autoFocus placeholder="Nome do Grupo..." className="w-full bg-[#15151a] border border-[#d084ff] text-white placeholder-white/20 rounded-lg p-3 outline-none shadow-[0_0_10px_rgba(208,132,255,0.15)] focus:shadow-[0_0_15px_rgba(208,132,255,0.3)] transition-all" value={newPresetName} onChange={e => setNewPresetName(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') handleCreateNewPreset(); if (e.key === 'Escape') setIsCreatingPreset(false); }} />
+                                <div className="flex items-center justify-end gap-2 px-1">
+                                    <button onClick={() => setIsCreatingPreset(false)} className="text-xs font-medium text-zinc-500 hover:text-white transition-colors px-3 py-2">CANCELAR</button>
+                                    <button onClick={handleCreateNewPreset} className="flex items-center gap-2 px-4 py-2 bg-[#d084ff] text-black font-bold rounded text-xs hover:bg-white transition-all shadow-lg shadow-purple-900/20"><Check size={14} strokeWidth={3}/> CRIAR</button>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
+                    <div className="flex items-center gap-2 text-text-muted text-xs uppercase my-2 shrink-0">
+                        <div className="h-px bg-glass-border flex-1"></div>
+                        <span>Grupos Salvos</span>
+                        <div className="h-px bg-glass-border flex-1"></div>
+                    </div>
+
+                    <div ref={presetsListRef} className="flex-1 overflow-y-auto scrollbar-none pb-4 relative min-h-[100px] space-y-2">
+                         {presets.length === 0 && (
+                            <div className="absolute inset-0 flex items-center justify-center pointer-events-none"><p className="text-text-muted italic text-sm opacity-50">Vazio.</p></div>
+                        )}
+                        {presets.map(p => (
+                            <div key={p.id} onClick={() => { if(renamingPresetId !== p.id) loadPreset(p.id); }} className={`animate-enter bg-black/20 border border-glass-border rounded-lg p-3 flex justify-between items-center cursor-pointer transition group min-h-[66px] ${renamingPresetId === p.id ? 'bg-white/10' : 'hover:bg-white/5'}`}>
+                                {renamingPresetId === p.id ? (
+                                    <div className="flex items-center gap-2 w-full animate-in fade-in duration-200" onClick={e => e.stopPropagation()}>
+                                        <input autoFocus onFocus={(e) => e.target.select()} className="flex-1 bg-black/50 border border-white/50 rounded px-2 py-1 text-white text-sm outline-none" value={renamePresetValue} onChange={e => setRenamePresetValue(e.target.value)} onKeyDown={e => { if(e.key === 'Enter') handleRenamePreset(p.id); if(e.key === 'Escape') setRenamingPresetId(null); }} />
+                                        <button onClick={() => setRenamingPresetId(null)} className="p-1 rounded bg-black/40 hover:bg-white/20 text-text-muted hover:text-white transition"><ArrowLeft size={16}/></button>
+                                        <button onClick={() => handleRenamePreset(p.id)} className="p-1 rounded bg-neon-green hover:bg-white text-black transition"><Check size={16}/></button>           
                                     </div>
-                                </>
-                            )}
-                        </div>
-                    ))}
+                                ) : (
+                                    <>
+                                        <div><h3 className="font-bold text-white font-rajdhani truncate max-w-[180px]">{p.name}</h3><div className="text-xs text-text-muted">{p.characters.length} Personagens</div></div>
+                                        <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity gap-1">
+                                            {/* BOTAO EXPORTAR INDIVIDUAL */}
+                                            <button onClick={(e) => { e.stopPropagation(); exportPreset(p.id); }} className="p-2 hover:bg-white/10 hover:text-neon-blue rounded text-text-muted transition" title="Exportar Grupo"><Upload size={16}/></button>
+                                            
+                                            <button onClick={(e) => { e.stopPropagation(); setRenamingPresetId(p.id); setRenamePresetValue(p.name); }} className="p-2 hover:bg-white/10 hover:text-yellow-400 rounded text-text-muted transition" title="Renomear"><Edit2 size={16}/></button>
+                                            <button onClick={(e) => { e.stopPropagation(); showConfirm("Apagar Grupo", "Não poderá ser desfeito.", () => deletePreset(p.id)); }} className="p-2 hover:bg-red-900/50 hover:text-red-500 rounded text-text-muted transition" title="Excluir"><Trash2 size={16}/></button>
+                                        </div>
+                                    </>
+                                )}
+                            </div>
+                        ))}
+                    </div>
                 </div>
-            </div>
-            {/* FOOTER REMOVIDO (Anteriormente Exportar/Importar Bulk) */}
-        </FadeInView>
+                {/* FOOTER REMOVIDO (Anteriormente Exportar/Importar Bulk) */}
+            </FadeInView>
+        </div>
       );
   }
 
@@ -393,44 +395,46 @@ const CharacterSidebar = ({ isCollapsed, setIsCollapsed }) => {
   // ==========================================
   if (view === 'hub') {
     return (
-      <FadeInView key="hub" className="bg-black/80 text-text-main overflow-hidden relative border-r border-glass-border">
-        <ConfirmationOverlay />
-        <div className="flex justify-between items-center p-4 border-b border-glass-border bg-black/40 shrink-0">
-            <div className="flex items-center gap-3">
-                <button onClick={() => exitPreset()} className="p-2 rounded-full bg-glass hover:bg-red-900/30 hover:text-red-400 text-text-muted transition" title="Sair do Grupo"><ArrowLeft size={20}/></button>
-                <div className="flex flex-col">
-                    <span className="text-[10px] text-text-muted uppercase font-bold leading-none">Grupo de Personagens</span>
-                    <span className="font-rajdhani font-bold text-white truncate max-w-[150px] leading-none mt-1">{currentPreset?.name}</span>
-                </div>
-            </div>
-            <div className="flex items-center gap-2">
-                <button onClick={() => setIsCollapsed(true)} className="p-2 rounded-full bg-glass hover:bg-white/10 text-text-muted hover:text-white transition" title="Recolher"><Menu size={20}/></button>
-            </div>
-        </div>
-
-        <div className="flex-1 overflow-y-auto grid grid-cols-2 gap-4 p-4 content-start scrollbar-thin">
-            {gameState.characters.map((char, index) => (
-                <div 
-                    key={char.id} draggable onDragStart={(e) => handleDragSortStart(e, index, char)} onDragEnd={handleDragEnd} onDragOver={handleDragOver} onDrop={(e) => handleDragSortDrop(e, index)}
-                    onClick={() => navToChar(char.id)}
-                    className={`bg-black/20 border border-glass-border rounded-xl p-4 flex flex-col items-center justify-start py-6 gap-4 cursor-pointer hover:bg-white/5 transition relative group h-[198px] ${draggedIndex === index ? `opacity-30 border-dashed ${THEME_BORDER_PURPLE}` : ''}`}
-                >
-                    <button onClick={(e) => { e.stopPropagation(); handleDeleteChar(char.id); }} className="absolute top-2 right-2 w-6 h-6 bg-red-600 rounded-full flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity z-10 text-xs hover:scale-110 shadow-md"><X size={12}/></button>
-                    <img src={char.photo || '[https://via.placeholder.com/150](https://via.placeholder.com/150)'} className="w-24 h-24 rounded-full object-cover pointer-events-none shadow-lg transition-all group-hover:scale-105" alt={char.name} />
-                    <div className="w-full flex flex-col items-center gap-1">
-                        <span className="font-semibold text-center text-lg leading-tight w-full line-clamp-2 px-1 text-white pointer-events-none break-words">{char.name}</span>
-                        {char.name.length <= 12 && (<div className="w-10 h-[2px] bg-white/20 rounded-full mt-1"></div>)}
+      <div data-ecos-ui="true" className="h-full">
+          <FadeInView key="hub" className="bg-black/80 text-text-main overflow-hidden relative border-r border-glass-border">
+            <ConfirmationOverlay />
+            <div className="flex justify-between items-center p-4 border-b border-glass-border bg-black/40 shrink-0">
+                <div className="flex items-center gap-3">
+                    <button onClick={() => exitPreset()} className="p-2 rounded-full bg-glass hover:bg-red-900/30 hover:text-red-400 text-text-muted transition" title="Sair do Grupo"><ArrowLeft size={20}/></button>
+                    <div className="flex flex-col">
+                        <span className="text-[10px] text-text-muted uppercase font-bold leading-none">Grupo de Personagens</span>
+                        <span className="font-rajdhani font-bold text-white truncate max-w-[150px] leading-none mt-1">{currentPreset?.name}</span>
                     </div>
                 </div>
-            ))}
-            
-            <div onClick={() => openEdit(true)} className="border border-dashed border-glass-border rounded-xl p-4 flex flex-col items-center justify-center cursor-pointer hover:bg-white/5 opacity-50 hover:opacity-100 h-[200px] transition-all gap-3">
-                <div className="p-4 rounded-full bg-glass-border/20"><Plus size={32} className="text-text-muted"/></div>
-                <span className="text-sm text-text-muted font-rajdhani uppercase tracking-widest truncate max-w-[135px]">Novo personagem</span>
+                <div className="flex items-center gap-2">
+                    <button onClick={() => setIsCollapsed(true)} className="p-2 rounded-full bg-glass hover:bg-white/10 text-text-muted hover:text-white transition" title="Recolher"><Menu size={20}/></button>
+                </div>
             </div>
-        </div>
-        {renderEditingOverlay()}
-      </FadeInView>
+
+            <div className="flex-1 overflow-y-auto grid grid-cols-2 gap-4 p-4 content-start scrollbar-thin">
+                {gameState.characters.map((char, index) => (
+                    <div 
+                        key={char.id} draggable onDragStart={(e) => handleDragSortStart(e, index, char)} onDragEnd={handleDragEnd} onDragOver={handleDragOver} onDrop={(e) => handleDragSortDrop(e, index)}
+                        onClick={() => navToChar(char.id)}
+                        className={`bg-black/20 border border-glass-border rounded-xl p-4 flex flex-col items-center justify-start py-6 gap-4 cursor-pointer hover:bg-white/5 transition relative group h-[198px] ${draggedIndex === index ? `opacity-30 border-dashed ${THEME_BORDER_PURPLE}` : ''}`}
+                    >
+                        <button onClick={(e) => { e.stopPropagation(); handleDeleteChar(char.id); }} className="absolute top-2 right-2 w-6 h-6 bg-red-600 rounded-full flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity z-10 text-xs hover:scale-110 shadow-md"><X size={12}/></button>
+                        <img src={char.photo || '[https://via.placeholder.com/150](https://via.placeholder.com/150)'} className="w-24 h-24 rounded-full object-cover pointer-events-none shadow-lg transition-all group-hover:scale-105" alt={char.name} />
+                        <div className="w-full flex flex-col items-center gap-1">
+                            <span className="font-semibold text-center text-lg leading-tight w-full line-clamp-2 px-1 text-white pointer-events-none break-words">{char.name}</span>
+                            {char.name.length <= 12 && (<div className="w-10 h-[2px] bg-white/20 rounded-full mt-1"></div>)}
+                        </div>
+                    </div>
+                ))}
+                
+                <div onClick={() => openEdit(true)} className="border border-dashed border-glass-border rounded-xl p-4 flex flex-col items-center justify-center cursor-pointer hover:bg-white/5 opacity-50 hover:opacity-100 h-[200px] transition-all gap-3">
+                    <div className="p-4 rounded-full bg-glass-border/20"><Plus size={32} className="text-text-muted"/></div>
+                    <span className="text-sm text-text-muted font-rajdhani uppercase tracking-widest truncate max-w-[135px]">Novo personagem</span>
+                </div>
+            </div>
+            {renderEditingOverlay()}
+          </FadeInView>
+      </div>
     );
   }
 
@@ -438,7 +442,7 @@ const CharacterSidebar = ({ isCollapsed, setIsCollapsed }) => {
   // VIEW: DETAILS (FICHA)
   // ==========================================
   return (
-    <div className="h-full flex flex-col bg-black/80 text-text-main relative overflow-hidden">
+    <div data-ecos-ui="true" className="h-full flex flex-col bg-black/80 text-text-main relative overflow-hidden">
         <ConfirmationOverlay />
         <div className="flex-1 relative overflow-hidden">
             <FadeInView key={activeCharId || 'details'} className="absolute inset-0 flex flex-col">
