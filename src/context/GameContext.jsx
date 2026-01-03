@@ -367,8 +367,11 @@ export const GameProvider = ({ children }) => {
   const exportAdventure = useCallback(async (advId) => {
       const adv = adventures.find(a => a.id === advId);
       if (!adv) return;
+      
       const zip = new JSZip();
       zip.file("adventure.json", JSON.stringify(adv));
+      
+      // --- IMAGENS ---
       const imgFolder = zip.folder("images");
       const imageIds = new Set();
       
@@ -379,15 +382,19 @@ export const GameProvider = ({ children }) => {
       if (adv.tokenLibrary) {
           adv.tokenLibrary.forEach(t => { if (t.imageId) imageIds.add(t.imageId); });
       }
+      // Importa avatar dos personagens se houver token linkado (Opcional, mas recomendado)
+      // (Mantido a lógica original das imagens para brevidade)
       
       for (const id of imageIds) {
           const blob = await imageDB.getImage(id);
           if (blob) imgFolder.file(id, blob);
       }
 
+      // --- ÁUDIO COM MANIFESTO ---
       const audioFolder = zip.folder("audio");
       const audioIds = new Set();
 
+      // 1. Identificar todos os IDs de áudio usados
       if (adv.soundboard) {
           if (adv.soundboard.playlists) {
               adv.soundboard.playlists.forEach(pl => {
@@ -402,10 +409,29 @@ export const GameProvider = ({ children }) => {
           }
       }
 
+      // 2. Buscar metadados reais do banco para criar o manifesto
+      // Precisamos saber o Nome Original e a Categoria (music/sfx)
+      const allAudioMeta = await audioDB.getAllAudioMetadata();
+      const audioManifest = {};
+
       for (const id of audioIds) {
           const blob = await audioDB.getAudio(id);
-          if (blob) audioFolder.file(id, blob);
+          if (blob) {
+              audioFolder.file(id, blob);
+              
+              // Encontra os metadados deste arquivo
+              const meta = allAudioMeta.find(m => m.id === id);
+              if (meta) {
+                  audioManifest[id] = {
+                      name: meta.name,
+                      category: meta.category || 'music' // Fallback
+                  };
+              }
+          }
       }
+
+      // 3. Salva o manifesto no ZIP
+      zip.file("audio_manifest.json", JSON.stringify(audioManifest));
 
       const content = await zip.generateAsync({ type: "blob" });
       saveAs(content, `adventure_${adv.name.replace(/\s+/g, '_')}.zip`);
@@ -420,6 +446,7 @@ export const GameProvider = ({ children }) => {
           
           const advData = JSON.parse(await jsonFile.async("string"));
           
+          // Sanitização básica
           advData.scenes = advData.scenes.map(scene => ({ 
               ...scene, 
               fogOfWar: scene.fogOfWar || [], 
@@ -430,6 +457,7 @@ export const GameProvider = ({ children }) => {
               advData.soundboard = { ...defaultSoundboardState };
           }
 
+          // --- IMPORTAÇÃO DE IMAGENS ---
           const imgFolder = zip.folder("images");
           if (imgFolder) {
               const images = [];
@@ -440,15 +468,43 @@ export const GameProvider = ({ children }) => {
               }
           }
 
+          // --- IMPORTAÇÃO DE ÁUDIO COM MANIFESTO ---
           const audioFolder = zip.folder("audio");
-          if (audioFolder) {
-              const audios = [];
-              audioFolder.forEach((relativePath, file) => audios.push({ id: relativePath, file }));
-              for (const aud of audios) {
-                  const blob = await aud.file.async("blob");
-                  await audioDB.saveAudio(blob, aud.id);
+          const manifestFile = zip.file("audio_manifest.json");
+          let audioManifest = {};
+          
+          // Tenta ler o manifesto se existir
+          if (manifestFile) {
+              try {
+                  audioManifest = JSON.parse(await manifestFile.async("string"));
+              } catch (e) {
+                  console.warn("Erro ao ler manifesto de áudio, usando padrão.", e);
               }
           }
+
+          if (audioFolder) {
+                const audios = [];
+                audioFolder.forEach((relativePath, file) => audios.push({ id: relativePath, file }));
+                
+                for (const aud of audios) {
+                    const blob = await aud.file.async("blob");
+                    
+                    // Busca metadados do manifesto ou usa defaults
+                    const meta = audioManifest[aud.id] || {};
+                    
+                    // Nome: Usa o original do manifesto OU cria um genérico
+                    const originalName = meta.name || `Importado ${aud.id.substring(0,8)}`;
+                    
+                    // Categoria: Usa a original (sfx/music) OU assume 'music'
+                    const category = meta.category || 'music';
+
+                    // Recria o arquivo com o nome correto
+                    const fileWithMeta = new File([blob], originalName, { type: blob.type });
+
+                    // Salva com a categoria correta
+                    await audioDB.saveAudio(fileWithMeta, category, aud.id);
+                }
+            }
 
           const newAdv = { ...advData, id: generateUUID(), name: `${advData.name}` };
           setAdventures(prev => [...prev, newAdv]);
