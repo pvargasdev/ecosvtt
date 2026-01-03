@@ -66,7 +66,7 @@ export const Die = ({ type, value, isRolling, index, onRemove, isMax, isMin, sho
     containerClass += " cursor-pointer hover:scale-105 group animate-pop-in";
 
     // Definição Base (Cor e Efeito)
-    if (showResult && isMax) {
+    if (showResult && value == 20) {
       // É o Maior Valor? (Dourado)
       containerClass += " scale-110 z-10";
       iconClass += " text-neon-purple drop-shadow-[0_0_10px_rgba(191,0,255,1)]";

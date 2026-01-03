@@ -89,11 +89,18 @@ const DiceWindow = ({ onClose, WindowWrapperComponent }) => {
 
     setTimeout(() => {
       let currentTotal = 0;
+      
+      // 1. Gera os valores aleatórios
       const rolledPool = pool.map(d => {
         const val = rollDie(d.type);
         currentTotal += val;
         return { ...d, value: val };
       });
+
+      // 2. [ALTERAÇÃO] Ordena do Maior para o Menor
+      // Isso fará com que o React renderize a lista visualmente ordenada
+      rolledPool.sort((a, b) => b.value - a.value);
+
       setPool(rolledPool);
       setTotal(currentTotal);
       setIsRolling(false);
@@ -104,7 +111,7 @@ const DiceWindow = ({ onClose, WindowWrapperComponent }) => {
 
   return (
     // Adicionei max-h-[60vh] para limitar o tamanho da janela
-    <WindowWrapperComponent className="absolute top-24 right-4 w-[380px] bg-black/90 border border-glass-border backdrop-blur-sm rounded-xl flex flex-col z-50 shadow-2xl overflow-hidden max-h-[60vh]">
+    <WindowWrapperComponent className="absolute top-24 right-4 w-[350px] bg-black/90 border border-glass-border backdrop-blur-sm rounded-xl flex flex-col z-50 shadow-2xl overflow-hidden max-h-[60vh]">
       <DiceStyles />
       
       {/* --- HEADER --- */}
@@ -182,7 +189,7 @@ const DiceWindow = ({ onClose, WindowWrapperComponent }) => {
             <button 
                 onClick={handleClear}
                 disabled={isRolling || pool.length === 0}
-                className="px-3 py-2 bg-white/5 border border-glass-border rounded hover:bg-red-500/20 hover:border-red-500/50 hover:text-red-500 text-text-muted transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-3.5 py-2 bg-white/5 border border-glass-border rounded hover:bg-red-500/20 hover:border-red-500/50 hover:text-red-500 text-text-muted transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 title="Limpar Mesa"
             >
                 <Trash2 size={18} />
