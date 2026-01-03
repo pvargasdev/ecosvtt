@@ -437,6 +437,41 @@ export const GameProvider = ({ children }) => {
       saveAs(content, `adventure_${adv.name.replace(/\s+/g, '_')}.zip`);
   }, [adventures]);
 
+  const remapAdventureAudioIds = (adventureData, idMap) => {
+      if (!adventureData.soundboard) return adventureData;
+      
+      const sb = adventureData.soundboard;
+
+      // 1. Atualizar Playlists
+      if (sb.playlists) {
+          sb.playlists.forEach(pl => {
+              if (pl.tracks) {
+                  pl.tracks.forEach(track => {
+                      if (track.fileId && idMap[track.fileId]) {
+                          track.fileId = idMap[track.fileId];
+                      }
+                  });
+              }
+          });
+      }
+
+      // 2. Atualizar SFX Grid
+      if (sb.sfxGrid) {
+          sb.sfxGrid.forEach(sfx => {
+              if (sfx.fileId && idMap[sfx.fileId]) {
+                  sfx.fileId = idMap[sfx.fileId];
+              }
+          });
+      }
+
+      // 3. Atualizar Active Track (se houver)
+      if (sb.activeTrack && sb.activeTrack.fileId && idMap[sb.activeTrack.fileId]) {
+          sb.activeTrack.fileId = idMap[sb.activeTrack.fileId];
+      }
+
+      return adventureData;
+  };
+
   const importAdventure = useCallback(async (file) => {
       if (!file) return;
       try {
@@ -444,7 +479,7 @@ export const GameProvider = ({ children }) => {
           const jsonFile = zip.file("adventure.json");
           if (!jsonFile) throw new Error("Arquivo inválido");
           
-          const advData = JSON.parse(await jsonFile.async("string"));
+          let advData = JSON.parse(await jsonFile.async("string"));
           
           // Sanitização básica
           advData.scenes = advData.scenes.map(scene => ({ 
@@ -457,7 +492,7 @@ export const GameProvider = ({ children }) => {
               advData.soundboard = { ...defaultSoundboardState };
           }
 
-          // --- IMPORTAÇÃO DE IMAGENS ---
+          // --- IMPORTAÇÃO DE IMAGENS (Mantido igual) ---
           const imgFolder = zip.folder("images");
           if (imgFolder) {
               const images = [];
@@ -468,47 +503,82 @@ export const GameProvider = ({ children }) => {
               }
           }
 
-          // --- IMPORTAÇÃO DE ÁUDIO COM MANIFESTO ---
+          // --- IMPORTAÇÃO DE ÁUDIO COM DEDUPLICAÇÃO INTELIGENTE ---
           const audioFolder = zip.folder("audio");
           const manifestFile = zip.file("audio_manifest.json");
           let audioManifest = {};
           
-          // Tenta ler o manifesto se existir
           if (manifestFile) {
-              try {
-                  audioManifest = JSON.parse(await manifestFile.async("string"));
-              } catch (e) {
-                  console.warn("Erro ao ler manifesto de áudio, usando padrão.", e);
-              }
+              try { audioManifest = JSON.parse(await manifestFile.async("string")); } 
+              catch (e) { console.warn("Erro ao ler manifesto de áudio.", e); }
           }
 
           if (audioFolder) {
-                const audios = [];
-                audioFolder.forEach((relativePath, file) => audios.push({ id: relativePath, file }));
+                // 1. Carregar metadados globais para verificar duplicatas
+                const existingMetadata = await audioDB.getAllAudioMetadata();
                 
-                for (const aud of audios) {
+                // Cria um Mapa de Busca: "NomeArquivo|TamanhoBytes" -> ID do Banco
+                const existingAudioMap = new Map();
+                existingMetadata.forEach(meta => {
+                    const uniqueKey = `${meta.name}|${meta.size}`;
+                    existingAudioMap.set(uniqueKey, meta.id);
+                });
+
+                const idRemap = {}; // Mapa { ID_ZIP : ID_FINAL }
+                const audiosToProcess = [];
+                
+                audioFolder.forEach((relativePath, file) => audiosToProcess.push({ id: relativePath, file }));
+                
+                for (const aud of audiosToProcess) {
                     const blob = await aud.file.async("blob");
                     
-                    // Busca metadados do manifesto ou usa defaults
+                    // Recupera dados originais
                     const meta = audioManifest[aud.id] || {};
-                    
-                    // Nome: Usa o original do manifesto OU cria um genérico
                     const originalName = meta.name || `Importado ${aud.id.substring(0,8)}`;
-                    
-                    // Categoria: Usa a original (sfx/music) OU assume 'music'
                     const category = meta.category || 'music';
 
-                    // Recria o arquivo com o nome correto
-                    const fileWithMeta = new File([blob], originalName, { type: blob.type });
+                    // Chave de unicidade
+                    const uniqueKey = `${originalName}|${blob.size}`;
 
-                    // Salva com a categoria correta
-                    await audioDB.saveAudio(fileWithMeta, category, aud.id);
+                    if (existingAudioMap.has(uniqueKey)) {
+                        // --- DEDUPLICAÇÃO ---
+                        // O arquivo já existe! Reutilizamos o ID existente.
+                        const existingId = existingAudioMap.get(uniqueKey);
+                        idRemap[aud.id] = existingId;
+                        console.log(`Áudio deduplicado: ${originalName}`);
+                    } else {
+                        // --- ARQUIVO NOVO ---
+                        // Cria arquivo real com nome correto
+                        const fileWithMeta = new File([blob], originalName, { type: blob.type });
+                        
+                        // Salvamos sem forçar o ID (deixamos gerar um novo UUID para evitar colisões raras)
+                        // OU podemos forçar o ID do zip se você preferir manter consistência, 
+                        // mas gerar novo é mais seguro se tivermos deduplicando parciais.
+                        const newId = await audioDB.saveAudio(fileWithMeta, category);
+                        
+                        if (newId) {
+                            idRemap[aud.id] = newId;
+                            // Adiciona ao mapa local caso o mesmo arquivo apareça 2x no mesmo ZIP (raro, mas possível)
+                            existingAudioMap.set(uniqueKey, newId); 
+                        }
+                    }
                 }
+
+                // 2. Aplicar os novos IDs na estrutura da Aventura
+                // Isso garante que se o ID mudou (por deduplicação ou novo UUID), a aventura aponte para o arquivo certo.
+                advData = remapAdventureAudioIds(advData, idRemap);
             }
 
+          // Gera ID novo para a aventura em si para permitir importar cópias
           const newAdv = { ...advData, id: generateUUID(), name: `${advData.name}` };
           setAdventures(prev => [...prev, newAdv]);
-      } catch (e) { console.error(e); alert("Erro ao importar aventura: " + e.message); }
+          
+          alert("Aventura importada com sucesso!");
+
+      } catch (e) { 
+          console.error(e); 
+          alert("Erro ao importar aventura: " + e.message); 
+      }
   }, []);
 
   const updateSoundboard = useCallback((updates) => { setActiveAdvSoundboard(prev => ({ ...prev, ...updates })); }, [internalActiveAdventureId]);
@@ -962,7 +1032,7 @@ export const GameProvider = ({ children }) => {
     addPin, updatePin, deletePin, deleteMultiplePins,
     gameState: { characters }, addCharacter, updateCharacter, deleteCharacter, setAllCharacters,
     presets, activePresetId, createPreset, loadPreset, saveToPreset, deletePreset, mergePresets, exitPreset, updatePreset, exportPreset, importPreset,
-    resetAllData, getAudioDurationFromId, deleteGlobalAudio
+    resetAllData, getAudioDurationFromId, deleteGlobalAudio, remapAdventureAudioIds
   };
 
   return <GameContext.Provider value={value}>{children}</GameContext.Provider>;
