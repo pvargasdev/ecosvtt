@@ -572,8 +572,6 @@ export const GameProvider = ({ children }) => {
           // Gera ID novo para a aventura em si para permitir importar cópias
           const newAdv = { ...advData, id: generateUUID(), name: `${advData.name}` };
           setAdventures(prev => [...prev, newAdv]);
-          
-          alert("Aventura importada com sucesso!");
 
       } catch (e) { 
           console.error(e); 
