@@ -1,85 +1,83 @@
-import React, { useRef, useState } from 'react';
+import React, { useState } from 'react';
 import { useGame } from '../../context/GameContext';
 import { Plus, Upload } from 'lucide-react';
 import SFXButton from './SFXButton';
+import AudioLibraryModal from './AudioLibraryModal';
 
 const SFXGrid = () => {
     const { soundboard, addSfx } = useGame();
-    const fileInputRef = useRef(null);
     const [isDragging, setIsDragging] = useState(false);
+    const [isLibraryOpen, setIsLibraryOpen] = useState(false);
 
-    const handleUpload = (e) => {
-        const files = Array.from(e.target.files);
-        files.forEach(file => addSfx(file));
-        e.target.value = null;
+    // Função Unificada
+    const handleAddSFX = (items) => {
+        // Ao adicionar, assumimos que se forem arquivos novos, o Contexto deve tratar como SFX
+        // Se forem IDs existentes da biblioteca, já devem ser SFX por causa do filtro do modal
+        items.forEach(item => addSfx(item)); 
     };
 
-    // --- Handlers de Drag & Drop ---
-    const handleDragOver = (e) => {
-        e.preventDefault();
-        setIsDragging(true);
-    };
-
-    const handleDragLeave = (e) => {
-        e.preventDefault();
-        if (!e.currentTarget.contains(e.relatedTarget)) {
-            setIsDragging(false);
-        }
-    };
+    const handleDragOver = (e) => { e.preventDefault(); setIsDragging(true); };
+    const handleDragLeave = (e) => { e.preventDefault(); if (!e.currentTarget.contains(e.relatedTarget)) setIsDragging(false); };
 
     const handleDrop = (e) => {
         e.preventDefault();
         setIsDragging(false);
-        
         const files = Array.from(e.dataTransfer.files);
         const audioFiles = files.filter(f => f.type.startsWith('audio/'));
-        
-        if (audioFiles.length > 0) {
-            audioFiles.forEach(file => addSfx(file));
-        }
+        if (audioFiles.length > 0) handleAddSFX(audioFiles);
     };
 
     return (
-        <div 
-            className="flex flex-col h-full bg-[#0a0a0a] relative"
-            onDragOver={handleDragOver}
-            onDragLeave={handleDragLeave}
-            onDrop={handleDrop}
-        >
-            {/* Overlay de Drag & Drop */}
-            {isDragging && (
-                <div className="absolute inset-0 z-50 bg-pink-400/10 border-2 border-dashed border-pink-400 flex flex-col items-center justify-center backdrop-blur-sm animate-in fade-in pointer-events-none">
-                    <Upload size={48} className="text-pink-400 mb-2 animate-bounce"/>
-                    <h3 className="text-pink-400 font-bold text-xl font-rajdhani">SOLTE PARA ADICIONAR SFX</h3>
-                </div>
-            )}
-
-            {/* Grid Area - Removido o Header de Volume */}
-            <div className="flex-1 overflow-y-auto p-4 scrollbar-thin">
-                <div className="grid grid-cols-3 gap-3">
-                    {/* Botão de Adicionar */}
-                    <div 
-                        onClick={() => fileInputRef.current.click()}
-                        className="aspect-square rounded-xl border-2 border-dashed border-white/10 flex flex-col items-center justify-center cursor-pointer hover:bg-white/5 hover:border-white/30 transition-all text-text-muted hover:text-white group"
-                    >
-                        <Plus size={24} className="mb-1 group-hover:scale-110 transition-transform"/>
-                        <span className="text-[10px] font-bold uppercase">Adicionar</span>
-                        <input ref={fileInputRef} type="file" multiple accept="audio/*" className="hidden" onChange={handleUpload}/>
-                    </div>
-
-                    {/* Botões SFX */}
-                    {soundboard.sfxGrid.map(sfx => (
-                        <SFXButton key={sfx.id} data={sfx} />
-                    ))}
-                </div>
-                
-                {soundboard.sfxGrid.length === 0 && !isDragging && (
-                    <div className="text-center text-text-muted text-xs mt-8 opacity-50">
-                        Clique em Adicionar ou arraste arquivos de áudio para cá.
+        <>
+            <div 
+                className="flex flex-col h-full bg-[#0a0a0a] relative"
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+            >
+                {/* Overlay de Drag & Drop */}
+                {isDragging && (
+                    <div className="absolute inset-0 z-50 bg-purple-400/10 border-2 border-dashed border-purple-400 flex flex-col items-center justify-center backdrop-blur-sm animate-in fade-in pointer-events-none">
+                        <Upload size={48} className="text-purple-400 mb-2 animate-bounce"/>
+                        <h3 className="text-purple-400 font-bold text-xl font-rajdhani">SOLTE PARA ADICIONAR SFX</h3>
                     </div>
                 )}
+
+                {/* Grid Area */}
+                <div className="flex-1 overflow-y-auto p-4 scrollbar-thin">
+                    <div className="grid grid-cols-3 gap-3">
+                        {/* Botão de Adicionar (Abre Modal) */}
+                        <div 
+                            onClick={() => setIsLibraryOpen(true)}
+                            className="aspect-square rounded-xl border-2 border-dashed border-white/10 flex flex-col items-center justify-center cursor-pointer hover:bg-white/5 hover:border-white/30 transition-all text-text-muted hover:text-white group"
+                        >
+                            <Plus size={24} className="mb-1 group-hover:scale-110 transition-transform"/>
+                            <span className="text-[10px] font-bold uppercase">Adicionar</span>
+                        </div>
+
+                        {/* Botões SFX */}
+                        {soundboard.sfxGrid.map(sfx => (
+                            <SFXButton key={sfx.id} data={sfx} />
+                        ))}
+                    </div>
+                    
+                    {soundboard.sfxGrid.length === 0 && !isDragging && (
+                        <div className="text-center text-text-muted text-xs mt-8 opacity-50">
+                            Clique em Adicionar ou arraste arquivos de áudio para cá.
+                        </div>
+                    )}
+                </div>
             </div>
-        </div>
+
+            {/* MODAL DE IMPORTAÇÃO CONFIGURADO PARA SFX */}
+            <AudioLibraryModal 
+                isOpen={isLibraryOpen}
+                category="sfx" // <--- CONFIGURAÇÃO EXPLICITA
+                onClose={() => setIsLibraryOpen(false)}
+                onSelect={handleAddSFX}
+                acceptMultiple={true}
+            />
+        </>
     );
 };
 

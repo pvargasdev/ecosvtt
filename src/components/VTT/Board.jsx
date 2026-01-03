@@ -95,12 +95,9 @@ const Board = ({ showUI }) => {
   // --- EFEITO: CLICK OUTSIDE (Limpa Seleção ao clicar na UI) ---
   useEffect(() => {
     const handleGlobalClick = (e) => {
-        // Verifica se o clique foi em um elemento marcado como UI (Sidebar, Menus, Layout)
-        // O atributo 'data-ecos-ui' deve ser adicionado nos componentes de UI
         const isUiClick = e.target.closest('[data-ecos-ui="true"]') || e.target.closest('.vtt-ui-layer');
         
         if (isUiClick) {
-            // Se clicou na UI, limpa todas as seleções para evitar comandos acidentais
             if (selectedIds.size > 0) setSelectedIds(new Set());
             if (selectedFogIds.size > 0) setSelectedFogIds(new Set());
             if (selectedPinIds.size > 0) setSelectedPinIds(new Set());
@@ -191,17 +188,14 @@ const Board = ({ showUI }) => {
   // --- CONTROLE DE TECLADO ---
   useEffect(() => {
     const handleKeyDown = (e) => {
-        // SEGURANÇA: Se estiver digitando, ignora tudo.
         if (['INPUT', 'TEXTAREA', 'CONTENTEDITABLE'].includes(document.activeElement?.tagName)) return;
         
         if (e.code === 'Space' && !e.repeat) setIsSpacePressed(true);
 
         const key = e.key.toLowerCase();
 
-        // --- COMANDOS QUE EXIGEM SELEÇÃO ATIVA ---
         if (selectedIds.size > 0 && activeScene) {
             
-            // FLIP (Horizontal) - Sem CTRL
             if (key === 'f') {
                 e.preventDefault();
                 selectedIds.forEach(id => {
@@ -210,7 +204,6 @@ const Board = ({ showUI }) => {
                 });
             }
 
-            // ROTAÇÃO (Q/E) - Sem CTRL
             if (key === 'q') {
                 e.preventDefault();
                 selectedIds.forEach(id => {
@@ -232,7 +225,6 @@ const Board = ({ showUI }) => {
                 });
             }
 
-            // REDIMENSIONAMENTO (+/-) - Sem CTRL
             if (key === '=' || key === '+') { 
                 e.preventDefault();
                 selectedIds.forEach(id => {
@@ -258,20 +250,17 @@ const Board = ({ showUI }) => {
                 });
             }
 
-            // DELETE
             if ((key === 'delete' || key === 'backspace')) {
                 deleteMultipleTokenInstances(activeScene?.id, Array.from(selectedIds));
                 setSelectedIds(new Set());
             }
 
-            // COPY (Mantém Ctrl para padrão de SO)
             if ((e.ctrlKey || e.metaKey) && key === 'c') {
                 const tokensToCopy = activeScene.tokens.filter(t => selectedIds.has(t.id));
                 if (tokensToCopy.length > 0) clipboardRef.current = tokensToCopy;
             }
         }
 
-        // DELEÇÃO DE OUTROS ITENS
         if ((key === 'delete' || key === 'backspace')) {
             if (selectedFogIds.size > 0 && activeScene) {
                 deleteMultipleFogAreas(activeScene?.id, Array.from(selectedFogIds));
@@ -283,10 +272,8 @@ const Board = ({ showUI }) => {
             }
         }
 
-        // PASTE (Global, se mouse estiver sobre o board)
         if ((e.ctrlKey || e.metaKey) && key === 'v') {
             if (clipboardRef.current.length > 0 && activeScene) {
-                // Só cola se o mouse estiver sobre o Board e não sobre uma janela
                 if (isMouseOverRef.current && containerRef.current) {
                     const rect = containerRef.current.getBoundingClientRect();
                     const mouseX = mousePosRef.current.x - rect.left;
@@ -724,8 +711,8 @@ const Board = ({ showUI }) => {
             }}
         />
 
-        {/* NOTA: Adicionado data-ecos-ui="true" para que o click aqui limpe a seleção */}
-        <div data-ecos-ui="true" className="vtt-ui-layer absolute inset-0 pointer-events-none z-[50]" onMouseDown={(e) => e.stopPropagation()} onMouseUp={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()} onDoubleClick={(e) => e.stopPropagation()}>
+        {/* NOTA: ID 'vtt-ui-root' adicionado aqui para o AudioLibraryModal encontrar o local correto */}
+        <div id="vtt-ui-root" data-ecos-ui="true" className="vtt-ui-layer absolute inset-0 pointer-events-none z-[50]" onMouseDown={(e) => e.stopPropagation()} onMouseUp={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()} onDoubleClick={(e) => e.stopPropagation()}>
             <VTTLayout 
                 zoomValue={sliderValue} 
                 onZoomChange={handleSliderZoom} 

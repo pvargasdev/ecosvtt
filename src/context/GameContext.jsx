@@ -458,11 +458,72 @@ export const GameProvider = ({ children }) => {
   const updateSoundboard = useCallback((updates) => { setActiveAdvSoundboard(prev => ({ ...prev, ...updates })); }, [internalActiveAdventureId]);
   const addPlaylist = useCallback((name) => { setActiveAdvSoundboard(prev => ({ ...prev, playlists: [...prev.playlists, { id: generateUUID(), name, tracks: [] }] })); }, [internalActiveAdventureId]);
   
-  const addTrackToPlaylist = useCallback(async (playlistId, file, duration = 0) => {
-      const fileId = await audioDB.saveAudio(file);
+  const getAudioDurationFromId = async (id) => {
+      const blob = await audioDB.getAudio(id);
+      if(!blob) return 0;
+      return new Promise((resolve) => {
+        const objectUrl = URL.createObjectURL(blob);
+        const audio = new Audio(objectUrl);
+        audio.onloadedmetadata = () => { URL.revokeObjectURL(objectUrl); resolve(audio.duration); };
+        audio.onerror = () => { URL.revokeObjectURL(objectUrl); resolve(0); };
+      });
+  };
+
+  const deleteGlobalAudio = useCallback(async (id) => {
+      await audioDB.deleteAudio(id);
+      // Nota: Isso não remove automaticamente as referências nas playlists existentes para evitar complexidade excessiva de sync agora.
+      // O áudio apenas não tocará.
+  }, []);
+
+  const addTrackToPlaylist = useCallback(async (playlistId, fileOrId, forcedDuration = 0) => {
+      let fileId = fileOrId;
+      let title = "Faixa Importada";
+      let duration = forcedDuration;
+
+      // 1. Arquivo NOVO (Upload) -> Salva como 'music'
+      if (typeof fileOrId === 'object' && fileOrId instanceof File) {
+          title = fileOrId.name.replace(/\.[^/.]+$/, "");
+          fileId = await audioDB.saveAudio(fileOrId, 'music'); // Categoria explícita
+          if (!forcedDuration) duration = await getAudioDurationFromId(fileId);
+      } 
+      // 2. ID Existente (Biblioteca)
+      else if (typeof fileOrId === 'string') {
+          const meta = (await audioDB.getAllAudioMetadata()).find(f => f.id === fileId);
+          if (meta) title = meta.name.replace(/\.[^/.]+$/, "");
+          if (!forcedDuration) duration = await getAudioDurationFromId(fileId);
+      }
+
       if(!fileId) return;
-      const newTrack = { id: generateUUID(), title: file.name.replace(/\.[^/.]+$/, ""), fileId, duration };
-      setActiveAdvSoundboard(prev => ({ ...prev, playlists: prev.playlists.map(pl => pl.id === playlistId ? { ...pl, tracks: [...pl.tracks, newTrack] } : pl) }));
+
+      const newTrack = { id: generateUUID(), title, fileId, duration };
+
+      setActiveAdvSoundboard(prev => ({ 
+          ...prev, 
+          playlists: prev.playlists.map(pl => pl.id === playlistId ? { ...pl, tracks: [...pl.tracks, newTrack] } : pl) 
+      }));
+  }, [internalActiveAdventureId]);
+
+  const addSfx = useCallback(async (fileOrId, parentId = null) => {
+      let fileId = fileOrId;
+      let name = "SFX";
+
+      // 1. Arquivo Novo -> Salva como 'sfx'
+      if (typeof fileOrId === 'object' && fileOrId instanceof File) {
+          name = fileOrId.name.replace(/\.[^/.]+$/, "").substring(0, 12);
+          fileId = await audioDB.saveAudio(fileOrId, 'sfx'); // Categoria explícita
+      } 
+      // 2. ID Existente
+      else if (typeof fileOrId === 'string') {
+          const meta = (await audioDB.getAllAudioMetadata()).find(f => f.id === fileId);
+          if (meta) name = meta.name.replace(/\.[^/.]+$/, "").substring(0, 12);
+      }
+
+      if(!fileId) return;
+
+      const newSfx = { 
+          id: generateUUID(), name, fileId, volume: 1.0, color: '#d084ff', icon: 'Zap', type: 'sfx', parentId: parentId || null
+      };
+      setActiveAdvSoundboard(prev => ({ ...prev, sfxGrid: [...(prev.sfxGrid || []), newSfx] }));
   }, [internalActiveAdventureId]);
 
   const removeTrack = useCallback((playlistId, trackId) => {
@@ -495,22 +556,6 @@ export const GameProvider = ({ children }) => {
           ...prev, 
           activeTrack: prev.activeTrack ? { ...prev.activeTrack, isPlaying: false } : null 
       })); 
-  }, [internalActiveAdventureId]);
-
-  const addSfx = useCallback(async (file, parentId = null) => {
-      const fileId = await audioDB.saveAudio(file);
-      if(!fileId) return;
-      const newSfx = { 
-          id: generateUUID(), 
-          name: file.name.replace(/\.[^/.]+$/, "").substring(0, 12), 
-          fileId, 
-          volume: 1.0, 
-          color: '#d084ff', 
-          icon: 'Zap',
-          type: 'sfx',
-          parentId: parentId || null
-      };
-      setActiveAdvSoundboard(prev => ({ ...prev, sfxGrid: [...(prev.sfxGrid || []), newSfx] }));
   }, [internalActiveAdventureId]);
 
   const removeSfx = useCallback((id) => {
@@ -861,7 +906,7 @@ export const GameProvider = ({ children }) => {
     addPin, updatePin, deletePin, deleteMultiplePins,
     gameState: { characters }, addCharacter, updateCharacter, deleteCharacter, setAllCharacters,
     presets, activePresetId, createPreset, loadPreset, saveToPreset, deletePreset, mergePresets, exitPreset, updatePreset, exportPreset, importPreset,
-    resetAllData
+    resetAllData, getAudioDurationFromId, deleteGlobalAudio
   };
 
   return <GameContext.Provider value={value}>{children}</GameContext.Provider>;

@@ -32,66 +32,98 @@ const blobToArrayBuffer = (blob) => {
 };
 
 export const audioDB = {
-    saveAudio: async (fileOrBlob, forcedId = null) => {
+    // [ATUALIZADO] Agora aceita 'category' ('music' | 'sfx') para salvar metadado
+    saveAudio: async (fileOrBlob, category = 'music', forcedId = null) => {
         const id = forcedId || crypto.randomUUID();
+        const fileName = fileOrBlob.name || "Audio Sem Nome";
+        const fileSize = fileOrBlob.size || 0;
+        const fileType = fileOrBlob.type || "audio/unknown";
 
-        // 1. TENTATIVA MODO ELECTRON (Somente se o método existir)
+        // 1. MODO ELECTRON
         if (window.electron && window.electron.saveAudio) {
             try {
                 const buffer = await blobToArrayBuffer(fileOrBlob);
-                await window.electron.saveAudio(id, buffer); 
+                await window.electron.saveAudio(id, buffer, fileName); 
                 return id;
             } catch (e) {
-                console.warn("Falha ao salvar no Electron, tentando IndexedDB...", e);
-                // Não retorna null aqui, deixa cair para o fallback abaixo
+                console.warn("Falha no Electron, tentando Web...", e);
             }
         }
 
-        // 2. FALLBACK / MODO WEB (IndexedDB)
+        // 2. MODO WEB
         try {
             const db = await openDB();
             return new Promise((resolve, reject) => {
                 const transaction = db.transaction([STORE_NAME], 'readwrite');
                 const store = transaction.objectStore(STORE_NAME);
-                // Armazena o Blob diretamente
-                const request = store.put({ id, blob: fileOrBlob, date: Date.now() });
                 
-                request.onsuccess = () => resolve(id);
-                
-                request.onerror = (e) => {
-                    console.error("Erro IndexedDB:", e);
-                    reject('Erro ao salvar áudio Web');
+                const record = { 
+                    id, 
+                    blob: fileOrBlob, 
+                    name: fileName,
+                    size: fileSize,
+                    type: fileType,
+                    category: category, // Novo campo
+                    date: Date.now() 
                 };
+                
+                const request = store.put(record);
+                request.onsuccess = () => resolve(id);
+                request.onerror = (e) => reject('Erro ao salvar áudio Web');
             });
         } catch (e) {
-            console.error("Erro Crítico audioDB:", e);
+            console.error(e);
             return null;
+        }
+    },
+
+    // [ATUALIZADO] Retorna metadados incluindo categoria
+    getAllAudioMetadata: async () => {
+        if (window.electron && window.electron.listAudio) {
+            return await window.electron.listAudio();
+        }
+
+        try {
+            const db = await openDB();
+            return new Promise((resolve, reject) => {
+                const transaction = db.transaction([STORE_NAME], 'readonly');
+                const store = transaction.objectStore(STORE_NAME);
+                const request = store.getAll(); 
+                
+                request.onsuccess = () => {
+                    const results = request.result || [];
+                    const metadata = results.map(item => ({
+                        id: item.id,
+                        name: item.name || "Sem Nome",
+                        date: item.date,
+                        size: item.size,
+                        category: item.category || 'music' // Fallback para arquivos antigos
+                    })).sort((a, b) => b.date - a.date);
+                    resolve(metadata);
+                };
+                request.onerror = () => resolve([]);
+            });
+        } catch (e) {
+            return [];
         }
     },
 
     getAudio: async (id) => {
         if (!id) return null;
 
-        // 1. MODO ELECTRON
         if (window.electron && window.electron.getAudio) {
             try {
                 const result = await window.electron.getAudio(id);
                 if (result) {
-                    if (result instanceof ArrayBuffer || (result.type === 'Buffer')) {
-                         return new Blob([result]);
-                    }
+                    if (result instanceof ArrayBuffer || (result.type === 'Buffer')) return new Blob([result]);
                     if (typeof result === 'string' && result.startsWith('data:')) {
                         const res = await fetch(result);
                         return await res.blob();
                     }
                 }
-                // Se não achou no disco, tenta no IndexedDB (caso tenha sido salvo lá via fallback)
-            } catch (e) {
-                // Continua para IndexedDB
-            }
+            } catch (e) {}
         }
 
-        // 2. MODO WEB
         try {
             const db = await openDB();
             return new Promise((resolve, reject) => {
@@ -110,7 +142,6 @@ export const audioDB = {
     },
 
     deleteAudio: async (id) => {
-        // Tenta deletar nos dois lugares para garantir
         if (window.electron && window.electron.deleteAudio) {
             try { await window.electron.deleteAudio(id); } catch(e) { console.error(e); }
         }
