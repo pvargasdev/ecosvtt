@@ -1,14 +1,11 @@
-// src/systems/dnd5e_srd.jsx
 import React from 'react';
 import { Shield, Zap, Eye, Skull, User } from 'lucide-react';
 
-// --- CONFIGURAÇÃO VISUAL ---
 const THEME_COLOR = "text-amber-400";
 const THEME_BORDER = "border-amber-400";
 const THEME_GLOW = "shadow-[0_0_15px_rgba(251,191,36,0.4)]";
 const THEME_BG_BTN = "bg-amber-400/20 hover:bg-amber-400 hover:text-black";
 
-// --- DADOS DO SISTEMA (PT-BR) ---
 const ATTR_LABELS = {
     str: 'FOR', dex: 'DES', con: 'CON', 
     int: 'INT', wis: 'SAB', cha: 'CAR'
@@ -35,7 +32,6 @@ const SKILLS_MAP = [
     { id: 'sobrevivencia', label: 'Sobrevivência', attr: 'wis' },
 ];
 
-// Utilitários
 const handleNumber = (value) => {
     const clean = value.replace(/\D/g, '').slice(0, 3);
     return clean === '' ? 0 : parseInt(clean);

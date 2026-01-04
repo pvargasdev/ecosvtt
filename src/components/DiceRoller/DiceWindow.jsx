@@ -2,7 +2,6 @@ import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { X, Trash2, Dices, RotateCcw } from 'lucide-react';
 import { Die, DieSelector } from './DiceComponents';
 
-// --- INJEÇÃO DE CSS ---
 const DiceStyles = () => (
     <style>{`
         @keyframes shake-blur {
@@ -90,15 +89,12 @@ const DiceWindow = ({ onClose, WindowWrapperComponent }) => {
     setTimeout(() => {
       let currentTotal = 0;
       
-      // 1. Gera os valores aleatórios
       const rolledPool = pool.map(d => {
         const val = rollDie(d.type);
         currentTotal += val;
         return { ...d, value: val };
       });
 
-      // 2. [ALTERAÇÃO] Ordena do Maior para o Menor
-      // Isso fará com que o React renderize a lista visualmente ordenada
       rolledPool.sort((a, b) => b.value - a.value);
 
       setPool(rolledPool);
@@ -110,19 +106,15 @@ const DiceWindow = ({ onClose, WindowWrapperComponent }) => {
   };
 
   return (
-    // Adicionei max-h-[60vh] para limitar o tamanho da janela
     <WindowWrapperComponent className="absolute top-24 right-4 w-[350px] bg-black/90 border border-glass-border backdrop-blur-sm rounded-xl flex flex-col z-50 shadow-2xl overflow-hidden max-h-[60vh]">
       <DiceStyles />
       
-      {/* --- HEADER --- */}
       <div className="p-3 py-3 border-b border-glass-border flex justify-between items-center bg-white/5 rounded-t-xl shrink-0 z-20">
         <h3 className="font-rajdhani font-bold text-white flex items-center gap-2">
             <Dices size={18} className="text-neon-purple"/> Rolagem de Dados
         </h3>
         
-        {/* Caixa de Total e Botão Fechar */}
         <div className="flex items-center gap-3">
-            {/* Box do Total (Aparece Condicionalmente) */}
             <div 
                 className={`
                     flex items-center gap-2 px-3 py-0.5 rounded border border-neon-purple/30 bg-neon-purple/10
@@ -138,10 +130,8 @@ const DiceWindow = ({ onClose, WindowWrapperComponent }) => {
         </div>
       </div>
 
-      {/* --- MESA / ÁREA DE ROLAGEM --- */}
       <div className="relative flex-1 bg-black/20 min-h-[96px] flex flex-col overflow-hidden">
         
-        {/* CONTAINER DOS DADOS (Com scroll vertical e centralização flex) */}
         <div ref={scrollRef} className="flex-1 overflow-y-auto scrollbar-thin relative p-4">
              {pool.length === 0 && (
                 <div className="absolute inset-0 flex flex-col items-center justify-center text-white/10 pointer-events-none select-none">
@@ -150,7 +140,6 @@ const DiceWindow = ({ onClose, WindowWrapperComponent }) => {
                 </div>
             )}
             
-            {/* Layout Flex para centralizar quando tem poucos dados, mas permitir scroll quando tem muitos */}
             <div className={`flex flex-wrap gap-3 justify-center ${pool.length > 8 ? 'content-start' : 'content-center h-full'}`}>
                 {pool.map((die, idx) => (
                     <Die 
@@ -169,10 +158,8 @@ const DiceWindow = ({ onClose, WindowWrapperComponent }) => {
         </div>
       </div>
 
-      {/* --- CONTROLES (Painel Inferior) --- */}
       <div className="p-3 bg-black/40 border-t border-glass-border space-y-3 z-20 shrink-0">
         
-        {/* Seletor (D4 - D20) */}
         <div className="flex justify-between gap-1">
             {['d4', 'd6', 'd8', 'd10', 'd12', 'd20'].map(type => (
                 <DieSelector 
@@ -184,7 +171,6 @@ const DiceWindow = ({ onClose, WindowWrapperComponent }) => {
             ))}
         </div>
 
-        {/* Ações */}
         <div className="flex gap-2">
             <button 
                 onClick={handleClear}

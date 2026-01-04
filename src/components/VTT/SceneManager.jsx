@@ -12,7 +12,6 @@ const SceneManager = ({ onClose }) => {
   if (!activeAdventure) return null;
 
   const handleCreate = () => {
-    // Usando alert aqui apenas se for erro de validação, não popup de fluxo
     if (!newSceneName) return; 
     addScene(newSceneName, newMapImage);
     setNewSceneName("");
@@ -32,7 +31,6 @@ const SceneManager = ({ onClose }) => {
   return (
     <div className="absolute top-16 right-4 w-80 bg-ecos-bg border border-glass-border rounded-xl shadow-2xl overflow-hidden flex flex-col animate-in fade-in slide-in-from-top-5 z-50 max-h-[80vh] pointer-events-auto">
       
-      {/* Header */}
       <div className="p-4 border-b border-glass-border flex justify-between items-center bg-black/40">
         <h3 className="font-rajdhani font-bold text-white flex items-center gap-2">
             <Map size={18} className="text-neon-green"/> GERENCIAR CENAS
@@ -40,7 +38,6 @@ const SceneManager = ({ onClose }) => {
         <button onClick={() => onClose && onClose()} className="text-text-muted hover:text-white"><X size={18}/></button>
       </div>
 
-      {/* Lista de Cenas */}
       <div className="flex-1 overflow-y-auto p-4 space-y-3 scrollbar-thin">
         {activeAdventure.scenes.length === 0 && !isCreating && (
             <div className="text-center text-text-muted text-sm py-4">
@@ -82,7 +79,6 @@ const SceneManager = ({ onClose }) => {
         ))}
       </div>
 
-      {/* Criar Nova Cena */}
       <div className="p-4 border-t border-glass-border bg-black/20">
         {!isCreating ? (
             <button 

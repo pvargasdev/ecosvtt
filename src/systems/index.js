@@ -24,12 +24,10 @@ export const getSystemDefaultState = (id) => {
     return sys.defaultState ? JSON.parse(JSON.stringify(sys.defaultState)) : {};
 };
 
-// NOVO: Retorna lista para o Modal de Seleção
 export const getSystemList = () => {
     return Object.values(SYSTEMS).map(sys => ({
         id: sys.SYSTEM_ID,
         name: sys.SYSTEM_NAME,
-        // Você pode adicionar descrições nos arquivos de sistema futuramente
         description: sys.SYSTEM_DESC || "-" 
     }));
 };

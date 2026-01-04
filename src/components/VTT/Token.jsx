@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { Loader2 } from 'lucide-react';
 import { imageDB } from '../../context/db';
 
-// CONFIGURAÇÕES
 const ANIMATION_SPEED_ROTATION = '0.4s';
 const ANIMATION_EASING = 'cubic-bezier(0.25, 0.46, 0.45, 0.94)';
 
@@ -40,8 +39,6 @@ const Token = ({ data, isSelected, isDragging, onMouseDown }) => {
     ? { filter: 'drop-shadow(0 0 0.25px #ffffffff) drop-shadow(0 0 0.5px #ffffffff)' } 
     : { filter: 'drop-shadow(0 2px 3px rgba(0,0,0,0.5))' };
 
-  // --- LÓGICA CRÍTICA DE MOVIMENTO E ESCALA ---
-  // Adicionado 'width 0.2s ...' para o smoothing da escala
   const baseTransition = isDragging ? 'none' : 'transform 0.07s linear';
   const combinedTransition = isDragging ? 'none' : `${baseTransition}, width 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94)`;
 
@@ -59,14 +56,12 @@ const Token = ({ data, isSelected, isDragging, onMouseDown }) => {
         position: 'absolute', top: 0, left: 0,
         zIndex: isSelected ? 20 : 10,
         
-        // APLICAÇÃO DA TRANSIÇÃO SUAVE (POSIÇÃO + TAMANHO)
         transition: combinedTransition,
         
-        willChange: 'transform, width' // Otimização de GPU
+        willChange: 'transform, width' 
       }}
       className="group select-none relative"
     >
-      {/* Container de Rotação */}
       <div
         className="cursor-grab active:cursor-grabbing w-full h-full flex flex-col relative"
         style={{
@@ -96,8 +91,6 @@ const Token = ({ data, isSelected, isDragging, onMouseDown }) => {
               <div className="absolute inset-0 border-2 border-red-500 bg-red-500/20 flex items-center justify-center">?</div>
           )}
       </div>
-
-      {/* A Alça de Redimensionamento foi removida daqui */}
     </div>
   );
 };

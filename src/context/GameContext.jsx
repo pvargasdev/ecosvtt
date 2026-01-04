@@ -30,7 +30,6 @@ export const GameProvider = ({ children }) => {
   const [internalActiveAdventureId, setInternalActiveAdventureId] = useState(null);
   const [isGMWindowOpen, setIsGMWindowOpen] = useState(false);
 
-  // NOVO: Lista de arquivos disponíveis
   const [availableFiles, setAvailableFiles] = useState(new Set());
 
   const broadcastChannel = useRef(null);
@@ -241,7 +240,6 @@ export const GameProvider = ({ children }) => {
       }
   }, [activePresetId, activeTool, isDataLoaded]);
 
-  // --- SOUNDBOARD STATE ---
   const defaultSoundboardState = {
       playlists: [],     
       sfxGrid: [],       
@@ -255,8 +253,6 @@ export const GameProvider = ({ children }) => {
   const activeScene = activeAdventure?.scenes.find(s => s.id === activeAdventure.activeSceneId);
   
   const soundboard = activeAdventure?.soundboard || defaultSoundboardState;
-
-  // --- NOVA LÓGICA DE INTEGRIDADE E AUTOCURA (CORRIGIDA) ---
   
   const normalizeKey = (str) => {
       if (!str) return "";
@@ -268,7 +264,6 @@ export const GameProvider = ({ children }) => {
         const allMetadata = await audioDB.getAllAudioMetadata();
         const validIds = new Set(allMetadata.map(m => m.id));
         
-        // Mapa de Recuperação: Nome Normalizado -> ID Real
         const recoveryMap = new Map();
         allMetadata.forEach(m => {
             const key = normalizeKey(m.name);
@@ -289,12 +284,10 @@ export const GameProvider = ({ children }) => {
             let hasChanges = false;
             const sb = { ...adv.soundboard };
 
-            // A. Cura Playlists
             if (sb.playlists) {
                 sb.playlists = sb.playlists.map(pl => {
                     const newTracks = pl.tracks.map(track => {
                         if (track.fileId && !validIds.has(track.fileId)) {
-                            // [CORREÇÃO] Prioriza o nome original do arquivo (se salvo), senão usa o título visual
                             const trackKey = normalizeKey(track.originalTitle || track.title);
                             const recoveryId = recoveryMap.get(trackKey);
                             
@@ -310,11 +303,9 @@ export const GameProvider = ({ children }) => {
                 });
             }
 
-            // B. Cura SFX Grid
             if (sb.sfxGrid) {
                 sb.sfxGrid = sb.sfxGrid.map(sfx => {
                     if (sfx.fileId && !validIds.has(sfx.fileId)) {
-                        // [CORREÇÃO] Prioriza o nome original do arquivo (se salvo), senão usa o nome visual
                         const sfxKey = normalizeKey(sfx.originalName || sfx.name);
                         const recoveryId = recoveryMap.get(sfxKey);
                         
@@ -408,12 +399,35 @@ export const GameProvider = ({ children }) => {
   const createAdventure = useCallback((name) => {
     const newSceneId = generateUUID();
     const newAdventure = {
-        id: generateUUID(), name: name, activeSceneId: newSceneId, tokenLibrary: [], 
+        id: generateUUID(), 
+        name: name, 
+        activeSceneId: newSceneId, 
+        tokenLibrary: [], 
+        pinSettings: { main: true, gm: true }, 
         scenes: [{ id: newSceneId, name: "Cena 1", mapImageId: null, mapScale: 1.0, tokens: [], fogOfWar: [], pins: [] }],
         soundboard: { ...defaultSoundboardState } 
     };
     setAdventures(prev => [...prev, newAdventure]);
   }, []);
+
+  const toggleAdventurePinVisibility = useCallback((isGM) => {
+      if (!internalActiveAdventureId) return;
+      
+      setAdventures(prev => prev.map(adv => {
+          if (adv.id !== internalActiveAdventureId) return adv;
+          
+          const currentSettings = adv.pinSettings || { main: true, gm: true };
+          const key = isGM ? 'gm' : 'main';
+          
+          return {
+              ...adv,
+              pinSettings: {
+                  ...currentSettings,
+                  [key]: !currentSettings[key]
+              }
+          };
+      }));
+  }, [internalActiveAdventureId]);
 
   const deleteAdventure = useCallback((id) => {
       setAdventures(prev => prev.filter(a => a.id !== id));
@@ -621,20 +635,18 @@ export const GameProvider = ({ children }) => {
       let fileId = fileOrId;
       let title = "Faixa Importada";
       let duration = forcedDuration;
-      let originalTitle = ""; // [NOVO] Guarda o nome real
+      let originalTitle = ""; 
 
-      // Se for arquivo (Drag & Drop ou Upload)
       if (typeof fileOrId === 'object' && fileOrId instanceof File) {
-          originalTitle = fileOrId.name; // Salva o nome original (com extensão)
-          title = fileOrId.name.replace(/\.[^/.]+$/, ""); // Nome visual (sem extensão)
+          originalTitle = fileOrId.name; 
+          title = fileOrId.name.replace(/\.[^/.]+$/, "");
           fileId = await audioDB.saveAudio(fileOrId, 'music'); 
           if (!forcedDuration) duration = await getAudioDurationFromId(fileId);
       } 
-      // Se for ID (vindo da Biblioteca)
       else if (typeof fileOrId === 'string') {
           const meta = (await audioDB.getAllAudioMetadata()).find(f => f.id === fileId);
           if (meta) {
-              originalTitle = meta.name; // Salva o nome do metadado
+              originalTitle = meta.name;
               title = meta.name.replace(/\.[^/.]+$/, "");
           }
           if (!forcedDuration) duration = await getAudioDurationFromId(fileId);
@@ -642,7 +654,6 @@ export const GameProvider = ({ children }) => {
 
       if(!fileId) return;
 
-      // Adiciona originalTitle ao objeto da track
       const newTrack = { id: generateUUID(), title, originalTitle, fileId, duration };
 
       setActiveAdvSoundboard(prev => ({ 
@@ -656,20 +667,18 @@ export const GameProvider = ({ children }) => {
   const addSfx = useCallback(async (fileOrId, parentId = null) => {
       let fileId = fileOrId;
       let name = "SFX";
-      let originalName = ""; // [NOVO] Guarda o nome real
+      let originalName = "";
 
-      // Se for arquivo
       if (typeof fileOrId === 'object' && fileOrId instanceof File) {
-          originalName = fileOrId.name; // Salva o nome real
-          name = fileOrId.name.replace(/\.[^/.]+$/, "").substring(0, 12); // Truncado (Visual)
+          originalName = fileOrId.name;
+          name = fileOrId.name.replace(/\.[^/.]+$/, "").substring(0, 12); 
           fileId = await audioDB.saveAudio(fileOrId, 'sfx'); 
       } 
-      // Se for ID
       else if (typeof fileOrId === 'string') {
           const meta = (await audioDB.getAllAudioMetadata()).find(f => f.id === fileId);
           if (meta) {
-              originalName = meta.name; // Salva o nome real
-              name = meta.name.replace(/\.[^/.]+$/, "").substring(0, 12); // Truncado (Visual)
+              originalName = meta.name; 
+              name = meta.name.replace(/\.[^/.]+$/, "").substring(0, 12);
           }
       }
 
@@ -754,9 +763,6 @@ export const GameProvider = ({ children }) => {
       broadcast('TRIGGER_SFX', sfxItem);
       window.dispatchEvent(new CustomEvent('ecos-sfx-trigger', { detail: sfxItem }));
   }, [broadcast]);
-
-  // ... (addScene, duplicateScene e todo o resto do código da cena permanece igual, apenas cortado aqui para brevidade)
-  // Certifique-se de manter o resto das funções de Scene e Tokens aqui no arquivo final.
   
   const addScene = useCallback((name) => {
       if (!internalActiveAdventureId) return;
@@ -764,7 +770,7 @@ export const GameProvider = ({ children }) => {
       const newScene = { id: newId, name: name || "Nova Cena", mapImageId: null, mapScale: 1.0, tokens: [], fogOfWar: [], pins: [] };
       setAdventures(prev => prev.map(adv => adv.id !== internalActiveAdventureId ? adv : { ...adv, scenes: [...adv.scenes, newScene] }));
   }, [internalActiveAdventureId]);
-  // ... (Assuma o resto das funções auxiliares aqui) ...
+
   const duplicateScene = useCallback((sceneId) => { if (!internalActiveAdventureId) return; setAdventures(prev => prev.map(adv => { if (adv.id !== internalActiveAdventureId) return adv; const originalScene = adv.scenes.find(s => s.id === sceneId); if (!originalScene) return adv; const copy = JSON.parse(JSON.stringify(originalScene)); copy.id = generateUUID(); copy.name = `${copy.name} (Cópia)`; copy.tokens = copy.tokens.map(t => ({ ...t, id: generateUUID() })); copy.fogOfWar = copy.fogOfWar.map(f => ({ ...f, id: generateUUID() })); copy.pins = copy.pins.map(p => ({ ...p, id: generateUUID() })); return { ...adv, scenes: [...adv.scenes, copy] }; })); }, [internalActiveAdventureId]);
   const updateSceneMap = useCallback(async (sceneId, file) => { if (!internalActiveAdventureId || !file) return; const imageId = await handleImageUpload(file); setAdventures(prev => prev.map(adv => adv.id !== internalActiveAdventureId ? adv : { ...adv, scenes: adv.scenes.map(s => s.id === sceneId ? { ...s, mapImageId: imageId } : s) })); }, [internalActiveAdventureId]);
   const updateScene = useCallback((sceneId, updates) => { if (!internalActiveAdventureId) return; setAdventures(prev => prev.map(adv => adv.id !== internalActiveAdventureId ? adv : { ...adv, scenes: adv.scenes.map(s => s.id === sceneId ? { ...s, ...updates } : s) })); }, [internalActiveAdventureId]);
@@ -819,7 +825,7 @@ export const GameProvider = ({ children }) => {
     gameState: { characters }, addCharacter, updateCharacter, deleteCharacter, setAllCharacters,
     presets, activePresetId, createPreset, loadPreset, saveToPreset, deletePreset, mergePresets, exitPreset, updatePreset, exportPreset, importPreset,
     resetAllData, getAudioDurationFromId, deleteGlobalAudio, remapAdventureAudioIds,
-    availableFiles, refreshAudioSystem // EXPORTS NOVOS
+    availableFiles, refreshAudioSystem, toggleAdventurePinVisibility
   };
 
   return <GameContext.Provider value={value}>{children}</GameContext.Provider>;

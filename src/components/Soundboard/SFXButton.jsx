@@ -6,16 +6,13 @@ import * as Icons from 'lucide-react';
 const SFXButton = ({ data }) => {
     const { triggerSfxRemote, updateSfx, removeSfx, availableFiles } = useGame();
     
-    // Estados
     const [isPlaying, setIsPlaying] = useState(false);
-    const [mode, setMode] = useState('idle'); // 'idle', 'editing', 'deleting'
+    const [mode, setMode] = useState('idle');
     const [editName, setEditName] = useState(data.name);
     const [editVolume, setEditVolume] = useState(data.volume || 1);
 
-    // INTEGRIDADE: Verifica se o arquivo existe
     const isMissing = data.fileId && availableFiles && !availableFiles.has(data.fileId);
 
-    // Listener para saber se ESTE som está tocando
     useEffect(() => {
         const onStart = () => setIsPlaying(true);
         const onEnd = () => setIsPlaying(false);
@@ -33,7 +30,6 @@ const SFXButton = ({ data }) => {
         if (mode !== 'idle') return; 
         if (e.button !== 0) return; 
         
-        // Se estiver faltando o arquivo, não faz nada
         if (isMissing) return;
 
         triggerSfxRemote(data);
@@ -52,7 +48,6 @@ const SFXButton = ({ data }) => {
 
     const IconComponent = Icons[data.icon] || Zap;
 
-    // --- MODO EDIÇÃO ---
     if (mode === 'editing') {
         return (
             <div className="aspect-square rounded-xl border border-pink-400 bg-black/90 flex flex-col p-2 gap-2 relative shadow-[0_0_15px_rgba(244,114,182,0.2)] animate-in fade-in cursor-default" onMouseDown={e => e.stopPropagation()}>
@@ -80,7 +75,6 @@ const SFXButton = ({ data }) => {
         );
     }
 
-    // --- MODO CONFIRMAÇÃO ---
     if (mode === 'deleting') {
         return (
             <div className="aspect-square rounded-xl border-2 border-red-500 bg-red-900/40 flex flex-col items-center justify-center p-2 relative animate-in fade-in cursor-default" onMouseDown={e => e.stopPropagation()}>
@@ -93,7 +87,6 @@ const SFXButton = ({ data }) => {
         );
     }
 
-    // --- MODO NORMAL (Botão) ---
     return (
         <div 
             className={`relative group select-none h-full ${isMissing ? 'cursor-not-allowed opacity-90' : ''}`}
@@ -103,14 +96,13 @@ const SFXButton = ({ data }) => {
                 className={`
                     w-full h-full aspect-square rounded-xl border-2 flex flex-col items-center justify-center cursor-pointer transition-all duration-150 relative overflow-hidden
                     ${isMissing
-                        ? 'border-red-900/50 bg-red-900/10' // Estilo de ERRO
+                        ? 'border-red-900/50 bg-red-900/10'
                         : isPlaying 
                             ? 'border-pink-500 bg-pink-500/10 shadow-[0_0_20px_rgba(236,72,153,0.4)]' 
                             : 'border-white/10 bg-white/5 hover:border-white/30 hover:bg-white/10'
                     }
                 `}
             >
-                {/* Indicador de "Parar" ao passar o mouse enquanto toca */}
                 {isPlaying && !isMissing && (
                     <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-10">
                     </div>
@@ -118,7 +110,6 @@ const SFXButton = ({ data }) => {
 
                 <div className={`absolute inset-0 bg-gradient-to-t from-black/80 to-transparent pointer-events-none ${isPlaying ? 'opacity-80' : 'opacity-100'}`} />
                 
-                {/* ÍCONE: Se faltar, mostra Alerta. Se não, mostra o ícone escolhido */}
                 {isMissing ? (
                      <AlertTriangle size={32} className="z-10 mb-2 text-red-500 animate-pulse" />
                 ) : (
@@ -133,7 +124,6 @@ const SFXButton = ({ data }) => {
                 </span>
             </div>
 
-            {/* Ações de Hover (Permite Editar/Excluir mesmo se quebrado) */}
             {!isPlaying && (
                 <div className="absolute top-1 right-1 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-20">
                     <button 

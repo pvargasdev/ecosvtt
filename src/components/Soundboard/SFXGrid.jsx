@@ -9,10 +9,7 @@ const SFXGrid = () => {
     const [isDragging, setIsDragging] = useState(false);
     const [isLibraryOpen, setIsLibraryOpen] = useState(false);
 
-    // Função Unificada
     const handleAddSFX = (items) => {
-        // Ao adicionar, assumimos que se forem arquivos novos, o Contexto deve tratar como SFX
-        // Se forem IDs existentes da biblioteca, já devem ser SFX por causa do filtro do modal
         items.forEach(item => addSfx(item)); 
     };
 
@@ -35,7 +32,6 @@ const SFXGrid = () => {
                 onDragLeave={handleDragLeave}
                 onDrop={handleDrop}
             >
-                {/* Overlay de Drag & Drop */}
                 {isDragging && (
                     <div className="absolute inset-0 z-50 bg-purple-400/10 border-2 border-dashed border-purple-400 flex flex-col items-center justify-center backdrop-blur-sm animate-in fade-in pointer-events-none">
                         <Upload size={48} className="text-purple-400 mb-2 animate-bounce"/>
@@ -43,10 +39,8 @@ const SFXGrid = () => {
                     </div>
                 )}
 
-                {/* Grid Area */}
                 <div className="flex-1 overflow-y-auto p-4 scrollbar-thin">
                     <div className="grid grid-cols-3 gap-3">
-                        {/* Botão de Adicionar (Abre Modal) */}
                         <div 
                             onClick={() => setIsLibraryOpen(true)}
                             className="aspect-square rounded-xl border-2 border-dashed border-white/10 flex flex-col items-center justify-center cursor-pointer hover:bg-white/5 hover:border-white/30 transition-all text-text-muted hover:text-white group"
@@ -55,7 +49,6 @@ const SFXGrid = () => {
                             <span className="text-[10px] font-bold uppercase">Adicionar</span>
                         </div>
 
-                        {/* Botões SFX */}
                         {soundboard.sfxGrid.map(sfx => (
                             <SFXButton key={sfx.id} data={sfx} />
                         ))}
@@ -69,10 +62,9 @@ const SFXGrid = () => {
                 </div>
             </div>
 
-            {/* MODAL DE IMPORTAÇÃO CONFIGURADO PARA SFX */}
             <AudioLibraryModal 
                 isOpen={isLibraryOpen}
-                category="sfx" // <--- CONFIGURAÇÃO EXPLICITA
+                category="sfx"
                 onClose={() => setIsLibraryOpen(false)}
                 onSelect={handleAddSFX}
                 acceptMultiple={true}

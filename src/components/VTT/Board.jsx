@@ -3,7 +3,6 @@ import { useGame } from '../../context/GameContext';
 import Token from './Token';
 import { VTTLayout } from './VTTLayout';
 import { imageDB } from '../../context/db';
-// ADICIONADO: Loader2 para animações de carregamento
 import { Plus, Trash2, Import, Upload, Copy, Edit2, X, Check, Monitor, ArrowLeft, Loader2 } from 'lucide-react';
 
 import Pin from './Pins/Pin';
@@ -11,7 +10,6 @@ import PinModal from './Pins/PinModal';
 import ContextMenu from './Pins/ContextMenu';
 import AudioController from '../../components/AudioController';
 
-// --- CONFIGURAÇÕES DE CONTROLE ---
 const MIN_SCALE = 0.1;
 const MAX_SCALE = 5.0;
 const PAN_LIMIT = 3000; 
@@ -59,7 +57,6 @@ const Board = ({ showUI }) => {
   const [selectedFogIds, setSelectedFogIds] = useState(new Set());
   const [selectedPinIds, setSelectedPinIds] = useState(new Set());
 
-  // --- NOVOS ESTADOS PARA CONTROLE DE LOADING ---
   const [exportingId, setExportingId] = useState(null);
   const [isImporting, setIsImporting] = useState(false);
 
@@ -83,6 +80,8 @@ const Board = ({ showUI }) => {
   const [renamingId, setRenamingId] = useState(null);
   const [renameValue, setRenameValue] = useState("");
 
+  const [ghostPins, setGhostPins] = useState([]);
+
   const zoomKeyRef = useRef(0); 
   const zoomSpeedRef = useRef(0.01); 
   const lastZoomTimeRef = useRef(0); 
@@ -90,7 +89,9 @@ const Board = ({ showUI }) => {
   const [transitionOpacity, setTransitionOpacity] = useState(1); 
   const [displayScene, setDisplayScene] = useState(null); 
 
-  // ... (Funções forceSetView, Efeitos useEffect permanecem iguais até a parte de renderização) ...
+  const arePinsVisible = activeAdventure?.pinSettings 
+      ? (isGMWindow ? activeAdventure.pinSettings.gm : activeAdventure.pinSettings.main)
+      : true;
 
   const forceSetView = (newView) => {
       setView(newView);
@@ -99,7 +100,6 @@ const Board = ({ showUI }) => {
       setSliderValue(Math.round(newView.scale * 100));
   };
 
-  // --- EFEITO: CLICK OUTSIDE (Limpa Seleção ao clicar na UI) ---
   useEffect(() => {
     const handleGlobalClick = (e) => {
         const isUiClick = e.target.closest('[data-ecos-ui="true"]') || e.target.closest('.vtt-ui-layer');
@@ -192,13 +192,11 @@ const Board = ({ showUI }) => {
 
   useEffect(() => { return () => { if (animationRef.current) cancelAnimationFrame(animationRef.current); }; }, []);
 
-  // --- MANIPULADORES DE IMPORTAÇÃO/EXPORTAÇÃO ---
   const handleExportAdventure = async (e, id) => {
     e.stopPropagation();
-    if (exportingId) return; // Evita duplo clique
+    if (exportingId) return; 
     setExportingId(id);
     
-    // Pequeno timeout para garantir que o React renderize o loader antes do processo pesado começar
     setTimeout(async () => {
         try {
             await exportAdventure(id);
@@ -215,7 +213,6 @@ const Board = ({ showUI }) => {
     if (!file) return;
     
     setIsImporting(true);
-    // Limpa o input para permitir importar o mesmo arquivo novamente se necessário
     e.target.value = null;
 
     setTimeout(async () => {
@@ -238,7 +235,6 @@ const Board = ({ showUI }) => {
 
         const key = e.key.toLowerCase();
         
-        // ... (Lógica de teclado existente mantida) ...
         if (selectedIds.size > 0 && activeScene) {
             if (key === 'f') {
                 e.preventDefault();
@@ -268,7 +264,6 @@ const Board = ({ showUI }) => {
                     }
                 });
             }
-            // ... resto do código de teclado ...
             if (key === '=' || key === '+') { 
                 e.preventDefault();
                 selectedIds.forEach(id => {
@@ -476,7 +471,6 @@ const Board = ({ showUI }) => {
   };
 
   const handleTokenDown = (e, id) => {
-    // ... (Mantido igual) ...
     if (e.button === 1 || e.button === 2 || isSpacePressed || activeTool !== 'select') return;
     e.stopPropagation();
 
@@ -501,7 +495,6 @@ const Board = ({ showUI }) => {
   };
 
   const handleFogDown = (e, id) => {
-      // ... (Mantido igual) ...
     if (e.button === 1 || e.button === 2 || activeTool !== 'select') return;
     e.stopPropagation();
     const isMultiSelect = e.ctrlKey || e.metaKey;
@@ -515,7 +508,6 @@ const Board = ({ showUI }) => {
   };
 
   const handlePinDown = (e, id) => {
-      // ... (Mantido igual) ...
     if (e.button === 1 || e.button === 2 || activeTool !== 'select') return;
     e.stopPropagation();
     const isMultiSelect = e.ctrlKey || e.metaKey;
@@ -530,7 +522,6 @@ const Board = ({ showUI }) => {
   };
 
   const handleMouseMove = (e) => {
-      // ... (Mantido igual) ...
     mousePosRef.current = { x: e.clientX, y: e.clientY };
     if (fogDrawing.isDrawing && activeTool === 'fogOfWar') {
         const rect = containerRef.current.getBoundingClientRect();
@@ -563,7 +554,6 @@ const Board = ({ showUI }) => {
   };
 
   const handleMouseUp = () => {
-      // ... (Mantido igual) ...
       if (fogDrawing.isDrawing && activeTool === 'fogOfWar') {
           const { startX, startY, currentX, currentY } = fogDrawing;
           const w = currentX - startX;
@@ -577,7 +567,6 @@ const Board = ({ showUI }) => {
   };
 
   const handleDrop = async (e) => {
-      // ... (Mantido igual) ...
       e.preventDefault();
       try {
           const dataString = e.dataTransfer.getData('application/json');
@@ -596,8 +585,19 @@ const Board = ({ showUI }) => {
   };
 
   const handlePinSave = (data) => {
-      if (data.id) updatePin(activeScene.id, data.id, data);
-      else addPin(activeScene.id, data);
+      if (data.id) {
+          updatePin(activeScene.id, data.id, data);
+      } else {
+          addPin(activeScene.id, data);
+          if (!arePinsVisible) {
+              const tempId = crypto.randomUUID();
+              const ghostPin = { ...data, id: tempId };
+              setGhostPins(prev => [...prev, ghostPin]);
+              setTimeout(() => {
+                  setGhostPins(prev => prev.filter(p => p.id !== tempId));
+              }, 1500);
+          }
+      }
   };
 
   const openPinModal = (data = null, coords = null) => {
@@ -746,20 +746,32 @@ const Board = ({ showUI }) => {
             );
         })}
             
-            {displayScene?.pins?.map(pin => {
-                if (!isGMWindow && pin.visibleToPlayers === false) return null;
-                return (
-                    <Pin 
-                        key={pin.id} 
-                        data={pin} 
-                        viewScale={view.scale}
-                        isGM={isGMWindow} 
-                        isSelected={selectedPinIds.has(pin.id)} 
-                        onMouseDown={handlePinDown}
-                        onDoubleClick={() => openPinModal(pin)}
-                    />
-                );
-            })}
+            {/* LÓGICA DE VISIBILIDADE GLOBAL DE PINS */}
+            {arePinsVisible && displayScene?.pins?.map(pin => (
+                <Pin 
+                    key={pin.id} 
+                    data={pin} 
+                    viewScale={view.scale}
+                    isGM={isGMWindow} 
+                    isSelected={selectedPinIds.has(pin.id)} 
+                    onMouseDown={handlePinDown}
+                    onDoubleClick={() => openPinModal(pin)}
+                />
+            ))}
+
+            {/* NOVO: Renderização dos Pins Fantasmas (Feedback Visual) */}
+            {ghostPins.map(pin => (
+                <Pin 
+                    key={pin.id} 
+                    data={pin} 
+                    viewScale={view.scale}
+                    isGM={isGMWindow}
+                    isGhost={true} // Propriedade nova para ativar o estilo fantasma
+                    isSelected={false}
+                    onMouseDown={() => {}}
+                    onDoubleClick={() => {}}
+                />
+            ))}
 
             {fogDrawing.isDrawing && (
                 <div className="absolute pointer-events-none fog-area" style={{ left: Math.min(fogDrawing.startX, fogDrawing.currentX), top: Math.min(fogDrawing.startY, fogDrawing.currentY), width: Math.abs(fogDrawing.currentX - fogDrawing.startX), height: Math.abs(fogDrawing.currentY - fogDrawing.startY), backgroundColor: 'rgba(0, 0, 0, 0.7)', border: '2px dashed rgba(255, 255, 255, 0.3)', zIndex: 15 }} />
@@ -786,7 +798,6 @@ const Board = ({ showUI }) => {
             }}
         />
 
-        {/* NOTA: ID 'vtt-ui-root' adicionado aqui para o AudioLibraryModal encontrar o local correto */}
         <div id="vtt-ui-root" data-ecos-ui="true" className="vtt-ui-layer absolute inset-0 pointer-events-none z-[50]" onMouseDown={(e) => e.stopPropagation()} onMouseUp={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()} onDoubleClick={(e) => e.stopPropagation()}>
             <VTTLayout 
                 zoomValue={sliderValue} 

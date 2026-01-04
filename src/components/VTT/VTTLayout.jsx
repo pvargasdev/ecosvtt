@@ -1,16 +1,12 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useGame } from '../../context/GameContext';
-import { Settings, Image as ImageIcon, Box, ArrowLeft, Map, Plus, Trash2, X, ChevronDown, LogOut, Edit2, RotateCcw, Check, Search, Square, MousePointer, AlertTriangle, Folder, FolderPlus, CornerLeftUp, Copy, HelpCircle, Import, Speaker, Dices } from 'lucide-react';
+import { Settings, Image as ImageIcon, Box, ArrowLeft, Map, Plus, Trash2, X, ChevronDown, LogOut, Edit2, RotateCcw, Check, Search, Square, MousePointer, AlertTriangle, Folder, FolderPlus, CornerLeftUp, Copy, HelpCircle, Import, Speaker, Dices, MapPin, MapPinOff } from 'lucide-react';
 import { imageDB } from '../../context/db';
 import SoundboardWindow from '../Soundboard/SoundboardWindow';
 import DiceWindow from '../DiceRoller/DiceWindow';
 
-// --- VARIÁVEL DE CONTROLE DE DRAG ---
 let currentDraggingId = null;
 
-// --- COMPONENTES AUXILIARES ---
-
-// [ALTERAÇÃO: Adicionado data-ecos-ui="true"]
 const WindowWrapper = ({ children, className, containerRef }) => (
     <div 
         ref={containerRef} 
@@ -27,16 +23,13 @@ const WindowWrapper = ({ children, className, containerRef }) => (
     </div>
 );
 
-// Componente LibraryThumb atualizado com UX melhorada
 const LibraryThumb = React.memo(({ token, onRename, onDelete, moveItem }) => {
     const [src, setSrc] = useState(null);
     const [isRenaming, setIsRenaming] = useState(false);
     const [renameVal, setRenameVal] = useState(token.name || "");
     const [isConfirmingDelete, setIsConfirmingDelete] = useState(false); 
     
-    // Estado para controle visual do Drag & Drop (Recebendo item)
     const [isDragOver, setIsDragOver] = useState(false);
-    // [NOVO] Estado para controle visual quando ESTE item está sendo arrastado
     const [isDragging, setIsDragging] = useState(false);
 
     useEffect(() => {
@@ -266,7 +259,6 @@ const InternalAlert = ({ message, clearAlert }) => {
     );
 };
 
-// --- COMPONENTES EXTRAÍDOS ---
 
 const AssetDock = ({ isOpen, onClose }) => {
     const { 
@@ -343,7 +335,6 @@ const AssetDock = ({ isOpen, onClose }) => {
 
     return (
         <WindowWrapper containerRef={libraryRef} className="absolute top-24 right-4 w-[300px] bg-black/90 border border-glass-border backdrop-blur-sm rounded-xl flex flex-col max-h-[60vh] z-40 shadow-2xl scale-90 origin-top-right">
-            {/* Header */}
             <div className="p-3 border-b border-glass-border flex justify-between items-center bg-white/5 rounded-t-xl shrink-0 z-20 relative">
                 <h3 className="font-rajdhani font-bold text-white flex items-center gap-2">
                     Biblioteca de Tokens
@@ -354,7 +345,6 @@ const AssetDock = ({ isOpen, onClose }) => {
                 </div>
             </div>
 
-            {/* Breadcrumb / Nav */}
             <div 
                 className={`
                     border-b transition-all duration-200 ease-in-out shrink-0 z-10 flex items-center px-2 gap-2 text-xs relative overflow-hidden
@@ -369,7 +359,6 @@ const AssetDock = ({ isOpen, onClose }) => {
                 onDragLeave={handleBreadcrumbDragLeave}
                 onDrop={handleBreadcrumbDrop}
             >
-                {/* Overlay de Feedback Visual */}
                 <div className={`absolute inset-0 flex items-center justify-center bg-black/80 backdrop-blur-sm z-30 transition-opacity duration-200 pointer-events-none ${isBreadcrumbActive ? 'opacity-100' : 'opacity-0'}`}>
                     <div className="flex items-center gap-2 text-neon-green font-bold animate-pulse">
                         <CornerLeftUp size={20} strokeWidth={3} />
@@ -377,7 +366,6 @@ const AssetDock = ({ isOpen, onClose }) => {
                     </div>
                 </div>
 
-                {/* Conteúdo Normal */}
                 <button 
                     onClick={() => {
                             const curr = activeAdventure?.tokenLibrary?.find(t => t.id === currentFolderId);
@@ -394,7 +382,6 @@ const AssetDock = ({ isOpen, onClose }) => {
                 </div>
             </div>
 
-            {/* Content Area */}
             <div className="flex-1 overflow-y-auto scrollbar-thin min-h-0 p-3 bg-black/20">
                 <div className="grid grid-cols-4 gap-2 pb-2">
                     <div onClick={() => tokenInputRef.current?.click()} className="aspect-square border border-dashed border-glass-border rounded-xl hover:bg-white/10 flex flex-col items-center justify-center cursor-pointer text-text-muted hover:text-white transition h-full w-full">
@@ -429,7 +416,6 @@ const SceneSelector = ({ isOpen }) => {
     const [renameValue, setRenameValue] = useState("");
     const [deletingId, setDeletingId] = useState(null);
     
-    // Campo de Busca
     const [searchQuery, setSearchQuery] = useState("");
 
     useEffect(() => {
@@ -598,7 +584,7 @@ const HelpWindow = ({ isOpen, onClose }) => {
                 </h3>
                 <button onClick={onClose} className="p-1 hover:bg-white/10 rounded text-text-muted hover:text-white"><X size={16}/></button>
             </div>
-            <div className="p-4 space-y-3 text-sm overflow-y-auto max-h-[60vh] scrollbar-thin">
+            <div className="p-4 space-y-3 text-sm overflow-y-auto max-h-[70vh] scrollbar-thin">
                 {shortcuts.map((item, i) => (
                     <div key={i} className="flex justify-between items-center border-b border-white/5 pb-2 last:border-0 last:pb-0">
                         <span className="font-bold text-white">{item.key}</span>
@@ -610,12 +596,16 @@ const HelpWindow = ({ isOpen, onClose }) => {
     );
 };
 
-// --- COMPONENTE PRINCIPAL ---
 
 export const VTTLayout = ({ zoomValue, onZoomChange, activeTool, setActiveTool, showUI }) => {
-  const { activeAdventure, activeScene, setActiveAdventureId } = useGame();
+  const { 
+      activeAdventure, 
+      activeScene, 
+      setActiveAdventureId, 
+      isGMWindow, 
+      toggleAdventurePinVisibility 
+  } = useGame();
 
-  // ADICIONADO: diceOpen
   const [uiState, setUiState] = useState({ 
       menuOpen: false, 
       libraryOpen: false, 
@@ -633,7 +623,6 @@ export const VTTLayout = ({ zoomValue, onZoomChange, activeTool, setActiveTool, 
   const closeAllMenus = useCallback(() => {
       setUiState(prev => {
           if (prev.menuOpen || prev.libraryOpen || prev.mapConfigOpen || prev.helpOpen || prev.soundboardOpen || prev.diceOpen) {
-              // Resetando todos, inclusive diceOpen
               return { 
                   menuOpen: false, 
                   libraryOpen: false, 
@@ -651,7 +640,6 @@ export const VTTLayout = ({ zoomValue, onZoomChange, activeTool, setActiveTool, 
       const handleOutsideInteraction = (event) => {
           if (headerRef.current && headerRef.current.contains(event.target)) return;
           if (event.target.closest('[data-ecos-window="true"]')) return;
-          // Incluindo a verificação de diceOpen
           if (uiState.menuOpen || uiState.libraryOpen || uiState.mapConfigOpen || uiState.helpOpen || uiState.soundboardOpen || uiState.diceOpen) closeAllMenus();
       };
       
@@ -680,7 +668,6 @@ export const VTTLayout = ({ zoomValue, onZoomChange, activeTool, setActiveTool, 
   const ConfirmationModal = () => { 
       if (!confirmModal.open) return null; 
       return ( 
-          // [ALTERAÇÃO: data-ecos-ui adicionado ao modal]
           <div data-ecos-ui="true" className="absolute inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm pointer-events-auto" onMouseDown={e=>e.stopPropagation()}>
               <div className="bg-ecos-bg border border-glass-border p-6 rounded-xl shadow-2xl max-w-sm w-full mx-4">
                   <h3 className="text-xl font-bold text-white mb-2">Confirmação</h3>
@@ -694,15 +681,17 @@ export const VTTLayout = ({ zoomValue, onZoomChange, activeTool, setActiveTool, 
       ); 
   };
 
+  const arePinsVisible = activeAdventure?.pinSettings 
+      ? (isGMWindow ? activeAdventure.pinSettings.gm : activeAdventure.pinSettings.main)
+      : true;
+
   return (
-      // [ALTERAÇÃO: data-ecos-ui adicionado para garantir que cliques na área UI sejam detectados]
       <div data-ecos-ui="true" className="absolute inset-0 pointer-events-none z-50">
           
           <InternalAlert message={alertMessage} clearAlert={clearAlert} />
 
           <div 
              ref={headerRef}
-             // [ALTERAÇÃO: data-ecos-ui adicionado ao Header]
              data-ecos-ui="true"
              className={`
                 absolute top-4 right-4 flex flex-col bg-black/80 rounded-lg border border-glass-border shadow-lg backdrop-blur-sm pointer-events-auto z-40 w-max overflow-hidden scale-90 origin-top-right transition-all duration-300
@@ -726,13 +715,15 @@ export const VTTLayout = ({ zoomValue, onZoomChange, activeTool, setActiveTool, 
                 </div>
               )}
 
-              <div className="flex items-center gap-2 p-1.5">
-                
+              <div className="flex items-center gap-1 p-1.5">
+
+                {/* SELEÇÃO OU FOG OF WAR */}
                 <button onClick={() => { setActiveTool('select'); closeAllMenus(); }} className={`p-2 rounded hover:bg-white/10 transition ${activeTool === 'select' ? 'bg-white/20 text-neon-green' : 'text-text-muted'}`} title="Modo Seleção"><MousePointer size={18}/></button>
                 <button onClick={() => { setActiveTool('fogOfWar'); closeAllMenus(); }} className={`p-2 rounded hover:bg-white/10 transition ${activeTool === 'fogOfWar' ? 'bg-white/20 text-neon-purple' : 'text-text-muted'}`} title="Fog of War"><Square size={18}/></button>
-                
+
                 <div className="w-px h-6 bg-glass-border mx-1"></div>
-                
+
+                {/* CENAS */}
                 <button onClick={(e) => toggle('menuOpen', e)} className="flex items-center gap-2 px-3 py-1.5 hover:bg-white/10 rounded text-white transition border border-transparent hover:border-glass-border">
                     <Map size={16} className="text-neon-green"/>
                     <span className="font-rajdhani font-bold uppercase text-sm">
@@ -740,15 +731,27 @@ export const VTTLayout = ({ zoomValue, onZoomChange, activeTool, setActiveTool, 
                     </span>
                     <ChevronDown size={14} className="text-text-muted"/>
                 </button>
-                
+
                 <div className="w-px h-6 bg-glass-border mx-1"></div>
-                
+
+                {/* PINS */}
+                <button 
+                    onClick={() => toggleAdventurePinVisibility(isGMWindow)} 
+                    className={`p-2 rounded hover:bg-white/10 transition ${arePinsVisible ? 'text-red-500' : 'text-text-muted opacity-50'}`} 
+                    title={arePinsVisible ? "Ocultar Pins nesta tela" : "Mostrar Pins nesta tela"}
+                >
+                    {arePinsVisible ? <MapPin size={18}/> : <MapPinOff size={18}/>}
+                </button>
+
+                <div className="w-px h-6 bg-glass-border mx-1"></div>
+
+                {/* BACKGROUND E TOKENS */}
                 <button onClick={(e) => toggle('mapConfigOpen', e)} className={`p-2 rounded hover:bg-white/10 transition ${uiState.mapConfigOpen ? 'text-neon-blue' : 'text-text-muted'}`} title="Configurar Fundo"><ImageIcon size={18}/></button>
                 <button onClick={(e) => toggle('libraryOpen', e)} className={`p-2 rounded hover:bg-white/10 transition ${uiState.libraryOpen ? 'text-yellow-500' : 'text-text-muted'}`} title="Biblioteca"><Box size={18}/></button>
                 
                 <div className="w-px h-6 bg-glass-border mx-1"></div>
 
-                {/* BOTÃO DA SOUNDBOARD */}
+                {/* SOUNDBOARD */}
                 <button 
                     onClick={(e) => toggle('soundboardOpen', e)} 
                     className={`p-2 rounded hover:bg-white/10 transition ${uiState.soundboardOpen ? 'text-pink-500' : 'text-text-muted'}`} 
@@ -757,7 +760,7 @@ export const VTTLayout = ({ zoomValue, onZoomChange, activeTool, setActiveTool, 
                     <Speaker size={18}/>
                 </button>
                 
-                {/* BOTÃO DE ROLAGEM DE DADOS (NOVO) */}
+                {/* DADOS */}
                 <button 
                     onClick={(e) => toggle('diceOpen', e)} 
                     className={`p-2 rounded hover:bg-white/10 transition ${uiState.diceOpen ? 'text-neon-purple' : 'text-text-muted'}`} 
@@ -768,8 +771,10 @@ export const VTTLayout = ({ zoomValue, onZoomChange, activeTool, setActiveTool, 
 
                 <div className="w-px h-6 bg-glass-border mx-1"></div>
 
+                {/* AJUDA */}
                 <button onClick={(e) => toggle('helpOpen', e)} className={`p-2 rounded hover:bg-white/10 transition ${uiState.helpOpen ? 'text-white' : 'text-text-muted'}`} title="Ajuda / Comandos"><HelpCircle size={18}/></button>
                 
+                {/* SAIR */}
                 <button onClick={(e) => { 
                     e.stopPropagation(); 
                     closeAllMenus();
@@ -778,7 +783,6 @@ export const VTTLayout = ({ zoomValue, onZoomChange, activeTool, setActiveTool, 
               </div>
           </div>
 
-          {/* JANELAS RENDERIZADAS CONDICIONALMENTE SE SHOWUI FOR TRUE */}
           {showUI && (
             <>
               <MapConfigModal isOpen={uiState.mapConfigOpen} onClose={() => setUiState(p => ({...p, mapConfigOpen: false}))} />
@@ -793,7 +797,6 @@ export const VTTLayout = ({ zoomValue, onZoomChange, activeTool, setActiveTool, 
                   />
               )}
               
-              {/* JANELA DE DADOS (NOVO) */}
               {uiState.diceOpen && (
                   <DiceWindow 
                       onClose={() => setUiState(p => ({...p, diceOpen: false}))} 

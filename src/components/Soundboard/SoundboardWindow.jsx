@@ -9,14 +9,12 @@ const SoundboardWindow = ({ onClose, containerRef, WindowWrapperComponent }) => 
     const { soundboard, addPlaylist } = useGame();
     const [activeTab, setActiveTab] = useState('music');
 
-    // Garante que exista pelo menos uma playlist ao abrir
     useEffect(() => {
         if (soundboard.playlists.length === 0) {
             addPlaylist("Padrão");
         }
     }, [soundboard.playlists.length, addPlaylist]);
 
-    // Renderiza o conteúdo da aba
     const renderContent = () => {
         if (activeTab === 'music') {
             return <PlaylistView />;
@@ -24,13 +22,12 @@ const SoundboardWindow = ({ onClose, containerRef, WindowWrapperComponent }) => 
         return <SFXGrid />;
     };
 
-    const Wrapper = WindowWrapperComponent || 'div'; // Fallback
+    const Wrapper = WindowWrapperComponent || 'div';
 
     return (
         <Wrapper containerRef={containerRef} 
             className="absolute top-24 right-4 w-[437px] h-[calc(100vh-80px)] max-h-[500px] bg-black/90 border border-glass-border backdrop-blur-xl rounded-xl shadow-2xl z-40 flex flex-col overflow-hidden"
         >
-            {/* Header / Tabs */}
             <div className="flex items-center justify-between px-2 pt-2 border-b border-white/5 shrink-0 bg-[#0a0a0a]">
                 <div className="flex gap-1">
                     <button 
@@ -47,16 +44,13 @@ const SoundboardWindow = ({ onClose, containerRef, WindowWrapperComponent }) => 
                     </button>
                 </div>
                 
-                {/* Botão de Fechar apenas */}
                 <button onClick={onClose} className="p-2 text-text-muted hover:text-white mb-1"><X size={18}/></button>
             </div>
 
-            {/* Conteúdo Principal */}
             <div className="flex-1 overflow-hidden bg-black/40 relative">
                 {renderContent()}
             </div>
 
-            {/* Player Bar */}
             {activeTab === 'music' && (
                 <PlayerBar />
             )}

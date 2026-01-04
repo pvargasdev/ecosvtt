@@ -1,9 +1,7 @@
-// src/context/audioDb.js
 const DB_NAME = 'EcosVTT_AudioAssets';
 const DB_VERSION = 1;
 const STORE_NAME = 'tracks';
 
-// --- LÓGICA WEB (IndexedDB) ---
 const openDB = () => {
     return new Promise((resolve, reject) => {
         if (typeof window === 'undefined' || !window.indexedDB) {
@@ -32,14 +30,12 @@ const blobToArrayBuffer = (blob) => {
 };
 
 export const audioDB = {
-    // [ATUALIZADO] Agora aceita 'category' ('music' | 'sfx') para salvar metadado
     saveAudio: async (fileOrBlob, category = 'music', forcedId = null) => {
         const id = forcedId || crypto.randomUUID();
         const fileName = fileOrBlob.name || "Audio Sem Nome";
         const fileSize = fileOrBlob.size || 0;
         const fileType = fileOrBlob.type || "audio/unknown";
 
-        // 1. MODO ELECTRON
         if (window.electron && window.electron.saveAudio) {
             try {
                 const buffer = await blobToArrayBuffer(fileOrBlob);
@@ -50,7 +46,6 @@ export const audioDB = {
             }
         }
 
-        // 2. MODO WEB
         try {
             const db = await openDB();
             return new Promise((resolve, reject) => {
@@ -63,7 +58,7 @@ export const audioDB = {
                     name: fileName,
                     size: fileSize,
                     type: fileType,
-                    category: category, // Novo campo
+                    category: category,
                     date: Date.now() 
                 };
                 
@@ -77,7 +72,6 @@ export const audioDB = {
         }
     },
 
-    // [ATUALIZADO] Retorna metadados incluindo categoria
     getAllAudioMetadata: async () => {
         if (window.electron && window.electron.listAudio) {
             return await window.electron.listAudio();
@@ -97,7 +91,7 @@ export const audioDB = {
                         name: item.name || "Sem Nome",
                         date: item.date,
                         size: item.size,
-                        category: item.category || 'music' // Fallback para arquivos antigos
+                        category: item.category || 'music'
                     })).sort((a, b) => b.date - a.date);
                     resolve(metadata);
                 };

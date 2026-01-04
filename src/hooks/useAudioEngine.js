@@ -1,4 +1,3 @@
-// src/hooks/useAudioEngine.js
 import { useEffect, useRef } from 'react';
 import { Howl, Howler } from 'howler';
 import { useGame } from '../context/GameContext';
@@ -11,11 +10,8 @@ export const useAudioEngine = () => {
     const oldMusicRef = useRef(null); 
     const currentBlobUrl = useRef(null);
     
-    // Armazena as instâncias ativas de SFX para poder parar depois
-    // Formato: { [sfxId]: HowlInstance }
     const activeSfxInstances = useRef({});
 
-    // --- 1. CONTROLE DE VOLUME ---
     useEffect(() => {
         if (isGMWindow) {
             Howler.mute(true);
@@ -26,7 +22,6 @@ export const useAudioEngine = () => {
         }
     }, [isGMWindow, soundboard?.masterVolume?.music]);
 
-    // --- CLEANUP ---
     useEffect(() => {
         return () => {
             Howler.stop();
@@ -35,7 +30,6 @@ export const useAudioEngine = () => {
         };
     }, []);
 
-    // --- 2. TRILHA SONORA (Mantido igual) ---
     useEffect(() => {
         if (!soundboard) return;
         const track = soundboard.activeTrack;
@@ -79,7 +73,6 @@ export const useAudioEngine = () => {
         handleMusicChange();
     }, [soundboard?.activeTrack?.fileId, soundboard?.activeTrack?.isPlaying, soundboard?.activeTrack?.volume]); 
 
-    // Loop de Progresso (Mantido igual)
     useEffect(() => {
         const interval = setInterval(() => {
             if (currentMusicRef.current && currentMusicRef.current.playing()) {
@@ -91,24 +84,17 @@ export const useAudioEngine = () => {
         return () => clearInterval(interval);
     }, []);
     
-    // --- 3. SFX (TOGGLE LOGIC) ---
     const triggerSfx = async (sfxItem) => {
         if (!sfxItem || !sfxItem.fileId) return;
         
-        // TOGGLE: Se já estiver tocando, PARA.
         if (activeSfxInstances.current[sfxItem.id]) {
             const instance = activeSfxInstances.current[sfxItem.id];
-            instance.stop(); // Isso vai disparar o 'end' definido abaixo
+            instance.stop();
             activeSfxInstances.current[sfxItem.id] = null;
-            // Força evento de fim caso o .stop() não dispare onend
             window.dispatchEvent(new CustomEvent(`ecos-sfx-end-${sfxItem.id}`));
             return;
         }
 
-        // Se não estiver tocando, TOCA.
-        // Removemos o master volume calculation aqui já que foi pedido para remover o slider,
-        // mas é bom manter um padrão 1.0 ou usar o master se ainda existir no contexto hidden.
-        // Vamos usar 1.0 se não existir.
         const masterSfx = soundboard?.masterVolume?.sfx ?? 1.0;
         const finalVol = (sfxItem.volume || 1) * masterSfx;
         
@@ -123,11 +109,9 @@ export const useAudioEngine = () => {
                     html5: false,
                     volume: finalVol,
                     onplay: () => {
-                        // Avisa a UI que começou
                         window.dispatchEvent(new CustomEvent(`ecos-sfx-start-${sfxItem.id}`));
                     },
                     onend: () => {
-                        // Avisa a UI que acabou
                         window.dispatchEvent(new CustomEvent(`ecos-sfx-end-${sfxItem.id}`));
                         activeSfxInstances.current[sfxItem.id] = null;
                         URL.revokeObjectURL(url);
@@ -139,7 +123,6 @@ export const useAudioEngine = () => {
                     }
                 });
                 
-                // Registra a instância
                 activeSfxInstances.current[sfxItem.id] = sfx;
                 
                 sfx.play();
@@ -149,7 +132,6 @@ export const useAudioEngine = () => {
         }
     };
 
-    // Listener de Eventos (Mantido)
     useEffect(() => {
         const handleSfxEvent = (e) => {
             const sfxItem = e.detail;

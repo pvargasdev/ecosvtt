@@ -23,20 +23,18 @@ const PinModal = ({ initialData, position, onSave, onClose }) => {
     
     // Estado do formulário
     const [formData, setFormData] = useState({
-        // [ALTERAÇÃO 1] Começa vazio se for novo pin
         title: initialData?.title || "", 
         description: initialData?.description || "",
         icon: initialData?.icon || "MapPin",
         color: initialData?.color || "#ffffff",
         linkedSceneId: initialData?.linkedSceneId || "",
-        visibleToPlayers: initialData?.visibleToPlayers ?? true, 
+        // REMOVIDO: visibleToPlayers
         x: initialData ? initialData.x : position.x,
         y: initialData ? initialData.y : position.y,
         id: initialData?.id || null 
     });
 
     const handleSave = () => {
-        // [ALTERAÇÃO 2] Se vazio, define padrão como "Novo Pin"
         const finalTitle = formData.title.trim() === "" ? "Novo Pin" : formData.title;
 
         onSave({
@@ -67,7 +65,7 @@ const PinModal = ({ initialData, position, onSave, onClose }) => {
                         <label className="text-xs text-text-muted block mb-1">Título</label>
                         <input 
                             autoFocus
-                            placeholder="Novo Pin" // Placeholder visual para indicar o valor padrão
+                            placeholder="Novo Pin" 
                             className="w-full bg-black/50 border border-glass-border rounded p-2 text-white text-sm outline-none focus:border-neon-green placeholder-white/20"
                             value={formData.title}
                             onChange={e => setFormData({...formData, title: e.target.value})}
@@ -130,17 +128,6 @@ const PinModal = ({ initialData, position, onSave, onClose }) => {
                             </div>
                         </div>
                     </div>
-
-                    {/* Visibilidade */}
-                    <label className="flex items-center gap-2 cursor-pointer border border-glass-border p-2 rounded hover:bg-white/5 transition-colors">
-                        <input 
-                            type="checkbox" 
-                            checked={!formData.visibleToPlayers}
-                            onChange={e => setFormData({...formData, visibleToPlayers: !e.target.checked})}
-                            className="accent-neon-green w-4 h-4 cursor-pointer"
-                        />
-                        <span className="text-sm text-white select-none">Visível apenas na tela do mestre?</span>
-                    </label>
 
                     <button 
                         onClick={handleSave}

@@ -7,7 +7,6 @@ import {
 } from 'lucide-react';
 import { audioDB } from '../../context/audioDb';
 
-// --- UTILITÁRIOS ---
 const formatBytes = (bytes, decimals = 2) => {
     if (!+bytes) return '0 B';
     const k = 1024;
@@ -24,7 +23,6 @@ const formatDate = (timestamp) => {
 const AudioLibraryModal = ({ isOpen, onClose, onSelect, acceptMultiple = false, category = 'music' }) => {
     const { deleteGlobalAudio, refreshAudioSystem } = useGame();
     
-    // States
     const [libraryFiles, setLibraryFiles] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState("");
@@ -32,13 +30,11 @@ const AudioLibraryModal = ({ isOpen, onClose, onSelect, acceptMultiple = false, 
     const [selectedIds, setSelectedIds] = useState(new Set());
     const [deletingId, setDeletingId] = useState(null); 
     
-    // Rastreia itens recém adicionados nesta sessão da janela
     const [newItems, setNewItems] = useState(new Set());
 
     const audioRef = useRef(null);
     const fileInputRef = useRef(null);
 
-    // --- CARREGAMENTO ---
     useEffect(() => {
         if (isOpen) {
             loadLibrary();
@@ -60,7 +56,6 @@ const AudioLibraryModal = ({ isOpen, onClose, onSelect, acceptMultiple = false, 
         }
     };
 
-    // --- FILTRO ---
     const filteredFiles = useMemo(() => {
         return libraryFiles.filter(f => {
             const fileCat = f.category || 'music'; 
@@ -108,7 +103,6 @@ const AudioLibraryModal = ({ isOpen, onClose, onSelect, acceptMultiple = false, 
         onClose();
     };
 
-    // --- UPLOAD COM DEDUPLICAÇÃO E AUTOCURA ---
     const handleFileUpload = async (e) => {
         const files = Array.from(e.target.files);
         if (files.length === 0) return;
@@ -188,7 +182,6 @@ const AudioLibraryModal = ({ isOpen, onClose, onSelect, acceptMultiple = false, 
     const themeColor = 'pink'; 
     const hoverBg = `hover:bg-${themeColor}-500/10`;
 
-    // Botão de upload ajustável
     const buttonStyle = `
         bg-${themeColor}-500/10 
         text-${themeColor}-300 
@@ -198,8 +191,6 @@ const AudioLibraryModal = ({ isOpen, onClose, onSelect, acceptMultiple = false, 
         transition-all duration-200
         font-bold flex items-center justify-center gap-2 text-xs uppercase tracking-wider
     `;
-
-    // Ícone e Labels dinâmicos para o cabeçalho
     const HeaderIcon = category === 'music' ? Music : Volume2;
     const headerTitle = category === 'music' ? 'Biblioteca Musical' : 'Biblioteca SFX';
     const headerSubtitle = category === 'music' ? 'FAIXAS DE ÁUDIO' : 'EFEITOS SONOROS';
@@ -220,27 +211,22 @@ const AudioLibraryModal = ({ isOpen, onClose, onSelect, acceptMultiple = false, 
                 onMouseDown={(e) => e.stopPropagation()} 
                 onClick={(e) => e.stopPropagation()}
             >
-                {/* --- TOP BAR AJUSTADA --- */}
                 <div className="h-16 border-b border-glass-border flex items-center justify-between gap-3 px-4 sm:px-6 bg-gradient-to-b from-white/5 to-transparent shrink-0">
                     
-                    {/* ESQUERDA: TÍTULO E ÍCONE (min-w-0 permite encolher sem quebrar layout) */}
                     <div className="flex items-center gap-3 shrink-0 max-w-[35%] min-w-0">
                         <div className={`p-2 rounded-lg bg-${themeColor}-500/10 text-${themeColor}-500 hidden sm:block`}>
                             <HeaderIcon size={20}/>
                         </div>
                         <div className="flex flex-col min-w-0">
-                            {/* whitespace-nowrap e text-ellipsis garantem 1 linha só */}
                             <h2 className="font-rajdhani font-bold text-white text-sm sm:text-lg uppercase tracking-wide whitespace-nowrap overflow-hidden text-ellipsis leading-tight">
                                 {headerTitle}
                             </h2>
-                            {/* Tag visual para diferenciar Music vs SFX */}
                             <span className={`text-[10px] font-bold text-${themeColor}-400/60 uppercase tracking-widest whitespace-nowrap overflow-hidden text-ellipsis`}>
                                 {headerSubtitle}
                             </span>
                         </div>
                     </div>
 
-                    {/* CENTRO: BARRA DE PESQUISA (flex-1 faz ela ocupar o espaço restante) */}
                     <div className="flex-1 flex justify-center min-w-0 px-2">
                         <div className={`relative w-full max-w-md bg-black/50 border border-glass-border rounded-lg focus-within:border-${themeColor}-500 focus-within:bg-black/80 transition-all duration-300 group`}>
                             <div className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted group-focus-within:text-white transition-colors pointer-events-none">
@@ -263,7 +249,6 @@ const AudioLibraryModal = ({ isOpen, onClose, onSelect, acceptMultiple = false, 
                         </div>
                     </div>
 
-                    {/* DIREITA: BOTÕES (shrink-0 garante que não sejam esmagados) */}
                     <div className="flex items-center gap-2 sm:gap-4 shrink-0">
                         <button 
                             onClick={() => fileInputRef.current.click()}
@@ -272,7 +257,6 @@ const AudioLibraryModal = ({ isOpen, onClose, onSelect, acceptMultiple = false, 
                             title="Fazer Upload"
                         >
                             {isLoading ? <Loader2 size={14} className="animate-spin"/> : <Upload size={14} strokeWidth={3}/>} 
-                            {/* Texto some em telas muito pequenas (hidden sm:inline) */}
                             <span className="hidden sm:inline ml-1">Upload</span>
                         </button>
                         <input ref={fileInputRef} type="file" multiple={acceptMultiple} accept="audio/*" className="hidden" onChange={handleFileUpload} />
@@ -288,7 +272,6 @@ const AudioLibraryModal = ({ isOpen, onClose, onSelect, acceptMultiple = false, 
                     </div>
                 </div>
 
-                {/* SCROLLABLE LIST */}
                 <div className="flex-1 overflow-y-auto p-2 scrollbar-thin bg-[#121214]">
                     {isLoading ? (
                         <div className="flex flex-col items-center justify-center h-full text-text-muted gap-4 animate-pulse">
@@ -306,7 +289,6 @@ const AudioLibraryModal = ({ isOpen, onClose, onSelect, acceptMultiple = false, 
                     ) : (
                         <div className="space-y-1">
                             {filteredFiles.map(file => {
-                                // MODO DE EXCLUSÃO
                                 if (deletingId === file.id) {
                                     return (
                                         <div 
@@ -390,7 +372,6 @@ const AudioLibraryModal = ({ isOpen, onClose, onSelect, acceptMultiple = false, 
                     )}
                 </div>
 
-                {/* FOOTER FIXO NA JANELA (Se houver seleção múltipla) */}
                 {acceptMultiple && selectedIds.size > 0 && (
                     <div className="shrink-0 p-4 border-t border-glass-border bg-[#0c0c0e]/95 backdrop-blur flex items-center justify-center gap-6 animate-in slide-in-from-bottom-2 duration-200 z-20 shadow-[0_-5px_20px_rgba(0,0,0,0.3)]">
                         <span className="text-sm text-text-muted">

@@ -2,8 +2,6 @@ import React from 'react';
 
 const showSmaller = false;
 
-// --- ÍCONES SVG GEOMÉTRICOS (Apenas Outline) ---
-
 const D4Icon = ({ className }) => (
   <svg viewBox="0 0 100 100" className={className} fill="none" stroke="currentColor" strokeWidth="6" strokeLinejoin="round">
     <path d="M50 15 L85 80 L15 80 Z" />
@@ -42,48 +40,37 @@ const D20Icon = ({ className }) => (
 
 const ICON_MAP = { d4: D4Icon, d6: D6Icon, d8: D8Icon, d10: D10Icon, d12: D12Icon, d20: D20Icon };
 
-// --- COMPONENTE DO DADO NA MESA ---
 export const Die = ({ type, value, isRolling, index, onRemove, isMax, isMin, showResult }) => {
   const IconComponent = ICON_MAP[type] || D6Icon;
   
   const animationDelay = isRolling ? `${index * 0.05}s` : '0s';
 
-  // Lógica de Classes Condicionais
-  // Prioridade: Rolling > Hover (Remove) > Max/Min Result > Default
-
   let containerClass = "relative w-16 h-16 flex items-center justify-center transition-all duration-500 select-none";
   let iconClass = "w-full h-full transition-all duration-300";
   let textClass = "absolute inset-0 flex items-center justify-center font-rajdhani font-bold text-2xl drop-shadow-[0_2px_4px_rgba(0,0,0,1)] z-10 pointer-events-none transition-colors duration-300";
 
-  // 1. Estado: ROLANDO
   if (isRolling) {
     containerClass += " opacity-90 animate-shake-blur";
     iconClass += " text-neon-purple blur-[1px]";
     textClass += " text-white";
   } 
-  // 2. Estado: PARADO (Resultado ou Espera)
+
   else {
     containerClass += " cursor-pointer hover:scale-105 group animate-pop-in";
 
-    // Definição Base (Cor e Efeito)
     if (showResult && value == 20) {
-      // É o Maior Valor? (Dourado)
       containerClass += " scale-110 z-10";
       iconClass += " text-neon-purple drop-shadow-[0_0_10px_rgba(191,0,255,1)]";
       textClass += " text-white drop-shadow-[0_0_10px_rgba(191,0,255,1)]";
     } else if (showResult && isMin && showSmaller) {
-      // É o Menor Valor? (Apagado)
       containerClass += " opacity-60 scale-95";
       iconClass += " text-neon-purple";
       textClass += " text-white";
     } else {
-      // Normal
       iconClass += " text-neon-purple";
       textClass += " text-white";
     }
 
-    // OVERRIDE DE HOVER (O Polimento)
-    // O group-hover aqui garante que, independente se é Max ou Min, ao passar o mouse, vira "Remover" (Vermelho)
     iconClass += " group-hover:text-red-500 group-hover:drop-shadow-[0_0_10px_rgba(239,68,68,0.8)] group-hover:scale-95";
     textClass += " group-hover:text-red-100";
   }
@@ -97,14 +84,12 @@ export const Die = ({ type, value, isRolling, index, onRemove, isMax, isMin, sho
     >
       <IconComponent className={iconClass} />
 
-      {/* Valor Numérico */}
       {!isRolling && value !== null && (
         <span className={textClass}>
           {value}
         </span>
       )}
       
-      {/* Label do tipo (d20, d6...) - só aparece antes de rolar */}
       {value === null && !isRolling && (
         <span className="absolute inset-0 flex items-center justify-center font-rajdhani font-bold text-xs text-neon-purple/60 group-hover:text-red-500/60 pointer-events-none pb-0.5 transition-colors">
           {type}
@@ -114,7 +99,6 @@ export const Die = ({ type, value, isRolling, index, onRemove, isMax, isMin, sho
   );
 };
 
-// --- BOTÃO SELETOR ---
 export const DieSelector = ({ type, count, onClick }) => {
   const IconComponent = ICON_MAP[type];
   return (
@@ -125,7 +109,6 @@ export const DieSelector = ({ type, count, onClick }) => {
       <IconComponent className="w-6 h-6 text-text-muted group-hover:text-neon-purple transition-colors" />
       <span className="text-[9px] uppercase font-bold text-text-muted mt-1 group-hover:text-white transition-colors">{type}</span>
       
-      {/* Badge de Contagem */}
       {count > 0 && (
         <div className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-neon-purple text-black text-[10px] font-bold rounded-full flex items-center justify-center shadow-lg border border-black animate-in zoom-in duration-200">
             {count}

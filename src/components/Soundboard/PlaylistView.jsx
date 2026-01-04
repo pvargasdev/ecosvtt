@@ -2,14 +2,12 @@ import React, { useRef, useState } from 'react';
 import { useGame } from '../../context/GameContext';
 import { Music, Trash2, Plus, Loader2, Search, X, GripVertical, ArrowLeft, Link2Off } from 'lucide-react';
 
-// DND-KIT IMPORTS
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 
 import AudioLibraryModal from './AudioLibraryModal';
 
-// --- COMPONENTE DE LINHA SORTABLE ---
 const SortableTrackRow = ({ track, index, isCurrent, isPlaying, isDeleting, onDeleteClick, onPlayClick, onCancelDelete, onConfirmDelete, playlistId, isMissing }) => {
     const {
         attributes,
@@ -54,7 +52,6 @@ const SortableTrackRow = ({ track, index, isCurrent, isPlaying, isDeleting, onDe
         <tr 
             ref={setNodeRef}
             style={style}
-            // Se estiver faltando (isMissing), desabilita o click de tocar
             onClick={() => !isMissing && onPlayClick({ ...track, isPlaying: true }, playlistId)}
             className={`
                 h-10 group border-black last:border-0 transition-colors 
@@ -75,7 +72,6 @@ const SortableTrackRow = ({ track, index, isCurrent, isPlaying, isDeleting, onDe
             </td>
             <td className="p-2 text-xs text-center text-text-muted group-hover:text-white w-8">
                 <div className="w-4 flex justify-center">
-                    {/* Se estiver faltando, mostra ícone de link quebrado */}
                     {isMissing ? (
                          <Link2Off size={14} className="text-red-500" title="Arquivo não encontrado na biblioteca global"/>
                     ) : isPlaying ? (
@@ -111,7 +107,6 @@ const SortableTrackRow = ({ track, index, isCurrent, isPlaying, isDeleting, onDe
     );
 };
 
-// --- COMPONENTE PRINCIPAL ---
 const PlaylistView = () => {
     const { soundboard, addTrackToPlaylist, playTrack, removeTrack, reorderPlaylist, availableFiles } = useGame();
     const [isLibraryOpen, setIsLibraryOpen] = useState(false);
@@ -163,7 +158,6 @@ const PlaylistView = () => {
     return (
         <>
             <div className="flex flex-col h-full overflow-hidden" onClick={() => setDeletingId(null)}>
-                {/* Header da Playlist + Busca */}
                 <div className="flex flex-col border-b border-white/5 bg-white/5 shrink-0">
                     <div className="p-4 pb-2 flex justify-between items-center">
                         <div className="flex items-center gap-3">
@@ -207,7 +201,6 @@ const PlaylistView = () => {
                     </div>
                 </div>
 
-                {/* Lista de Faixas */}
                 <div className="flex-1 overflow-y-auto p-2 scrollbar-thin">
                     {activePlaylist.tracks.length === 0 ? (
                         <div className="flex flex-col items-center justify-center h-40 text-text-muted opacity-50">
@@ -228,12 +221,9 @@ const PlaylistView = () => {
                                             const isPlaying = isCurrent && soundboard.activeTrack?.isPlaying;
                                             const isDeleting = deletingId === track.id;
                                             
-                                            // INTEGRIDADE: Verifica se o arquivo existe na lista global
                                             const isMissing = track.fileId && availableFiles && !availableFiles.has(track.fileId);
 
                                             if (!isDragEnabled) return ( 
-                                                // Fallback simples sem drag (pode usar o mesmo Sortable mas sem listeners se preferir, ou replicar a UI)
-                                                // Aqui simplifico chamando o mesmo componente mas sem lógica de sort ativo visualmente se não houver handle
                                                  <SortableTrackRow key={track.id} track={track} index={index} isCurrent={isCurrent} isPlaying={isPlaying} isDeleting={isDeleting} playlistId={playlistId} isMissing={isMissing} onPlayClick={playTrack} onDeleteClick={(e) => { e.stopPropagation(); setDeletingId(track.id); }} onCancelDelete={(e) => { e.stopPropagation(); setDeletingId(null); }} onConfirmDelete={(e) => { e.stopPropagation(); removeTrack(playlistId, track.id); setDeletingId(null); }} />
                                             );
                                             
@@ -247,7 +237,6 @@ const PlaylistView = () => {
                 </div>
             </div>
 
-            {/* MODAL DE IMPORTAÇÃO */}
             <AudioLibraryModal 
                 isOpen={isLibraryOpen}
                 category="music"
