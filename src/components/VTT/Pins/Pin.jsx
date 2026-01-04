@@ -76,9 +76,9 @@ const Pin = ({ data, viewScale, onMouseDown, onDoubleClick, isGM, isSelected, is
                         isSelected 
                         ? 'ring-2 ring-white shadow-[0_0_15px_rgba(255,255,255,0.8)] scale-110' 
                         : ''
-                    } ${isGhost ? '' : 'opacity-70'}`}
+                    } ${isGhost ? '' : 'opacity-90'}`}
                     style={{
-                        backgroundColor: isGhost ? 'rgba(255, 255, 255, 0.15)' : 'rgba(0,0,0,0.5)',
+                        backgroundColor: isGhost ? 'rgba(255, 255, 255, 0.15)' : 'rgba(0,0,0,1)',
                         borderColor: isGhost ? 'rgba(255, 255, 255, 0.3)' : (data.color || '#fff'),
                         color: isGhost ? 'white' : (data.color || '#fff'),
                         boxShadow: isGhost ? '0 0 15px rgba(255,255,255,0.2)' : undefined,
