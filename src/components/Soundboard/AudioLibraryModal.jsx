@@ -115,8 +115,12 @@ const AudioLibraryModal = ({ isOpen, onClose, onSelect, acceptMultiple = false, 
             const existingAudioMap = new Map();
             
             existingMetadata.forEach(meta => {
-                const uniqueKey = `${meta.name}|${meta.size}`;
-                existingAudioMap.set(uniqueKey, meta.id);
+                const metaCategory = meta.category || 'music';
+
+                if (metaCategory === category) {
+                    const uniqueKey = `${meta.name}|${meta.size}`;
+                    existingAudioMap.set(uniqueKey, meta.id);
+                }
             });
 
             for (const file of files) {
