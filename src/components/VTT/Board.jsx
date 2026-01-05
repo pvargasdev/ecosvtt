@@ -38,6 +38,8 @@ const Board = ({ showUI }) => {
   const containerRef = useRef(null);
   const importInputRef = useRef(null);
   const adventuresListRef = useRef(null);
+
+  const canvasRef = useRef(null);
   
   const clipboardRef = useRef([]);
   const mousePosRef = useRef({ x: 0, y: 0 });
@@ -99,6 +101,32 @@ const Board = ({ showUI }) => {
       viewRef.current = newView;
       setSliderValue(Math.round(newView.scale * 100));
   };
+
+  useEffect(() => {
+      const canvas = canvasRef.current;
+      if (!canvas || !mapParams.url) return;
+
+      const bgImg = new Image();
+      bgImg.src = mapParams.url;
+      
+      bgImg.onload = () => {
+          canvas.width = bgImg.naturalWidth;
+          canvas.height = bgImg.naturalHeight;
+
+          if (activeScene?.drawingLayer) {
+              const savedLayer = new Image();
+              savedLayer.src = activeScene.drawingLayer;
+              savedLayer.onload = () => {
+                  const ctx = canvas.getContext('2d');
+                  ctx.clearRect(0, 0, canvas.width, canvas.height);
+                  ctx.drawImage(savedLayer, 0, 0);
+              };
+          } else {
+              const ctx = canvas.getContext('2d');
+              ctx.clearRect(0, 0, canvas.width, canvas.height);
+          }
+      };
+  }, [mapParams.url, activeScene?.id, activeScene?.drawingLayer]);
 
   useEffect(() => {
     const handleGlobalClick = (e) => {
@@ -226,7 +254,6 @@ const Board = ({ showUI }) => {
     }, 50);
   };
 
-  // --- CONTROLE DE TECLADO ---
   useEffect(() => {
     const handleKeyDown = (e) => {
         if (['INPUT', 'TEXTAREA', 'CONTENTEDITABLE'].includes(document.activeElement?.tagName)) return;
@@ -605,7 +632,6 @@ const Board = ({ showUI }) => {
       setContextMenu(null);
   };
 
-  // --- RENDER ---
   if (!activeAdventureId || !activeAdventure) {
       if (isGMWindow) {
           return (
@@ -639,7 +665,6 @@ const Board = ({ showUI }) => {
                                 <>
                                     <span className="truncate font-medium">{adv.name}</span>
                                     <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                        {/* BOTÃO DE EXPORTAR COM LOADING STATE */}
                                         <button 
                                             onClick={(e)=> handleExportAdventure(e, adv.id)} 
                                             className="p-1.5 rounded hover:bg-white/20 text-text-muted hover:text-neon-blue transition"
@@ -662,7 +687,6 @@ const Board = ({ showUI }) => {
                         </div>
                     ))}
 
-                    {/* ITEM DE PLACEHOLDER DURANTE IMPORTAÇÃO */}
                     {isImporting && (
                         <div className="p-3 rounded bg-white/5 border border-neon-green/30 flex items-center gap-3 animate-pulse opacity-80 cursor-wait">
                             <Loader2 size={16} className="animate-spin text-neon-green shrink-0"/>
@@ -678,7 +702,6 @@ const Board = ({ showUI }) => {
                         <div className="flex gap-2">
                             <button onClick={() => setIsCreatingAdventure(true)} className="flex-1 py-3 bg-neon-green/10 border border-neon-green/40 text-neon-green font-bold rounded-lg hover:bg-neon-green hover:text-black hover:shadow-[0_0_15px_rgba(0,255,0,0.4)] transition-all flex items-center justify-center gap-2 group"><Plus size={18} strokeWidth={3} className="group-hover:scale-110 transition-transform"/> NOVA AVENTURA</button>
                             <div className="relative">
-                                {/* INPUT DE IMPORTAÇÃO ATUALIZADO */}
                                 <button disabled={isImporting} onClick={() => importInputRef.current?.click()} className={`h-full px-4 bg-glass border border-glass-border text-text-muted hover:text-white rounded-lg hover:bg-white/10 transition flex items-center justify-center ${isImporting ? 'opacity-50 cursor-not-allowed' : ''}`}><Import size={20}/></button>
                                 <input ref={importInputRef} type="file" accept=".zip" className="hidden" onChange={handleImportAdventure}/>
                             </div>
@@ -728,25 +751,36 @@ const Board = ({ showUI }) => {
         {isGMWindow && <div className="absolute top-4 left-4 z-50 bg-neon-green/20 border border-neon-green px-3 py-1 rounded text-neon-green font-bold font-rajdhani text-sm pointer-events-none select-none">VISÃO DO MESTRE</div>}
 
         <div className="absolute top-0 left-0 w-full h-full origin-top-left" style={{ transform: `translate(${view.x}px, ${view.y}px) scale(${view.scale})` }}>
-             <div className="absolute -top-[50000px] -left-[50000px] w-[100000px] h-[100000px] opacity-20 pointer-events-none" style={{ backgroundImage: 'radial-gradient(circle, #555 1px, transparent 1px)', backgroundSize: '70px 70px' }} />
             
-            {mapParams.url && <div style={{ transform: `scale(${displayScene?.mapScale || 1})`, transformOrigin: '0 0' }}><img src={mapParams.url} className="max-w-none pointer-events-none select-none opacity-90 shadow-2xl" alt="Map Layer"/></div>}
+            <div className="absolute -top-[50000px] -left-[50000px] w-[100000px] h-[100000px] opacity-20 pointer-events-none" style={{ backgroundImage: 'radial-gradient(circle, #555 1px, transparent 1px)', backgroundSize: '70px 70px' }} />
             
-            {displayScene?.tokens.map(t => {
-            const isBeingDragged = interaction.mode === 'DRAGGING' && selectedIds.has(t.id);
-
-            return (
-                <Token 
-                    key={t.id} 
-                    data={t} 
-                    isDragging={isBeingDragged} 
-                    isSelected={selectedIds.has(t.id)} 
-                    onMouseDown={handleTokenDown} 
+            {mapParams.url && (
+                <div style={{ transform: `scale(${displayScene?.mapScale || 1})`, transformOrigin: '0 0' }}>
+                    <img src={mapParams.url} className="max-w-none pointer-events-none select-none opacity-90 shadow-2xl" alt="Map Layer"/>
+                </div>
+            )}
+            
+            {mapParams.url && (
+                <canvas
+                    ref={canvasRef}
+                    className="absolute top-0 left-0 pointer-events-none z-[5]"
+                    style={{ transform: `scale(${displayScene?.mapScale || 1})`, transformOrigin: '0 0' }}
                 />
-            );
-        })}
+            )}
+
+            {displayScene?.tokens.map(t => {
+                const isBeingDragged = interaction.mode === 'DRAGGING' && selectedIds.has(t.id);
+                return (
+                    <Token 
+                        key={t.id} 
+                        data={t} 
+                        isDragging={isBeingDragged} 
+                        isSelected={selectedIds.has(t.id)} 
+                        onMouseDown={handleTokenDown} 
+                    />
+                );
+            })}
             
-            {/* LÓGICA DE VISIBILIDADE GLOBAL DE PINS */}
             {arePinsVisible && displayScene?.pins?.map(pin => (
                 <Pin 
                     key={pin.id} 
@@ -759,14 +793,13 @@ const Board = ({ showUI }) => {
                 />
             ))}
 
-            {/* NOVO: Renderização dos Pins Fantasmas (Feedback Visual) */}
             {ghostPins.map(pin => (
                 <Pin 
                     key={pin.id} 
                     data={pin} 
                     viewScale={view.scale}
                     isGM={isGMWindow}
-                    isGhost={true} // Propriedade nova para ativar o estilo fantasma
+                    isGhost={true} 
                     isSelected={false}
                     onMouseDown={() => {}}
                     onDoubleClick={() => {}}

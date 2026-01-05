@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useGame } from '../../context/GameContext';
-import { Settings, Image as ImageIcon, Box, ArrowLeft, Map, Plus, Trash2, X, ChevronDown, LogOut, Edit2, RotateCcw, Check, Search, Square, MousePointer, AlertTriangle, Folder, FolderPlus, CornerLeftUp, Copy, HelpCircle, Import, Speaker, Dices, MapPin, MapPinOff, File as FileIcon } from 'lucide-react';
+import { Settings, Image as ImageIcon, Box, ArrowLeft, Map, Plus, Trash2, X, ChevronDown, LogOut, Edit2, RotateCcw, Check, Search, Square, MousePointer, AlertTriangle, Folder, FolderPlus, CornerLeftUp, Copy, HelpCircle, Import, Speaker, Dices, MapPin, MapPinOff, File as FileIcon, PenTool, Eraser, } from 'lucide-react';
 import { imageDB } from '../../context/db';
 import SoundboardWindow from '../Soundboard/SoundboardWindow';
 import DiceWindow from '../DiceRoller/DiceWindow';
@@ -803,7 +803,8 @@ export const VTTLayout = ({ zoomValue, onZoomChange, activeTool, setActiveTool, 
       activeScene, 
       setActiveAdventureId, 
       isGMWindow, 
-      toggleAdventurePinVisibility 
+      toggleAdventurePinVisibility,
+      brushSize, setBrushSize
   } = useGame();
 
   const [uiState, setUiState] = useState({ 
@@ -920,6 +921,25 @@ export const VTTLayout = ({ zoomValue, onZoomChange, activeTool, setActiveTool, 
                 {/* SELEÇÃO OU FOG OF WAR */}
                 <button onClick={() => { setActiveTool('select'); closeAllMenus(); }} className={`p-2 rounded hover:bg-white/10 transition ${activeTool === 'select' ? 'bg-white/20 text-neon-green' : 'text-text-muted'}`} title="Modo Seleção"><MousePointer size={18}/></button>
                 <button onClick={() => { setActiveTool('fogOfWar'); closeAllMenus(); }} className={`p-2 rounded hover:bg-white/10 transition ${activeTool === 'fogOfWar' ? 'bg-white/20 text-neon-purple' : 'text-text-muted'}`} title="Fog of War"><Square size={18}/></button>
+                
+                {/* DESENHO */}
+                <div className="w-px h-6 bg-glass-border mx-1"></div>
+
+                <button 
+                    onClick={() => { setActiveTool('brush'); closeAllMenus(); }} 
+                    className={`p-2 rounded hover:bg-white/10 transition ${activeTool === 'brush' ? 'bg-white/20 text-neon-green' : 'text-text-muted'}`} 
+                    title="Pincel (Desenho Livre)"
+                >
+                    <PenTool size={18}/>
+                </button>
+                
+                <button 
+                    onClick={() => { setActiveTool('eraser'); closeAllMenus(); }} 
+                    className={`p-2 rounded hover:bg-white/10 transition ${activeTool === 'eraser' ? 'bg-white/20 text-red-400' : 'text-text-muted'}`} 
+                    title="Borracha"
+                >
+                    <Eraser size={18}/>
+                </button>
 
                 <div className="w-px h-6 bg-glass-border mx-1"></div>
 
@@ -981,6 +1001,36 @@ export const VTTLayout = ({ zoomValue, onZoomChange, activeTool, setActiveTool, 
                     setConfirmModal({ open: true, message: "Sair da aventura?", onConfirm: () => setActiveAdventureId(null) }); 
                 }} className="p-2 rounded hover:bg-red-500/20 text-text-muted hover:text-red-500" title="Sair"><LogOut size={18}/></button>
               </div>
+              
+              {/* TAMANHO DO PINCEL */}
+              {(activeTool === 'brush' || activeTool === 'eraser') && (
+                  <div className="px-3 py-2 border-t border-white/5 flex items-center gap-3 bg-black/40 animate-in slide-in-from-top-2">
+                      <div className="w-6 h-6 flex items-center justify-center bg-black/50 rounded border border-white/10 shrink-0">
+                          <div 
+                              style={{ 
+                                  width: Math.min(20, Math.max(2, brushSize / 2)) + 'px', 
+                                  height: Math.min(20, Math.max(2, brushSize / 2)) + 'px',
+                                  backgroundColor: activeTool === 'eraser' ? '#f87171' : '#ffffffff'
+                              }} 
+                              className="rounded-full transition-all duration-200"
+                          />
+                      </div>
+                      <div className="flex items-center gap-2 flex-1 min-w-[120px]">
+                          <span className="text-[10px] uppercase font-bold text-text-muted shrink-0">Tamanho</span>
+                          <input 
+                              type="range" 
+                              min="2" 
+                              max="80" 
+                              step="2"
+                              value={brushSize} 
+                              onChange={(e) => setBrushSize(Number(e.target.value))}
+                              onMouseDown={(e) => e.stopPropagation()}
+                              className="flex-1 h-1.5 bg-white/20 rounded-lg appearance-none cursor-pointer outline-none [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-neon-green hover:[&::-webkit-slider-thumb]:bg-white transition-colors"
+                          />
+                          <span className="text-xs font-mono w-5 text-right text-white">{brushSize}</span>
+                      </div>
+                  </div>
+              )}
           </div>
 
           {showUI && (

@@ -34,6 +34,9 @@ export const GameProvider = ({ children }) => {
 
   const broadcastChannel = useRef(null);
   const isRemoteUpdate = useRef(false); 
+
+  const [brushSize, setBrushSize] = useState(5);
+  const [brushColor, setBrushColor] = useState('#ffffffff');
   
   const stateRef = useRef({ adventures, characters, presets, activeAdventureId: internalActiveAdventureId, isDataLoaded });
 
@@ -404,7 +407,16 @@ export const GameProvider = ({ children }) => {
         activeSceneId: newSceneId, 
         tokenLibrary: [], 
         pinSettings: { main: true, gm: true }, 
-        scenes: [{ id: newSceneId, name: "Cena 1", mapImageId: null, mapScale: 1.0, tokens: [], fogOfWar: [], pins: [] }],
+        scenes: [{ 
+            id: newSceneId, 
+            name: "Cena 1", 
+            mapImageId: null, 
+            mapScale: 1.0, 
+            tokens: [], 
+            fogOfWar: [], 
+            pins: [],
+            drawingLayer: null
+        }],
         soundboard: { ...defaultSoundboardState } 
     };
     setAdventures(prev => [...prev, newAdventure]);
@@ -776,9 +788,25 @@ export const GameProvider = ({ children }) => {
           mapScale: 1.0, 
           tokens: [], 
           fogOfWar: [], 
-          pins: [] 
+          pins: [],
+          drawingLayer: null
       };
       setAdventures(prev => prev.map(adv => adv.id !== internalActiveAdventureId ? adv : { ...adv, scenes: [...adv.scenes, newScene] }));
+  }, [internalActiveAdventureId]);
+
+  const updateSceneDrawing = useCallback((sceneId, dataUrl) => {
+      if (!internalActiveAdventureId) return;
+      
+      setAdventures(prev => prev.map(adv => {
+          if (adv.id !== internalActiveAdventureId) return adv;
+          
+          return { 
+              ...adv, 
+              scenes: adv.scenes.map(s => 
+                  s.id === sceneId ? { ...s, drawingLayer: dataUrl } : s
+              ) 
+          };
+      }));
   }, [internalActiveAdventureId]);
 
   const addSceneFolder = useCallback((name, parentId = null) => {
@@ -893,6 +921,7 @@ export const GameProvider = ({ children }) => {
     resetAllData, getAudioDurationFromId, deleteGlobalAudio, remapAdventureAudioIds,
     availableFiles, refreshAudioSystem, toggleAdventurePinVisibility,
     addSceneFolder, moveSceneItem,
+    brushSize, setBrushSize, brushColor, setBrushColor, updateSceneDrawing,
   };
 
   return <GameContext.Provider value={value}>{children}</GameContext.Provider>;
