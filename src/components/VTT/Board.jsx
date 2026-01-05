@@ -44,16 +44,6 @@ const Board = ({ showUI }) => {
   const isDrawingRef = useRef(false);
 
   const cursorRef = useRef(null);
-
-  const getCanvasCoordinates = (e) => {
-      if (!containerRef.current) return { x: 0, y: 0 };
-      const rect = containerRef.current.getBoundingClientRect();
-      
-      return {
-          x: (e.clientX - rect.left - view.x) / view.scale,
-          y: (e.clientY - rect.top - view.y) / view.scale
-      };
-  };
   
   const clipboardRef = useRef([]);
   const mousePosRef = useRef({ x: 0, y: 0 });
@@ -108,6 +98,16 @@ const Board = ({ showUI }) => {
   const arePinsVisible = activeAdventure?.pinSettings 
       ? (isGMWindow ? activeAdventure.pinSettings.gm : activeAdventure.pinSettings.main)
       : true;
+      
+  const getCanvasCoordinates = (e) => {
+      if (!containerRef.current) return { x: 0, y: 0 };
+      const rect = containerRef.current.getBoundingClientRect();
+      
+      return {
+          x: (e.clientX - rect.left - view.x) / view.scale,
+          y: (e.clientY - rect.top - view.y) / view.scale
+      };
+  };
 
   const forceSetView = (newView) => {
       setView(newView);
@@ -588,6 +588,17 @@ const Board = ({ showUI }) => {
 
   const handleMouseMove = (e) => {
     mousePosRef.current = { x: e.clientX, y: e.clientY };
+    const isOverUI = e.target.closest('[data-ecos-ui="true"]') !== null;
+
+    if (cursorRef.current) {
+        if (isOverUI) {
+            cursorRef.current.style.display = 'none';
+        } else {
+            cursorRef.current.style.display = 'block';
+            cursorRef.current.style.transform = `translate3d(${e.clientX}px, ${e.clientY}px, 0) translate(-50%, -50%)`;
+        }
+    }
+
     if (fogDrawing.isDrawing && activeTool === 'fogOfWar') {
         const rect = containerRef.current.getBoundingClientRect();
         const wX = (e.clientX - rect.left - view.x) / view.scale;
@@ -616,7 +627,8 @@ const Board = ({ showUI }) => {
         const dy = (e.clientY - interaction.startY) / view.scale;
         Object.keys(interaction.initialPositions).forEach(pinId => { const initialPos = interaction.initialPositions[pinId]; if (initialPos) { updatePin(activeScene.id, pinId, { x: initialPos.x + dx, y: initialPos.y + dy }); } });
     }
-    if ((activeTool === 'brush' || activeTool === 'eraser') && isDrawingRef.current) {
+    
+    if (!isOverUI && (activeTool === 'brush' || activeTool === 'eraser') && isDrawingRef.current) {
         const canvas = canvasRef.current;
         if (!canvas) return;
         
@@ -794,7 +806,10 @@ const Board = ({ showUI }) => {
 
   return (
     <div 
-        className={`w-full h-full relative overflow-hidden bg-[#15151a] transition-colors duration-300 ${activeTool === 'fogOfWar' ? 'cursor-crosshair' : 'cursor-default'}`} 
+        className={`w-full h-full relative overflow-hidden bg-[#15151a] transition-colors duration-300 ${
+            activeTool === 'fogOfWar' ? 'cursor-crosshair' : 
+            (activeTool === 'brush' || activeTool === 'eraser' ? 'cursor-none' : 'cursor-default')
+        }`}
         ref={containerRef}
         onMouseDown={handleMouseDown} 
         onMouseMove={handleMouseMove} 
@@ -890,6 +905,21 @@ const Board = ({ showUI }) => {
                 transition: `opacity ${FADE_DURATION}ms ease-in-out` 
             }}
         />
+
+        {(activeTool === 'brush' || activeTool === 'eraser') && (
+            <div
+                ref={cursorRef}
+                className="fixed pointer-events-none rounded-full border-2 z-[100]"
+                style={{
+                    width: `${brushSize * view.scale}px`,
+                    height: `${brushSize * view.scale}px`,
+                    borderColor: activeTool === 'eraser' ? '#f87171' : (brushColor || '#ffffffff'),
+                    backgroundColor: activeTool === 'eraser' ? 'rgba(248, 113, 113, 0.1)' : 'rgba(74, 222, 128, 0.1)',
+                    boxShadow: '0 0 10px rgba(0,0,0,0.3)',
+                    left: 0, top: 0, 
+                }}
+            />
+        )}
 
         <div id="vtt-ui-root" data-ecos-ui="true" className="vtt-ui-layer absolute inset-0 pointer-events-none z-[50]" onMouseDown={(e) => e.stopPropagation()} onMouseUp={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()} onDoubleClick={(e) => e.stopPropagation()}>
             <VTTLayout 

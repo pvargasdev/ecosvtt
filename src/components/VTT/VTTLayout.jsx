@@ -837,6 +837,14 @@ export const VTTLayout = ({ zoomValue, onZoomChange, activeTool, setActiveTool, 
       });
   }, []);
 
+  const isDrawingMode = activeTool === 'brush' || activeTool === 'eraser';
+
+  useEffect(() => {
+      if (isDrawingMode) {
+          closeAllMenus();
+      }
+  }, [isDrawingMode, closeAllMenus]);
+
   useEffect(() => {
       const handleOutsideInteraction = (event) => {
           if (headerRef.current && headerRef.current.contains(event.target)) return;
@@ -881,10 +889,10 @@ export const VTTLayout = ({ zoomValue, onZoomChange, activeTool, setActiveTool, 
           </div> 
       ); 
   };
-
+  
   const arePinsVisible = activeAdventure?.pinSettings 
       ? (isGMWindow ? activeAdventure.pinSettings.gm : activeAdventure.pinSettings.main)
-      : true;
+      : true; 
 
   return (
       <div data-ecos-ui="true" className="absolute inset-0 pointer-events-none z-50">
@@ -895,40 +903,23 @@ export const VTTLayout = ({ zoomValue, onZoomChange, activeTool, setActiveTool, 
              ref={headerRef}
              data-ecos-ui="true"
              className={`
-                absolute top-4 right-4 flex flex-col bg-black/80 rounded-lg border border-glass-border shadow-lg backdrop-blur-sm pointer-events-auto z-40 w-max overflow-hidden scale-90 origin-top-right transition-all duration-300
+                absolute top-4 right-4 flex items-center bg-black/80 rounded-lg border border-glass-border shadow-lg backdrop-blur-sm pointer-events-auto z-40 overflow-hidden scale-90 origin-top-right transition-all duration-300
                 ${showUI ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-10 pointer-events-none'}
              `}
              onClick={e => e.stopPropagation()} onMouseDown={e => e.stopPropagation()}
           >
-              
-              {onZoomChange && (
-                <div className="px-3 py-2 border-b border-white/5 flex items-center gap-2 justify-left bg-black/20">
-                    <Search size={15} className="text-text-muted"/>
-                    <input 
-                        type="range" 
-                        min="30" 
-                        max="300" 
-                        value={zoomValue || 100} 
-                        onChange={onZoomChange}
-                        onMouseDown={closeAllMenus}
-                        className="flex-1 min-w-[150px] h-2 bg-white/20 rounded-lg appearance-none cursor-pointer outline-none [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white"
-                    />
-                </div>
-              )}
 
               <div className="flex items-center gap-1 p-1.5">
 
-                {/* SELEÇÃO OU FOG OF WAR */}
                 <button onClick={() => { setActiveTool('select'); closeAllMenus(); }} className={`p-2 rounded hover:bg-white/10 transition ${activeTool === 'select' ? 'bg-white/20 text-neon-green' : 'text-text-muted'}`} title="Modo Seleção"><MousePointer size={18}/></button>
                 <button onClick={() => { setActiveTool('fogOfWar'); closeAllMenus(); }} className={`p-2 rounded hover:bg-white/10 transition ${activeTool === 'fogOfWar' ? 'bg-white/20 text-neon-purple' : 'text-text-muted'}`} title="Fog of War"><Square size={18}/></button>
-                
-                {/* DESENHO */}
+
                 <div className="w-px h-6 bg-glass-border mx-1"></div>
 
                 <button 
                     onClick={() => { setActiveTool('brush'); closeAllMenus(); }} 
-                    className={`p-2 rounded hover:bg-white/10 transition ${activeTool === 'brush' ? 'bg-white/20 text-neon-green' : 'text-text-muted'}`} 
-                    title="Pincel (Desenho Livre)"
+                    className={`p-2 rounded hover:bg-white/10 transition ${activeTool === 'brush' ? 'bg-white/20 text-white' : 'text-text-muted'}`} 
+                    title="Pincel"
                 >
                     <PenTool size={18}/>
                 </button>
@@ -943,94 +934,60 @@ export const VTTLayout = ({ zoomValue, onZoomChange, activeTool, setActiveTool, 
 
                 <div className="w-px h-6 bg-glass-border mx-1"></div>
 
-                {/* CENAS */}
-                <button onClick={(e) => toggle('menuOpen', e)} className="flex items-center gap-2 px-3 py-1.5 hover:bg-white/10 rounded text-white transition border border-transparent hover:border-glass-border">
-                    <Map size={16} className="text-neon-green"/>
-                    <span className="font-rajdhani font-bold uppercase text-sm">
-                        {activeScene?.name ? (activeScene.name.length > 10 ? activeScene.name.substring(0, 10) + '...' : activeScene.name) : "Sem Cena"}
-                    </span>
-                    <ChevronDown size={14} className="text-text-muted"/>
-                </button>
+                <div className="flex-1 flex items-center min-w-[380px]">
+                    {isDrawingMode ? (
+                        <div className="flex-1 flex items-center gap-3 px-2 w-full">
+                             <div className="flex items-center gap-2 shrink-0">
+                                <span className="text-[10px] font-bold text-text-muted uppercase tracking-wider whitespace-nowrap">
+                                    {activeTool === 'eraser' ? 'Tamanho' : 'Tamanho'}
+                                </span>
+                             </div>
+                             
+                             <input 
+                                  type="range" 
+                                  min="2" 
+                                  max="150" 
+                                  step="2"
+                                  value={brushSize} 
+                                  onChange={(e) => setBrushSize(Number(e.target.value))}
+                                  className="flex-1 w-[300px] h-1.5 bg-white/20 rounded-lg appearance-none cursor-pointer outline-none [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white hover:[&::-webkit-slider-thumb]:bg-white transition-colors"
+                              />
+                              <span className="text-xs font-mono text-white w-8 text-right">{brushSize}px</span>
+                        </div>
+                    ) : (
+                        <div className="flex-1 flex items-center justify-end gap-1">
+                            <button onClick={(e) => toggle('menuOpen', e)} className="flex items-center gap-2 px-3 py-1.5 hover:bg-white/10 rounded text-white transition border border-transparent hover:border-glass-border mr-auto">
+                                <Map size={16} className="text-neon-green"/>
+                                <span className="font-rajdhani font-bold uppercase text-sm truncate max-w-[120px]">
+                                    {activeScene?.name ? (activeScene.name.length > 15 ? activeScene.name.substring(0, 15) + '...' : activeScene.name) : "Sem Cena"}
+                                </span>
+                                <ChevronDown size={14} className="text-text-muted"/>
+                            </button>
 
-                <div className="w-px h-6 bg-glass-border mx-1"></div>
+                            <div className="w-px h-6 bg-glass-border mx-1"></div>
 
-                {/* PINS */}
-                <button 
-                    onClick={() => toggleAdventurePinVisibility(isGMWindow)} 
-                    className={`p-2 rounded hover:bg-white/10 transition ${arePinsVisible ? 'text-red-500' : 'text-text-muted opacity-50'}`} 
-                    title={arePinsVisible ? "Ocultar Pins nesta tela" : "Mostrar Pins nesta tela"}
-                >
-                    {arePinsVisible ? <MapPin size={18}/> : <MapPinOff size={18}/>}
-                </button>
+                            <button onClick={() => toggleAdventurePinVisibility(isGMWindow)} className={`p-2 rounded hover:bg-white/10 transition ${arePinsVisible ? 'text-red-500' : 'text-text-muted opacity-50'}`} title={arePinsVisible ? "Ocultar Pins" : "Mostrar Pins"}>
+                                {arePinsVisible ? <MapPin size={18}/> : <MapPinOff size={18}/>}
+                            </button>
 
-                <div className="w-px h-6 bg-glass-border mx-1"></div>
+                            <div className="w-px h-6 bg-glass-border mx-1"></div>
 
-                {/* BACKGROUND E TOKENS */}
-                <button onClick={(e) => toggle('mapConfigOpen', e)} className={`p-2 rounded hover:bg-white/10 transition ${uiState.mapConfigOpen ? 'text-neon-blue' : 'text-text-muted'}`} title="Configurar Fundo"><ImageIcon size={18}/></button>
-                <button onClick={(e) => toggle('libraryOpen', e)} className={`p-2 rounded hover:bg-white/10 transition ${uiState.libraryOpen ? 'text-yellow-500' : 'text-text-muted'}`} title="Biblioteca"><Box size={18}/></button>
-                
-                <div className="w-px h-6 bg-glass-border mx-1"></div>
+                            <button onClick={(e) => toggle('mapConfigOpen', e)} className={`p-2 rounded hover:bg-white/10 transition ${uiState.mapConfigOpen ? 'text-neon-blue' : 'text-text-muted'}`} title="Configurar Fundo"><ImageIcon size={18}/></button>
+                            <button onClick={(e) => toggle('libraryOpen', e)} className={`p-2 rounded hover:bg-white/10 transition ${uiState.libraryOpen ? 'text-yellow-500' : 'text-text-muted'}`} title="Biblioteca"><Box size={18}/></button>
+                            
+                            <div className="w-px h-6 bg-glass-border mx-1"></div>
 
-                {/* SOUNDBOARD */}
-                <button 
-                    onClick={(e) => toggle('soundboardOpen', e)} 
-                    className={`p-2 rounded hover:bg-white/10 transition ${uiState.soundboardOpen ? 'text-pink-500' : 'text-text-muted'}`} 
-                    title="Soundboard / Músicas"
-                >
-                    <Speaker size={18}/>
-                </button>
-                
-                {/* DADOS */}
-                <button 
-                    onClick={(e) => toggle('diceOpen', e)} 
-                    className={`p-2 rounded hover:bg-white/10 transition ${uiState.diceOpen ? 'text-neon-purple' : 'text-text-muted'}`} 
-                    title="Rolar Dados"
-                >
-                    <Dices size={18}/>
-                </button>
+                            <button onClick={(e) => toggle('soundboardOpen', e)} className={`p-2 rounded hover:bg-white/10 transition ${uiState.soundboardOpen ? 'text-pink-500' : 'text-text-muted'}`} title="Soundboard"><Speaker size={18}/></button>
+                            <button onClick={(e) => toggle('diceOpen', e)} className={`p-2 rounded hover:bg-white/10 transition ${uiState.diceOpen ? 'text-neon-purple' : 'text-text-muted'}`} title="Dados"><Dices size={18}/></button>
 
-                <div className="w-px h-6 bg-glass-border mx-1"></div>
+                            <div className="w-px h-6 bg-glass-border mx-1"></div>
 
-                {/* AJUDA */}
-                <button onClick={(e) => toggle('helpOpen', e)} className={`p-2 rounded hover:bg-white/10 transition ${uiState.helpOpen ? 'text-white' : 'text-text-muted'}`} title="Ajuda / Comandos"><HelpCircle size={18}/></button>
-                
-                {/* SAIR */}
-                <button onClick={(e) => { 
-                    e.stopPropagation(); 
-                    closeAllMenus();
-                    setConfirmModal({ open: true, message: "Sair da aventura?", onConfirm: () => setActiveAdventureId(null) }); 
-                }} className="p-2 rounded hover:bg-red-500/20 text-text-muted hover:text-red-500" title="Sair"><LogOut size={18}/></button>
+                            <button onClick={(e) => toggle('helpOpen', e)} className={`p-2 rounded hover:bg-white/10 transition ${uiState.helpOpen ? 'text-white' : 'text-text-muted'}`} title="Ajuda"><HelpCircle size={18}/></button>
+                            <button onClick={(e) => { e.stopPropagation(); closeAllMenus(); setConfirmModal({ open: true, message: "Sair da aventura?", onConfirm: () => setActiveAdventureId(null) }); }} className="p-2 rounded hover:bg-red-500/20 text-text-muted hover:text-red-500" title="Sair"><LogOut size={18}/></button>
+                        </div>
+                    )}
+                </div>
               </div>
-              
-              {/* TAMANHO DO PINCEL */}
-              {(activeTool === 'brush' || activeTool === 'eraser') && (
-                  <div className="px-3 py-2 border-t border-white/5 flex items-center gap-3 bg-black/40 animate-in slide-in-from-top-2">
-                      <div className="w-6 h-6 flex items-center justify-center bg-black/50 rounded border border-white/10 shrink-0">
-                          <div 
-                              style={{ 
-                                  width: Math.min(20, Math.max(2, brushSize / 2)) + 'px', 
-                                  height: Math.min(20, Math.max(2, brushSize / 2)) + 'px',
-                                  backgroundColor: activeTool === 'eraser' ? '#f87171' : '#ffffffff'
-                              }} 
-                              className="rounded-full transition-all duration-200"
-                          />
-                      </div>
-                      <div className="flex items-center gap-2 flex-1 min-w-[120px]">
-                          <span className="text-[10px] uppercase font-bold text-text-muted shrink-0">Tamanho</span>
-                          <input 
-                              type="range" 
-                              min="2" 
-                              max="80" 
-                              step="2"
-                              value={brushSize} 
-                              onChange={(e) => setBrushSize(Number(e.target.value))}
-                              onMouseDown={(e) => e.stopPropagation()}
-                              className="flex-1 h-1.5 bg-white/20 rounded-lg appearance-none cursor-pointer outline-none [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-neon-green hover:[&::-webkit-slider-thumb]:bg-white transition-colors"
-                          />
-                          <span className="text-xs font-mono w-5 text-right text-white">{brushSize}</span>
-                      </div>
-                  </div>
-              )}
           </div>
 
           {showUI && (
@@ -1039,21 +996,8 @@ export const VTTLayout = ({ zoomValue, onZoomChange, activeTool, setActiveTool, 
               <AssetDock isOpen={uiState.libraryOpen} onClose={() => setUiState(p => ({...p, libraryOpen: false}))} />
               <SceneSelector isOpen={uiState.menuOpen} />
               <HelpWindow isOpen={uiState.helpOpen} onClose={() => setUiState(p => ({...p, helpOpen: false}))} />
-              
-              {uiState.soundboardOpen && (
-                  <SoundboardWindow 
-                      onClose={() => setUiState(p => ({...p, soundboardOpen: false}))} 
-                      WindowWrapperComponent={WindowWrapper} 
-                  />
-              )}
-              
-              {uiState.diceOpen && (
-                  <DiceWindow 
-                      onClose={() => setUiState(p => ({...p, diceOpen: false}))} 
-                      WindowWrapperComponent={WindowWrapper} 
-                  />
-              )}
-
+              {uiState.soundboardOpen && <SoundboardWindow onClose={() => setUiState(p => ({...p, soundboardOpen: false}))} WindowWrapperComponent={WindowWrapper} />}
+              {uiState.diceOpen && <DiceWindow onClose={() => setUiState(p => ({...p, diceOpen: false}))} WindowWrapperComponent={WindowWrapper} />}
               <ConfirmationModal />
             </>
           )}
