@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useGame } from '../../context/GameContext';
-import { Settings, Image as ImageIcon, Box, ArrowLeft, Map, Plus, Trash2, X, ChevronDown, LogOut, Edit2, RotateCcw, Check, Search, Square, MousePointer, AlertTriangle, Folder, FolderPlus, CornerLeftUp, Copy, HelpCircle, Import, Speaker, Dices, MapPin, MapPinOff } from 'lucide-react';
+import { Settings, Image as ImageIcon, Box, ArrowLeft, Map, Plus, Trash2, X, ChevronDown, LogOut, Edit2, RotateCcw, Check, Search, Square, MousePointer, AlertTriangle, Folder, FolderPlus, CornerLeftUp, Copy, HelpCircle, Import, Speaker, Dices, MapPin, MapPinOff, File as FileIcon } from 'lucide-react';
 import { imageDB } from '../../context/db';
 import SoundboardWindow from '../Soundboard/SoundboardWindow';
 import DiceWindow from '../DiceRoller/DiceWindow';
@@ -404,65 +404,238 @@ const AssetDock = ({ isOpen, onClose }) => {
     );
 };
 
-const SceneSelector = ({ isOpen }) => {
-    const { activeAdventure, addScene, setActiveScene, updateScene, deleteScene, duplicateScene, activeScene } = useGame();
-    const sceneRef = useRef(null);
-    const scenesListRef = useRef(null);
-    const prevScenesLength = useRef(activeAdventure?.scenes.length || 0);
+const SceneItem = ({ item, isActive, onSelect, onRename, onDelete, onDuplicate, onMove, onEnterFolder, activeSceneId }) => {
+    const [isRenaming, setIsRenaming] = useState(false);
+    const [renameVal, setRenameVal] = useState(item.name);
+    const [isDeleting, setIsDeleting] = useState(false);
+    const [isDragOver, setIsDragOver] = useState(false);
 
-    const [isCreating, setIsCreating] = useState(false);
-    const [newSceneName, setNewSceneName] = useState("");
-    const [renamingId, setRenamingId] = useState(null);
-    const [renameValue, setRenameValue] = useState("");
-    const [deletingId, setDeletingId] = useState(null);
-    
-    const [searchQuery, setSearchQuery] = useState("");
+    const isFolder = item.type === 'folder';
 
-    useEffect(() => {
-        if (activeAdventure?.scenes.length > prevScenesLength.current) {
-            if (scenesListRef.current) scenesListRef.current.scrollTop = scenesListRef.current.scrollHeight;
+    const handleDragStart = (e) => {
+        if (isRenaming) { e.preventDefault(); return; }
+        e.dataTransfer.setData('application/json', JSON.stringify({ 
+            type: 'scene_item', 
+            id: item.id,
+            isFolder: isFolder 
+        }));
+        e.dataTransfer.effectAllowed = 'move';
+    };
+
+    const handleDragOver = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (isFolder) setIsDragOver(true);
+    };
+
+    const handleDragLeave = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsDragOver(false);
+    };
+
+    const handleDrop = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsDragOver(false);
+        
+        if (!isFolder) return;
+
+        const data = JSON.parse(e.dataTransfer.getData('application/json'));
+        if (data.type === 'scene_item' && data.id !== item.id) {
+            onMove(data.id, item.id);
         }
-        prevScenesLength.current = activeAdventure?.scenes.length || 0;
-    }, [activeAdventure?.scenes.length]);
+    };
+
+    // MODO DELETAR
+    if (isDeleting) {
+        return (
+            <div className="h-9 px-2 mb-1 rounded bg-red-900/30 border border-red-500/50 flex justify-between items-center animate-in fade-in select-none">
+                <span className="text-white text-xs font-bold pl-1 truncate">Excluir {isFolder ? 'Pasta' : 'Cena'}?</span>
+                <div className="flex gap-1 shrink-0 items-center">
+                    <button onClick={(e)=>{e.stopPropagation(); setIsDeleting(false);}} className="p-1 rounded bg-black/40 hover:bg-white/20 text-text-muted hover:text-white flex items-center"><ArrowLeft size={14}/></button>
+                    <button onClick={(e)=>{e.stopPropagation(); onDelete(item.id);}} className="p-1 rounded bg-red-600 hover:bg-red-500 text-white flex items-center"><Trash2 size={14}/></button>
+                </div>
+            </div>
+        );
+    }
+
+    // MODO RENOMEAR (Atualizado com botões explícitos)
+    if (isRenaming) {
+        return (
+            <div className="h-9 px-2 mb-1 rounded bg-white/10 border border-white/30 flex items-center justify-between animate-in fade-in">
+                <input 
+                    autoFocus 
+                    onFocus={(e) => e.target.select()} 
+                    className="flex-1 bg-transparent border-none text-white text-sm outline-none placeholder-text-muted min-w-0" 
+                    value={renameVal} 
+                    onChange={e => setRenameVal(e.target.value)} 
+                    onKeyDown={e => { 
+                        if (e.key === 'Enter') { onRename(item.id, renameVal); setIsRenaming(false); }
+                        if (e.key === 'Escape') { setIsRenaming(false); setRenameVal(item.name); } 
+                    }} 
+                />
+                <div className="flex gap-1 shrink-0 items-center ml-2">
+                    {/* Botão Cancelar (Voltar) */}
+                    <button 
+                        onClick={(e) => { 
+                            e.stopPropagation(); 
+                            setIsRenaming(false); 
+                            setRenameVal(item.name); // Reseta o valor
+                        }} 
+                        className="p-1 rounded bg-black/40 hover:bg-white/20 text-text-muted hover:text-white flex items-center"
+                        title="Cancelar"
+                    >
+                        <ArrowLeft size={14}/>
+                    </button>
+                    {/* Botão Confirmar (Check Verde) */}
+                    <button 
+                        onClick={(e) => { 
+                            e.stopPropagation(); 
+                            onRename(item.id, renameVal); 
+                            setIsRenaming(false); 
+                        }} 
+                        className="p-1 rounded bg-neon-green hover:bg-white text-black flex items-center"
+                        title="Salvar"
+                    >
+                        <Check size={14}/>
+                    </button>
+                </div>
+            </div>
+        );
+    }
+
+    // MODO NORMAL
+    return (
+        <div 
+            draggable
+            onDragStart={handleDragStart}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+            onClick={(e) => { 
+                e.stopPropagation(); 
+                if (isFolder) onEnterFolder(item.id);
+                else onSelect(item.id);
+            }} 
+            className={`
+                h-9 px-2 mb-1 flex justify-between items-center cursor-pointer border-l-2 group transition-all rounded select-none relative
+                ${isDragOver ? 'bg-neon-green/20 border-neon-green scale-[1.02] z-10' : ''}
+                ${!isDragOver && isActive ? 'border-neon-green bg-white/5' : (!isDragOver && 'border-transparent hover:bg-white/5')}
+            `}
+        >
+            <div className="flex items-center gap-2 min-w-0">
+                {isFolder ? (
+                    <Folder size={16} className={`shrink-0 ${isDragOver ? 'text-neon-green' : 'text-yellow-500'}`} fill={isDragOver ? "currentColor" : "none"}/>
+                ) : (
+                    <Map size={16} className={`shrink-0 ${isActive ? 'text-neon-green' : 'text-text-muted'}`}/>
+                )}
+                <span className={`text-sm font-bold truncate ${isActive ? 'text-neon-green' : 'text-white'}`}>
+                    {item.name}
+                </span>
+            </div>
+
+            <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity items-center">
+                <button onClick={(e) => { e.stopPropagation(); setIsRenaming(true); }} className="text-text-muted hover:text-yellow-400 p-1 flex items-center" title="Renomear"><Edit2 size={12}/></button>
+                {!isFolder && (
+                    <button onClick={(e) => { e.stopPropagation(); onDuplicate(item.id); }} className="text-text-muted hover:text-neon-blue p-1 flex items-center" title="Duplicar"><Copy size={12}/></button>
+                )}
+                <button onClick={(e) => { e.stopPropagation(); setIsDeleting(true); }} className="text-text-muted hover:text-red-500 p-1 flex items-center" title="Excluir"><Trash2 size={12}/></button>
+            </div>
+        </div>
+    );
+};
+
+const SceneSelector = ({ isOpen }) => {
+    const { activeAdventure, addScene, addSceneFolder, moveSceneItem, setActiveScene, updateScene, deleteScene, duplicateScene, activeScene } = useGame();
+    
+    const [currentFolderId, setCurrentFolderId] = useState(null);
+    const [searchQuery, setSearchQuery] = useState("");
+    const [isBreadcrumbActive, setIsBreadcrumbActive] = useState(false);
+    
+    const [isCreating, setIsCreating] = useState(false);
+    const [createMode, setCreateMode] = useState('scene');
+    const [newItemName, setNewItemName] = useState("");
+
+    const sceneRef = useRef(null);
+    
+    useEffect(() => { if (!isOpen) setCurrentFolderId(null); }, [isOpen]);
 
     if (!isOpen) return null;
 
     const handleCreate = () => {
-        const name = newSceneName.trim() || "Nova Cena";
-        addScene(name);
-        setNewSceneName("");
+        const name = newItemName.trim();
+        if (createMode === 'folder') {
+            addSceneFolder(name || "Nova Pasta", currentFolderId);
+        } else {
+            addScene(name || "Nova Cena", currentFolderId);
+        }
+        setNewItemName("");
         setIsCreating(false);
     };
 
-    const handleRename = (id) => {
-        if (!renameValue.trim()) return setRenamingId(null);
-        updateScene(id, { name: renameValue });
-        setRenamingId(null);
+    const handleRename = (id, newName) => {
+        if (!newName.trim()) return;
+        updateScene(id, { name: newName });
     };
 
-    const normalizeText = (text) => {
-        return text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+    const handleDropOnBreadcrumb = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsBreadcrumbActive(false);
+
+        const data = JSON.parse(e.dataTransfer.getData('application/json'));
+        if (data.type === 'scene_item') {
+            const currentFolder = activeAdventure?.scenes.find(s => s.id === currentFolderId);
+            const targetId = currentFolder ? (currentFolder.parentId || null) : null;
+            if (data.id !== targetId) {
+                moveSceneItem(data.id, targetId);
+            }
+        }
     };
 
-    const filteredScenes = activeAdventure?.scenes.filter(s => {
-        if (!searchQuery) return true;
-        return normalizeText(s.name).includes(normalizeText(searchQuery));
-    }) || [];
+    const normalizeText = (text) => text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+    
+    let displayItems = [];
+    
+    if (searchQuery) {
+        displayItems = activeAdventure?.scenes.filter(s => 
+            normalizeText(s.name).includes(normalizeText(searchQuery))
+        ) || [];
+    } else {
+        displayItems = activeAdventure?.scenes.filter(s => {
+            const pId = s.parentId || null;
+            return pId === currentFolderId;
+        }) || [];
+        
+        displayItems.sort((a, b) => {
+            if (a.type === 'folder' && b.type !== 'folder') return -1;
+            if (a.type !== 'folder' && b.type === 'folder') return 1;
+            return a.name.localeCompare(b.name);
+        });
+    }
 
-    const isOnlyScene = activeAdventure?.scenes.length <= 1;
+    const currentFolderName = currentFolderId 
+        ? activeAdventure?.scenes.find(s => s.id === currentFolderId)?.name || "Pasta"
+        : "Raiz";
 
     return (
         <WindowWrapper containerRef={sceneRef} className="absolute top-24 right-4 w-72 bg-black/90 border border-glass-border backdrop-blur-sm rounded-xl shadow-2xl z-50 overflow-hidden scale-90 origin-top-right flex flex-col max-h-[60vh]">
-            <div className="p-3 border-b border-glass-border bg-white/5">
-                <h3 className="font-rajdhani font-bold text-white text-sm">Cenas da Aventura</h3>
+            
+            <div className="p-3 border-b border-glass-border bg-white/5 flex justify-between items-center shrink-0">
+                <h3 className="font-rajdhani font-bold text-white text-sm">Cenas & Mapas</h3>
+                <div className="flex gap-1">
+                     <button onClick={() => { setCreateMode('folder'); setIsCreating(true); }} className="p-1 hover:bg-white/10 rounded text-text-muted hover:text-white" title="Criar Pasta"><FolderPlus size={14}/></button>
+                     <button onClick={() => { setCreateMode('scene'); setIsCreating(true); }} className="p-1 hover:bg-white/10 rounded text-text-muted hover:text-white" title="Criar Cena"><Plus size={14}/></button>
+                </div>
             </div>
             
-            <div className="px-3 py-2 bg-black/20 border-b border-white/5">
+            <div className="px-3 py-2 bg-black/20 border-b border-white/5 shrink-0">
                 <div className="flex items-center gap-2 bg-black/40 rounded px-2 py-1.5 border border-transparent focus-within:border-glass-border transition-colors">
                     <Search size={12} className="text-text-muted"/>
                     <input 
                         className="bg-transparent border-none outline-none text-xs text-white placeholder-text-muted w-full"
-                        placeholder="Pesquisar cena..."
+                        placeholder="Pesquisar..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                     />
@@ -472,55 +645,87 @@ const SceneSelector = ({ isOpen }) => {
                 </div>
             </div>
 
-            <div ref={scenesListRef} className="overflow-y-auto scrollbar-thin flex-1 relative min-h-[60px] min-h-0 space-y-1 p-2">
-                {filteredScenes.length === 0 && (
-                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                        <p className="text-text-muted italic text-xs opacity-50">
-                            {activeAdventure?.scenes.length === 0 ? "Nenhuma cena." : "Nenhuma cena encontrada."}
-                        </p>
+            {!searchQuery && currentFolderId && (
+                <div 
+                    className={`
+                        px-2 py-1.5 border-b transition-all duration-200 flex items-center gap-2 text-xs relative overflow-hidden shrink-0
+                        ${isBreadcrumbActive 
+                            ? 'bg-neon-green/20 border-neon-green shadow-[inset_0_0_10px_rgba(74,222,128,0.2)]' 
+                            : 'bg-black/40 border-white/5' 
+                        }
+                    `}
+                    onDragOver={(e) => { e.preventDefault(); setIsBreadcrumbActive(true); }}
+                    onDragLeave={() => setIsBreadcrumbActive(false)}
+                    onDrop={handleDropOnBreadcrumb}
+                >
+                    <button 
+                        onClick={() => {
+                            const curr = activeAdventure?.scenes.find(s => s.id === currentFolderId);
+                            setCurrentFolderId(curr?.parentId || null);
+                        }}
+                        className="p-1 bg-white/10 rounded hover:bg-white/20 text-white shrink-0"
+                        title="Subir Nível"
+                    >
+                        <CornerLeftUp size={12}/>
+                    </button>
+                    <div className="flex flex-col min-w-0">
+                        <span className="text-[9px] text-text-muted uppercase leading-none font-bold">Pasta Atual</span>
+                        <span className="text-white font-mono truncate font-bold leading-tight">{currentFolderName}</span>
                     </div>
-                )}
-                {filteredScenes.map(s => {
-                    if (deletingId === s.id) {
-                        return (
-                            <div key={s.id} className="p-3 rounded bg-red-900/30 border border-red-500/50 flex justify-between items-center fade-in duration-200">
-                                <span className="text-white text-xs font-bold pl-1">Excluir?</span>
-                                <div className="flex gap-1 shrink-0">
-                                    <button onClick={(e)=>{e.stopPropagation(); setDeletingId(null);}} className="p-1 rounded bg-black/40 hover:bg-white/20 text-text-muted hover:text-white"><ArrowLeft size={14}/></button>
-                                    <button onClick={(e)=>{e.stopPropagation(); deleteScene(s.id); setDeletingId(null);}} className="p-1 rounded bg-red-600 hover:bg-red-500 text-white"><Trash2 size={14}/></button>
-                                </div>
-                            </div>
-                        );
-                    }
-                    if (renamingId === s.id) {
-                        return (
-                            <div key={s.id} className="p-3 rounded bg-white/10 border border-white/30 flex items-center gap-1 fade-in duration-200">
-                                <input autoFocus onFocus={(e) => e.target.select()} className="flex-1 bg-black/50 border border-glass-border rounded px-2 text-white text-sm outline-none focus:border-white min-w-0" value={renameValue} onChange={e => setRenameValue(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') handleRename(s.id); if (e.key === 'Escape') setRenamingId(null); }} />
-                                <div className="flex gap-1 shrink-0"><button onClick={() => setRenamingId(null)} className="p-1 rounded bg-black/40 hover:bg-white/20 text-text-muted hover:text-white"><ArrowLeft size={14}/></button><button onClick={() => handleRename(s.id)} className="p-1 rounded bg-neon-green hover:bg-white text-black"><Check size={14}/></button></div>
-                            </div>
-                        );
-                    }
-                    return (
-                        <div key={s.id} onClick={(e) => { e.stopPropagation(); setActiveScene(s.id); }} className={`p-3 flex justify-between items-center cursor-pointer hover:bg-white/5 border-l-2 group transition-colors rounded ${activeScene?.id === s.id ? 'border-neon-green bg-white/5' : 'border-transparent'}`}>
-                            <span className={`text-sm font-bold truncate max-w-[120px] ${activeScene?.id === s.id ? 'text-neon-green' : 'text-white'}`}>{s.name}</span>
-                            <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                <button onClick={(e) => { e.stopPropagation(); setRenamingId(s.id); setRenameValue(s.name); setDeletingId(null); }} className="text-text-muted hover:text-yellow-400 p-1" title="Renomear"><Edit2 size={14}/></button>
-                                <button onClick={(e) => { e.stopPropagation(); duplicateScene(s.id); }} className="text-text-muted hover:text-neon-blue p-1" title="Duplicar"><Copy size={14}/></button>
-                                <button onClick={(e) => { e.stopPropagation(); if (!isOnlyScene) { setDeletingId(s.id); setRenamingId(null); } }} className={`p-1 ${isOnlyScene ? 'text-text-muted opacity-30 cursor-not-allowed' : 'text-text-muted hover:text-red-500'}`} title="Excluir"><Trash2 size={14}/></button>
-                            </div>
+                    {isBreadcrumbActive && (
+                        <div className="absolute inset-0 flex items-center justify-center bg-black/60 font-bold text-neon-green text-[10px] uppercase pointer-events-none backdrop-blur-[1px]">
+                            Soltar para Mover Acima
                         </div>
-                    );
-                })}
-            </div>
-            <div className="p-3 border-t border-glass-border bg-black/40">
-                {!isCreating ? (
-                    <button onClick={(e) => { e.stopPropagation(); setIsCreating(true); }} className="w-full py-2 bg-neon-green/10 border border-neon-green/30 text-neon-green rounded text-xs font-bold hover:bg-neon-green hover:text-black hover:shadow-[0_0_10px_rgba(0,255,0,0.3)] transition flex items-center justify-center gap-2"><Plus size={14} strokeWidth={3}/> NOVA CENA</button>
-                ) : (
-                    <div className="flex flex-col gap-2 animate-in fade-in duration-200">
-                        <input autoFocus placeholder="Nome da Cena..." className="w-full bg-[#15151a] border border-neon-green text-white placeholder-white/20 rounded p-2 text-sm outline-none" value={newSceneName} onChange={e => setNewSceneName(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') handleCreate(); if (e.key === 'Escape') setIsCreating(false); }} />
-                        <div className="flex gap-2"><button onClick={() => setIsCreating(false)} className="flex-1 py-1.5 text-xs text-text-muted hover:text-white transition">Cancelar</button><button onClick={handleCreate} className="flex-1 py-1.5 bg-neon-green text-black font-bold rounded text-xs hover:bg-white hover:scale-105 active:scale-95 transition-all shadow-lg shadow-green-900/20">CRIAR</button></div>
+                    )}
+                </div>
+            )}
+
+            <div className="overflow-y-auto scrollbar-thin flex-1 relative min-h-[100px] p-2 bg-black/20">
+                {displayItems.length === 0 && !isCreating && (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none opacity-40">
+                        <Folder size={32} className="text-text-muted mb-2"/>
+                        <p className="text-text-muted italic text-xs">Vazio</p>
                     </div>
                 )}
+                
+                {isCreating && (
+                    <div className="p-2 bg-white/5 border border-neon-green/30 rounded mb-2 animate-in fade-in">
+                        <div className="flex items-center gap-2 mb-2 text-xs text-neon-green font-bold uppercase">
+                            {createMode === 'folder' ? <Folder size={12}/> : <Map size={12}/>}
+                            {createMode === 'folder' ? "Nova Pasta" : "Nova Cena"}
+                        </div>
+                        <input 
+                            autoFocus 
+                            placeholder="Nome..." 
+                            className="w-full bg-black/50 border border-glass-border rounded px-2 py-1 text-sm text-white mb-2 outline-none focus:border-neon-green" 
+                            value={newItemName} 
+                            onChange={e => setNewItemName(e.target.value)} 
+                            onKeyDown={e => { 
+                                if (e.key === 'Enter') handleCreate(); 
+                                if (e.key === 'Escape') setIsCreating(false); 
+                            }} 
+                        />
+                        <div className="flex gap-2">
+                            <button onClick={() => setIsCreating(false)} className="flex-1 py-1 text-[10px] text-text-muted hover:text-white bg-white/5 rounded">Cancelar</button>
+                            <button onClick={handleCreate} className="flex-1 py-1 text-[10px] bg-neon-green text-black font-bold rounded hover:bg-white">CRIAR</button>
+                        </div>
+                    </div>
+                )}
+
+                {displayItems.map(item => (
+                    <SceneItem 
+                        key={item.id}
+                        item={item}
+                        isActive={activeScene?.id === item.id}
+                        activeSceneId={activeScene?.id}
+                        onSelect={setActiveScene}
+                        onEnterFolder={setCurrentFolderId}
+                        onRename={handleRename}
+                        onDelete={deleteScene}
+                        onDuplicate={duplicateScene}
+                        onMove={moveSceneItem}
+                    />
+                ))}
             </div>
         </WindowWrapper>
     );

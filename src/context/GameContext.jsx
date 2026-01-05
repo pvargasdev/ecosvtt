@@ -764,18 +764,84 @@ export const GameProvider = ({ children }) => {
       window.dispatchEvent(new CustomEvent('ecos-sfx-trigger', { detail: sfxItem }));
   }, [broadcast]);
   
-  const addScene = useCallback((name) => {
+  const addScene = useCallback((name, parentId = null) => {
       if (!internalActiveAdventureId) return;
       const newId = generateUUID();
-      const newScene = { id: newId, name: name || "Nova Cena", mapImageId: null, mapScale: 1.0, tokens: [], fogOfWar: [], pins: [] };
+      const newScene = { 
+          id: newId, 
+          name: name || "Nova Cena", 
+          type: 'scene',
+          parentId: parentId || null,
+          mapImageId: null, 
+          mapScale: 1.0, 
+          tokens: [], 
+          fogOfWar: [], 
+          pins: [] 
+      };
       setAdventures(prev => prev.map(adv => adv.id !== internalActiveAdventureId ? adv : { ...adv, scenes: [...adv.scenes, newScene] }));
+  }, [internalActiveAdventureId]);
+
+  const addSceneFolder = useCallback((name, parentId = null) => {
+      if (!internalActiveAdventureId) return;
+      const newFolder = {
+          id: generateUUID(),
+          name: name || "Nova Pasta",
+          type: 'folder',
+          parentId: parentId || null,
+          tokens: [], fogOfWar: [], pins: [] 
+      };
+      setAdventures(prev => prev.map(adv => adv.id !== internalActiveAdventureId ? adv : { ...adv, scenes: [...adv.scenes, newFolder] }));
+  }, [internalActiveAdventureId]);
+
+  const moveSceneItem = useCallback((itemId, targetFolderId) => {
+      if (!internalActiveAdventureId) return;
+      if (itemId === targetFolderId) return;
+
+      setAdventures(prev => prev.map(adv => {
+          if (adv.id !== internalActiveAdventureId) return adv;
+          return {
+              ...adv,
+              scenes: adv.scenes.map(item => item.id === itemId ? { ...item, parentId: targetFolderId } : item)
+          };
+      }));
+  }, [internalActiveAdventureId]);
+
+  const deleteScene = useCallback((itemId) => {
+      if (!internalActiveAdventureId) return;
+      setAdventures(prev => prev.map(adv => {
+          if (adv.id !== internalActiveAdventureId) return adv;
+          
+          const idsToDelete = new Set([itemId]);
+          
+          const findChildren = (parentId) => {
+              const children = adv.scenes.filter(s => s.parentId === parentId);
+              children.forEach(c => {
+                  idsToDelete.add(c.id);
+                  if (c.type === 'folder') findChildren(c.id);
+              });
+          };
+          
+          const target = adv.scenes.find(s => s.id === itemId);
+          if (target && target.type === 'folder') {
+              findChildren(itemId);
+          }
+
+          const newScenes = adv.scenes.filter(s => !idsToDelete.has(s.id));
+          
+          let newActive = adv.activeSceneId;
+          if (idsToDelete.has(adv.activeSceneId)) {
+              const firstAvailable = newScenes.find(s => s.type !== 'folder');
+              newActive = firstAvailable ? firstAvailable.id : null;
+          }
+
+          return { ...adv, scenes: newScenes, activeSceneId: newActive };
+      }));
   }, [internalActiveAdventureId]);
 
   const duplicateScene = useCallback((sceneId) => { if (!internalActiveAdventureId) return; setAdventures(prev => prev.map(adv => { if (adv.id !== internalActiveAdventureId) return adv; const originalScene = adv.scenes.find(s => s.id === sceneId); if (!originalScene) return adv; const copy = JSON.parse(JSON.stringify(originalScene)); copy.id = generateUUID(); copy.name = `${copy.name} (Cópia)`; copy.tokens = copy.tokens.map(t => ({ ...t, id: generateUUID() })); copy.fogOfWar = copy.fogOfWar.map(f => ({ ...f, id: generateUUID() })); copy.pins = copy.pins.map(p => ({ ...p, id: generateUUID() })); return { ...adv, scenes: [...adv.scenes, copy] }; })); }, [internalActiveAdventureId]);
   const updateSceneMap = useCallback(async (sceneId, file) => { if (!internalActiveAdventureId || !file) return; const imageId = await handleImageUpload(file); setAdventures(prev => prev.map(adv => adv.id !== internalActiveAdventureId ? adv : { ...adv, scenes: adv.scenes.map(s => s.id === sceneId ? { ...s, mapImageId: imageId } : s) })); }, [internalActiveAdventureId]);
   const updateScene = useCallback((sceneId, updates) => { if (!internalActiveAdventureId) return; setAdventures(prev => prev.map(adv => adv.id !== internalActiveAdventureId ? adv : { ...adv, scenes: adv.scenes.map(s => s.id === sceneId ? { ...s, ...updates } : s) })); }, [internalActiveAdventureId]);
   const setActiveScene = useCallback((sceneId) => { if (!internalActiveAdventureId) return; setAdventures(prev => prev.map(adv => adv.id !== internalActiveAdventureId ? adv : { ...adv, activeSceneId: sceneId })); }, [internalActiveAdventureId]);
-  const deleteScene = useCallback((sceneId) => { if (!internalActiveAdventureId) return; setAdventures(prev => prev.map(adv => { if (adv.id !== internalActiveAdventureId) return adv; const newScenes = adv.scenes.filter(s => s.id !== sceneId); let newActive = adv.activeSceneId; if (sceneId === adv.activeSceneId) newActive = newScenes.length > 0 ? newScenes[0].id : null; return { ...adv, scenes: newScenes, activeSceneId: newActive }; })); }, [internalActiveAdventureId]);
   const addFogArea = useCallback((sceneId, fogData) => { if (!internalActiveAdventureId) return; setAdventures(prev => prev.map(adv => { if (adv.id !== internalActiveAdventureId) return adv; return { ...adv, scenes: adv.scenes.map(s => s.id !== sceneId ? s : { ...s, fogOfWar: [...(s.fogOfWar || []), { id: generateUUID(), ...fogData }] }) }; })); }, [internalActiveAdventureId]);
   const updateFogArea = useCallback((sceneId, fogId, updates) => { if (!internalActiveAdventureId) return; setAdventures(prev => prev.map(adv => { if (adv.id !== internalActiveAdventureId) return adv; return { ...adv, scenes: adv.scenes.map(s => s.id !== sceneId ? s : { ...s, fogOfWar: (s.fogOfWar || []).map(f => f.id === fogId ? { ...f, ...updates } : f) }) }; })); }, [internalActiveAdventureId]);
   const deleteFogArea = useCallback((sceneId, fogId) => { if (!internalActiveAdventureId) return; setAdventures(prev => prev.map(adv => { if (adv.id !== internalActiveAdventureId) return adv; return { ...adv, scenes: adv.scenes.map(s => s.id !== sceneId ? s : { ...s, fogOfWar: (s.fogOfWar || []).filter(f => f.id !== fogId) }) }; })); }, [internalActiveAdventureId]);
@@ -825,7 +891,8 @@ export const GameProvider = ({ children }) => {
     gameState: { characters }, addCharacter, updateCharacter, deleteCharacter, setAllCharacters,
     presets, activePresetId, createPreset, loadPreset, saveToPreset, deletePreset, mergePresets, exitPreset, updatePreset, exportPreset, importPreset,
     resetAllData, getAudioDurationFromId, deleteGlobalAudio, remapAdventureAudioIds,
-    availableFiles, refreshAudioSystem, toggleAdventurePinVisibility
+    availableFiles, refreshAudioSystem, toggleAdventurePinVisibility,
+    addSceneFolder, moveSceneItem,
   };
 
   return <GameContext.Provider value={value}>{children}</GameContext.Provider>;
