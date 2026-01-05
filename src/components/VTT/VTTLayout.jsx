@@ -447,7 +447,6 @@ const SceneItem = ({ item, isActive, onSelect, onRename, onDelete, onDuplicate, 
         }
     };
 
-    // MODO DELETAR
     if (isDeleting) {
         return (
             <div className="h-9 px-2 mb-1 rounded bg-red-900/30 border border-red-500/50 flex justify-between items-center animate-in fade-in select-none">
@@ -460,7 +459,6 @@ const SceneItem = ({ item, isActive, onSelect, onRename, onDelete, onDuplicate, 
         );
     }
 
-    // MODO RENOMEAR (Atualizado com botões explícitos)
     if (isRenaming) {
         return (
             <div className="h-9 px-2 mb-1 rounded bg-white/10 border border-white/30 flex items-center justify-between animate-in fade-in">
@@ -476,19 +474,17 @@ const SceneItem = ({ item, isActive, onSelect, onRename, onDelete, onDuplicate, 
                     }} 
                 />
                 <div className="flex gap-1 shrink-0 items-center ml-2">
-                    {/* Botão Cancelar (Voltar) */}
                     <button 
                         onClick={(e) => { 
                             e.stopPropagation(); 
                             setIsRenaming(false); 
-                            setRenameVal(item.name); // Reseta o valor
+                            setRenameVal(item.name); 
                         }} 
                         className="p-1 rounded bg-black/40 hover:bg-white/20 text-text-muted hover:text-white flex items-center"
                         title="Cancelar"
                     >
                         <ArrowLeft size={14}/>
                     </button>
-                    {/* Botão Confirmar (Check Verde) */}
                     <button 
                         onClick={(e) => { 
                             e.stopPropagation(); 
@@ -505,7 +501,6 @@ const SceneItem = ({ item, isActive, onSelect, onRename, onDelete, onDuplicate, 
         );
     }
 
-    // MODO NORMAL
     return (
         <div 
             draggable

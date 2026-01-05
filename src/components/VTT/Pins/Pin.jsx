@@ -71,8 +71,9 @@ const Pin = ({ data, viewScale, onMouseDown, onDoubleClick, isGM, isSelected, is
                 onMouseEnter={() => !isGhost && setIsHovered(true)}
                 onMouseLeave={() => !isGhost && setIsHovered(false)}
             >
+                {/* tamanho do pin (p-1.5) */}
                 <div 
-                    className={`p-2 rounded-full shadow-lg border-2 transition-transform hover:scale-110 ${
+                    className={`p-1.5 rounded-full shadow-lg border-2 transition-transform hover:scale-110 ${
                         isSelected 
                         ? 'ring-2 ring-white shadow-[0_0_15px_rgba(255,255,255,0.8)] scale-110' 
                         : ''
@@ -85,7 +86,7 @@ const Pin = ({ data, viewScale, onMouseDown, onDoubleClick, isGM, isSelected, is
                         backdropFilter: isGhost ? 'blur(2px)' : undefined
                     }}
                 >
-                    <IconComponent size={24} />
+                    <IconComponent size={18} />
                 </div>
 
                 {showTooltip && (
