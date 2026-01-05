@@ -132,21 +132,19 @@ const Board = ({ showUI }) => {
       bgImg.onload = () => {
           canvas.width = bgImg.naturalWidth;
           canvas.height = bgImg.naturalHeight;
+          
+          const ctx = canvas.getContext('2d');
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-          if (activeScene?.drawingLayer) {
+          if (displayScene?.drawingLayer) {
               const savedLayer = new Image();
-              savedLayer.src = activeScene.drawingLayer;
+              savedLayer.src = displayScene.drawingLayer;
               savedLayer.onload = () => {
-                  const ctx = canvas.getContext('2d');
-                  ctx.clearRect(0, 0, canvas.width, canvas.height);
                   ctx.drawImage(savedLayer, 0, 0);
               };
-          } else {
-              const ctx = canvas.getContext('2d');
-              ctx.clearRect(0, 0, canvas.width, canvas.height);
           }
       };
-  }, [mapParams.url, activeScene?.id, activeScene?.drawingLayer]);
+  },[mapParams.url, displayScene?.id, displayScene?.drawingLayer]);
 
   useEffect(() => {
       const handleGlobalMouseUp = (e) => {
@@ -293,6 +291,33 @@ const Board = ({ showUI }) => {
         if (e.code === 'Space' && !e.repeat) setIsSpacePressed(true);
 
         const key = e.key.toLowerCase();
+
+        if (key === 'g') {
+            e.preventDefault();
+            const canvas = canvasRef.current;
+            const container = containerRef.current;
+
+            if (canvas && container && canvas.width > 0 && canvas.height > 0) {
+                const contW = container.clientWidth;
+                const contH = container.clientHeight;
+                const imgW = canvas.width;
+                const imgH = canvas.height;
+
+                const scaleX = contW / imgW;
+                const scaleY = contH / imgH;
+                
+                let newScale = Math.max(scaleX, scaleY);
+
+                newScale = Math.min(Math.max(newScale, MIN_SCALE), MAX_SCALE);
+
+                const newX = (contW - (imgW * newScale)) / 2;
+                const newY = (contH - (imgH * newScale)) / 2;
+
+                targetViewRef.current = { x: newX, y: newY, scale: newScale };
+                setSliderValue(Math.round(newScale * 100));
+                startAnimation();
+            }
+        }
         
         if (selectedIds.size > 0 && activeScene) {
             if (key === 'f') {

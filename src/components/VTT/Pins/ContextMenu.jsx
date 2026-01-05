@@ -17,7 +17,7 @@ const ContextMenu = ({ x, y, onOptionClick, onClose }) => {
     return (
         <div 
             ref={ref}
-            className="absolute z-[55] bg-ecos-bg border border-glass-border rounded-lg shadow-2xl p-1 w-40 animate-in fade-in zoom-in-95 duration-100 pointer-events-auto"
+            className="absolute z-[200] bg-ecos-bg border border-glass-border rounded-lg shadow-2xl p-1 w-40 animate-in fade-in zoom-in-95 duration-100 pointer-events-auto"
             style={{ left: x, top: y }}
             onMouseDown={(e) => e.stopPropagation()} 
         >

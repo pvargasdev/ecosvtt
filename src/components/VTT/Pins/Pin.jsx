@@ -16,7 +16,7 @@ const Pin = ({ data, viewScale, onMouseDown, onDoubleClick, isGM, isSelected, is
         baseZ = 12;
     }
     
-    const zIndex = isSelected ? baseZ + 10 : baseZ;
+    const zIndex = isHovered ? 1000 : (isSelected ? baseZ + 10 : baseZ);
 
     const handleLinkClick = (e) => {
         e.stopPropagation();
