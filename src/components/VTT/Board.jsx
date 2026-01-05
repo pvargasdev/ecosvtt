@@ -32,7 +32,8 @@ const Board = ({ showUI }) => {
     resetAllData,
     exportAdventure, importAdventure,
     isGMWindow, isGMWindowOpen,
-    addPin, updatePin, deletePin, deleteMultiplePins
+    addPin, updatePin, deletePin, deleteMultiplePins,
+    brushSize, brushColor, updateSceneDrawing
   } = useGame();
 
   const containerRef = useRef(null);
@@ -40,6 +41,19 @@ const Board = ({ showUI }) => {
   const adventuresListRef = useRef(null);
 
   const canvasRef = useRef(null);
+  const isDrawingRef = useRef(false);
+
+  const cursorRef = useRef(null);
+
+  const getCanvasCoordinates = (e) => {
+      if (!containerRef.current) return { x: 0, y: 0 };
+      const rect = containerRef.current.getBoundingClientRect();
+      
+      return {
+          x: (e.clientX - rect.left - view.x) / view.scale,
+          y: (e.clientY - rect.top - view.y) / view.scale
+      };
+  };
   
   const clipboardRef = useRef([]);
   const mousePosRef = useRef({ x: 0, y: 0 });
@@ -495,6 +509,30 @@ const Board = ({ showUI }) => {
         const wY = (e.clientY - rect.top - view.y) / view.scale;
         setFogDrawing({ isDrawing: true, startX: wX, startY: wY, currentX: wX, currentY: wY });
     }
+    if (activeTool === 'brush' || activeTool === 'eraser') {
+        if (e.button !== 0) return;
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+        isDrawingRef.current = true;
+        const ctx = canvas.getContext('2d');
+        const { x, y } = getCanvasCoordinates(e);
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.lineWidth = brushSize;
+
+        if (activeTool === 'eraser') {
+            ctx.globalCompositeOperation = 'destination-out';
+        } else {
+            ctx.globalCompositeOperation = 'source-over';
+            ctx.strokeStyle = brushColor || '#4ade80'; 
+        }
+        ctx.lineTo(x, y);
+        ctx.stroke();
+
+        return;
+    }
   };
 
   const handleTokenDown = (e, id) => {
@@ -578,6 +616,17 @@ const Board = ({ showUI }) => {
         const dy = (e.clientY - interaction.startY) / view.scale;
         Object.keys(interaction.initialPositions).forEach(pinId => { const initialPos = interaction.initialPositions[pinId]; if (initialPos) { updatePin(activeScene.id, pinId, { x: initialPos.x + dx, y: initialPos.y + dy }); } });
     }
+    if ((activeTool === 'brush' || activeTool === 'eraser') && isDrawingRef.current) {
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+        
+        const ctx = canvas.getContext('2d');
+        const { x, y } = getCanvasCoordinates(e);
+
+        ctx.lineTo(x, y);
+        ctx.stroke();
+        return;
+    }
   };
 
   const handleMouseUp = () => {
@@ -591,6 +640,17 @@ const Board = ({ showUI }) => {
           setFogDrawing({ isDrawing: false, startX: 0, startY: 0, currentX: 0, currentY: 0 });
       }
       setInteraction({ mode: 'IDLE', activeTokenId: null, activeFogId: null, activePinId: null, initialPositions: {} });
+      if (isDrawingRef.current) {
+          isDrawingRef.current = false;
+          const canvas = canvasRef.current;
+          if (canvas && activeScene) {
+              const ctx = canvas.getContext('2d');
+              ctx.closePath();
+              const dataUrl = canvas.toDataURL(); 
+              updateSceneDrawing(activeScene.id, dataUrl);
+          }
+          return;
+      }
   };
 
   const handleDrop = async (e) => {
