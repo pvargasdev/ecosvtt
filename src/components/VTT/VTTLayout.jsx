@@ -819,7 +819,7 @@ const HelpWindow = ({ isOpen, onClose }) => {
                 </h3>
                 <button onClick={onClose} className="p-1 hover:bg-white/10 rounded text-text-muted hover:text-white"><X size={16}/></button>
             </div>
-            <div className="p-4 space-y-3 text-sm overflow-y-auto max-h-[72svh] scrollbar-thin">
+            <div className="p-4 space-y-3 text-sm overflow-y-auto scrollbar-thin">
                 {shortcuts.map((item, i) => (
                     <div key={i} className="flex justify-between items-center border-b border-white/5 pb-2 last:border-0 last:pb-0">
                         <span className="font-bold text-white">{item.key}</span>
