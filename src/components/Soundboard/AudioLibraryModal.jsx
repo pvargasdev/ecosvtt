@@ -356,7 +356,7 @@ const AudioLibraryModal = ({ isOpen, onClose, onSelect, acceptMultiple = false, 
 
                                         <div className="flex justify-end items-center gap-2 col-start-4" onClick={(e) => e.stopPropagation()}>
                                             {isSelected ? (
-                                                <div className={`w-[26px] h-[26px] rounded-full flex items-center justify-center bg-${themeColor}-500 text-black shadow-lg scale-in`}>
+                                                <div className={`w-[26px] h-[26px] rounded-full flex items-center justify-center bg-${themeColor}-500 text-text-muted shadow-lg scale-in`}>
                                                     <Check size={12} strokeWidth={3}/>
                                                 </div>
                                             ) : (
