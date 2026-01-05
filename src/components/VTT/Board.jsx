@@ -97,6 +97,9 @@ const Board = ({ showUI }) => {
 
   const [isResizingBrush, setIsResizingBrush] = useState(false);
 
+  const [alertMessage, setAlertMessage] = useState(null);
+  const clearAlert = useCallback(() => setAlertMessage(null), []);
+
   const arePinsVisible = activeAdventure?.pinSettings 
       ? (isGMWindow ? activeAdventure.pinSettings.gm : activeAdventure.pinSettings.main)
       : true;
@@ -144,6 +147,18 @@ const Board = ({ showUI }) => {
           }
       };
   }, [mapParams.url, activeScene?.id, activeScene?.drawingLayer]);
+
+  useEffect(() => {
+      const handleGlobalMouseUp = (e) => {
+          if (isDrawingRef.current || interaction.mode !== 'IDLE' || fogDrawing.isDrawing) {
+              handleMouseUp(e);
+          }
+      };
+
+      window.addEventListener('mouseup', handleGlobalMouseUp);
+      
+      return () => window.removeEventListener('mouseup', handleGlobalMouseUp);
+  });
 
   useEffect(() => {
     const handleGlobalClick = (e) => {
@@ -514,6 +529,10 @@ const Board = ({ showUI }) => {
     }
     if (activeTool === 'brush' || activeTool === 'eraser') {
         if (e.button !== 0) return;
+        if (!mapParams.url) {
+            setAlertMessage("É necessário configurar uma imagem de fundo para desenhar!");
+            return;
+        }
         const canvas = canvasRef.current;
         if (!canvas) return;
         isDrawingRef.current = true;
@@ -817,7 +836,10 @@ const Board = ({ showUI }) => {
         onMouseDown={handleMouseDown} 
         onMouseMove={handleMouseMove} 
         onMouseUp={handleMouseUp} 
-        onMouseLeave={(e) => { isMouseOverRef.current = false; handleMouseUp(e); }} 
+        onMouseLeave={(e) => { 
+            isMouseOverRef.current = false; 
+            if (cursorRef.current) cursorRef.current.style.display = 'none';
+        }}
         onMouseEnter={() => { isMouseOverRef.current = true; }} 
         onDoubleClick={handleBoardDoubleClick} 
         onDrop={handleDrop} 
@@ -916,8 +938,8 @@ const Board = ({ showUI }) => {
                 style={{
                     width: `${brushSize * view.scale}px`,
                     height: `${brushSize * view.scale}px`,
-                    borderColor: activeTool === 'eraser' ? '#f87171' : (brushColor || '#ffffffff'),
-                    backgroundColor: activeTool === 'eraser' ? 'rgba(248, 113, 113, 0.1)' : 'rgba(74, 222, 128, 0.1)',
+                    borderColor: activeTool === 'eraser' ? '#ffffffff' : (brushColor || '#ffffffff'),
+                    backgroundColor: activeTool === 'eraser' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.1)',
                     boxShadow: '0 0 10px rgba(0,0,0,0.3)',
                     left: 0, top: 0, 
                 }}
@@ -932,6 +954,9 @@ const Board = ({ showUI }) => {
                 setActiveTool={setActiveTool}
                 showUI={showUI}
                 setIsResizingBrush={setIsResizingBrush}
+                alertMessage={alertMessage}
+                setAlertMessage={setAlertMessage}
+                clearAlert={clearAlert}
             />
             {contextMenu && <ContextMenu x={contextMenu.x} y={contextMenu.y} onOptionClick={(opt) => { if (opt === 'add_pin') openPinModal(null, { x: contextMenu.worldX, y: contextMenu.worldY }); setContextMenu(null); }} onClose={() => setContextMenu(null)} />}
             {pinModal.open && <PinModal initialData={pinModal.data} position={pinModal.position} onSave={handlePinSave} onClose={() => setPinModal({ open: false, data: null, position: { x: 0, y: 0 } })} />}

@@ -238,23 +238,65 @@ const LibraryThumb = React.memo(({ token, onRename, onDelete, moveItem }) => {
 }, (prev, next) => prev.token === next.token);
 
 const InternalAlert = ({ message, clearAlert }) => {
+    // Controla apenas a opacidade visual (0 ou 1)
+    const [isVisible, setIsVisible] = useState(false);
+
+    // Quando uma mensagem chega, iniciamos invisível e ativamos a opacidade logo em seguida
+    // Isso garante que o navegador perceba a mudança e faça o "Fade In"
     useEffect(() => {
         if (message) {
-            const timer = setTimeout(() => { clearAlert(); }, 5000); 
+            // Pequeno delay para garantir que o elemento foi montado no DOM com opacity-0 antes de virar opacity-100
+            const timer = setTimeout(() => setIsVisible(true), 10);
             return () => clearTimeout(timer);
         }
-    }, [message, clearAlert]);
+    }, [message]);
+
+    const handleClose = useCallback(() => {
+        setIsVisible(false); // Inicia o "Fade Out"
+    }, []);
+
+    // Timer para fechar automaticamente após 5 segundos
+    useEffect(() => {
+        if (message && isVisible) {
+            const timer = setTimeout(handleClose, 5000); 
+            return () => clearTimeout(timer);
+        }
+    }, [message, isVisible, handleClose]);
 
     if (!message) return null;
 
     return (
-        <div 
-            className="absolute top-4 left-1/2 transform -translate-x-1/2 p-3 bg-red-900/90 border border-red-700 rounded-lg shadow-xl backdrop-blur-sm z-[100] pointer-events-auto flex items-center gap-3 text-sm text-white"
-            style={{ animation: 'fadeInDown 0.3s ease-out forwards' }}
-        >
-            <AlertTriangle size={18} className="text-yellow-400 shrink-0"/>
-            <span className='font-semibold'>{message}</span>
-            <button onClick={clearAlert} className="text-red-300 hover:text-white shrink-0"><X size={16}/></button>
+        // 1. CONTAINER DE POSICIONAMENTO (Fixo no topo, centralizado, sem bloquear cliques na tela)
+        <div className="absolute bottom-4 left-0 w-full flex justify-center z-[100] pointer-events-none">
+            
+            {/* 2. O ALERTA EM SI */}
+            <div 
+                data-ecos-ui="true"
+                className={`
+                    pointer-events-auto flex items-center gap-3 p-3 
+                    bg-red-900/90 border border-red-700 rounded-lg shadow-xl backdrop-blur-sm 
+                    text-sm text-white cursor-default
+                    
+                    /* TRANSITIONS: Garante suavidade apenas na opacidade */
+                    transition-opacity duration-300 ease-in-out
+                    
+                    /* ESTADO: Se isVisible for true, opacidade 1. Se false, opacidade 0 */
+                    ${isVisible ? 'opacity-100' : 'opacity-0'}
+                `}
+                
+                // 3. LIMPEZA: Só remove a mensagem do sistema quando o Fade Out terminar
+                onTransitionEnd={() => {
+                    if (!isVisible) {
+                        clearAlert();
+                    }
+                }}
+            >
+                <AlertTriangle size={18} className="text-yellow-400 shrink-0"/>
+                <span className='font-semibold'>{message}</span>
+                <button onClick={handleClose} className="text-red-300 hover:text-white shrink-0">
+                    <X size={16}/>
+                </button>
+            </div>
         </div>
     );
 };
@@ -797,15 +839,20 @@ const HelpWindow = ({ isOpen, onClose }) => {
 };
 
 
-export const VTTLayout = ({ zoomValue, onZoomChange, activeTool, setActiveTool, showUI, setIsResizingBrush }) => {
+export const VTTLayout = ({ zoomValue, onZoomChange, activeTool, setActiveTool, showUI, setIsResizingBrush, alertMessage, setAlertMessage, clearAlert }) => {
   const { 
       activeAdventure, 
       activeScene, 
       setActiveAdventureId, 
       isGMWindow, 
       toggleAdventurePinVisibility,
-      brushSize, setBrushSize
+      brushSize, setBrushSize,
+      brushColor, setBrushColor,
   } = useGame();
+
+  useEffect(() => {
+      setBrushColor('#ffffff');
+  }, []);
 
   const [uiState, setUiState] = useState({ 
       menuOpen: false, 
@@ -817,8 +864,6 @@ export const VTTLayout = ({ zoomValue, onZoomChange, activeTool, setActiveTool, 
   });
   
   const [confirmModal, setConfirmModal] = useState({ open: false, message: '', onConfirm: null });
-  const [alertMessage, setAlertMessage] = useState(null); 
-  const clearAlert = useCallback(() => setAlertMessage(null), []);
   const headerRef = useRef(null);      
 
   const closeAllMenus = useCallback(() => {
@@ -861,6 +906,15 @@ export const VTTLayout = ({ zoomValue, onZoomChange, activeTool, setActiveTool, 
           window.removeEventListener("keydown", handleKeyDown);
       };
   }, [uiState, closeAllMenus]);
+
+  const BRUSH_COLORS = [
+    { hex: '#ffffff', label: 'Branco' },
+    { hex: '#000000', label: 'Preto' },
+    { hex: '#ef4444', label: 'Vermelho' },
+    { hex: '#3b82f6', label: 'Azul' },
+    { hex: '#22c55e', label: 'Verde' },
+    { hex: '#eab308', label: 'Amarelo' },
+  ];
 
   const toggle = (key, e) => {
     if (e) e.stopPropagation();
@@ -939,13 +993,37 @@ export const VTTLayout = ({ zoomValue, onZoomChange, activeTool, setActiveTool, 
                 <div className="flex-1 flex items-center min-w-[380px]">
                     {isDrawingMode ? (
                         <div className="flex-1 flex items-center gap-3 px-2 w-full">
-                             <div className="flex items-center gap-2 shrink-0">
-                                <span className="text-[10px] font-bold text-text-muted uppercase tracking-wider whitespace-nowrap">
-                                    {activeTool === 'eraser' ? 'Tamanho' : 'Tamanho'}
-                                </span>
-                             </div>
-                             
-                             <input 
+                                
+                                {/* SELETOR DE CORES (Apenas no modo Pincel) */}
+                                {activeTool === 'brush' && (
+                                    <div className="flex items-center gap-1.5 border-r border-glass-border pr-3 mr-1 shrink-0">
+                                        {BRUSH_COLORS.map((c) => (
+                                            <button
+                                                key={c.hex}
+                                                onClick={() => setBrushColor(c.hex)}
+                                                className={`w-5 h-5 rounded-full border border-white/20 hover:scale-110 transition-all relative flex items-center justify-center ${brushColor === c.hex ? 'ring-2 ring-white scale-110 shadow-[0_0_10px_rgba(255,255,255,0.3)]' : ''}`}
+                                                style={{ backgroundColor: c.hex }}
+                                                title={c.label}
+                                            >
+                                            {/* Indicador de selecionado */}
+                                            {brushColor === c.hex && (
+                                                <div className="w-1.5 h-1.5 rounded-full bg-white/50 mix-blend-difference" />
+                                            )}
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
+
+                                {/* LABEL (Borracha ou Tamanho) */}
+                                <div className="flex items-center gap-2 shrink-0">
+                                    <span className="text-[10px] font-bold text-text-muted uppercase tracking-wider whitespace-nowrap">
+                                        {'Tamanho'}
+                                    </span>
+                                </div>
+                                
+                                {/* SLIDER FLEXÍVEL */}
+                                {/* Note o className: flex-1, w-auto e min-w-[80px] permitem que ele estique ou encolha */}
+                                <input 
                                   type="range" 
                                   min="2" 
                                   max="150" 
@@ -956,9 +1034,9 @@ export const VTTLayout = ({ zoomValue, onZoomChange, activeTool, setActiveTool, 
                                   onMouseUp={() => setIsResizingBrush(false)}
                                   onTouchStart={() => setIsResizingBrush(true)}
                                   onTouchEnd={() => setIsResizingBrush(false)}
-                                  className="flex-1 w-[300px] h-1.5 bg-white/20 rounded-lg appearance-none cursor-pointer outline-none [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white hover:[&::-webkit-slider-thumb]:bg-white transition-colors"
+                                  // ALTERAÇÃO AQUI: Lógica condicional para largura fixa (165px ou 300px)
+                                  className={`h-1.5 bg-white/20 rounded-lg appearance-none cursor-pointer outline-none [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white hover:[&::-webkit-slider-thumb]:bg-white ${activeTool === 'brush' ? 'w-[165px]' : 'w-[344px]'}`}
                               />
-                              <span className="text-xs font-mono text-white w-8 text-right">{brushSize}px</span>
                         </div>
                     ) : (
                         <div className="flex-1 flex items-center justify-end gap-1">
@@ -972,7 +1050,7 @@ export const VTTLayout = ({ zoomValue, onZoomChange, activeTool, setActiveTool, 
 
                             <div className="w-px h-6 bg-glass-border mx-1"></div>
 
-                            <button onClick={() => toggleAdventurePinVisibility(isGMWindow)} className={`p-2 rounded hover:bg-white/10 transition ${arePinsVisible ? 'text-red-500' : 'text-text-muted opacity-50'}`} title={arePinsVisible ? "Ocultar Pins" : "Mostrar Pins"}>
+                            <button onClick={() => toggleAdventurePinVisibility(isGMWindow)} className={`p-2 rounded hover:bg-white/10 transition ${arePinsVisible ? 'text-text-muted' : 'text-text-muted opacity-50'}`} title={arePinsVisible ? "Ocultar Pins" : "Mostrar Pins"}>
                                 {arePinsVisible ? <MapPin size={18}/> : <MapPinOff size={18}/>}
                             </button>
 
