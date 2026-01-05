@@ -238,24 +238,19 @@ const LibraryThumb = React.memo(({ token, onRename, onDelete, moveItem }) => {
 }, (prev, next) => prev.token === next.token);
 
 const InternalAlert = ({ message, clearAlert }) => {
-    // Controla apenas a opacidade visual (0 ou 1)
     const [isVisible, setIsVisible] = useState(false);
 
-    // Quando uma mensagem chega, iniciamos invisível e ativamos a opacidade logo em seguida
-    // Isso garante que o navegador perceba a mudança e faça o "Fade In"
     useEffect(() => {
         if (message) {
-            // Pequeno delay para garantir que o elemento foi montado no DOM com opacity-0 antes de virar opacity-100
             const timer = setTimeout(() => setIsVisible(true), 10);
             return () => clearTimeout(timer);
         }
     }, [message]);
 
     const handleClose = useCallback(() => {
-        setIsVisible(false); // Inicia o "Fade Out"
+        setIsVisible(false);
     }, []);
 
-    // Timer para fechar automaticamente após 5 segundos
     useEffect(() => {
         if (message && isVisible) {
             const timer = setTimeout(handleClose, 5000); 
@@ -266,10 +261,8 @@ const InternalAlert = ({ message, clearAlert }) => {
     if (!message) return null;
 
     return (
-        // 1. CONTAINER DE POSICIONAMENTO (Fixo no topo, centralizado, sem bloquear cliques na tela)
         <div className="absolute bottom-4 left-0 w-full flex justify-center z-[100] pointer-events-none">
             
-            {/* 2. O ALERTA EM SI */}
             <div 
                 data-ecos-ui="true"
                 className={`
@@ -284,7 +277,6 @@ const InternalAlert = ({ message, clearAlert }) => {
                     ${isVisible ? 'opacity-100' : 'opacity-0'}
                 `}
                 
-                // 3. LIMPEZA: Só remove a mensagem do sistema quando o Fade Out terminar
                 onTransitionEnd={() => {
                     if (!isVisible) {
                         clearAlert();
@@ -809,6 +801,7 @@ const HelpWindow = ({ isOpen, onClose }) => {
         { key: "Scroll", desc: "Zoom In / Zoom Out" },
         { key: "F11", desc: "Tela Cheia" },
         { key: "Tab", desc: "Esconder UI" },
+        { key: "G", desc: "Ajustar Tela" },
         { key: "Double Click", desc: "Criar/Editar Pin" },
         { key: "Ctrl + Click", desc: "Seleção Múltipla" },
         { key: "Ctrl + C / V", desc: "Copiar e Colar Tokens" },
@@ -826,7 +819,7 @@ const HelpWindow = ({ isOpen, onClose }) => {
                 </h3>
                 <button onClick={onClose} className="p-1 hover:bg-white/10 rounded text-text-muted hover:text-white"><X size={16}/></button>
             </div>
-            <div className="p-4 space-y-3 text-sm overflow-y-auto max-h-[70vh] scrollbar-thin">
+            <div className="p-4 space-y-3 text-sm overflow-y-auto max-h-[72svh] scrollbar-thin">
                 {shortcuts.map((item, i) => (
                     <div key={i} className="flex justify-between items-center border-b border-white/5 pb-2 last:border-0 last:pb-0">
                         <span className="font-bold text-white">{item.key}</span>
@@ -994,7 +987,6 @@ export const VTTLayout = ({ zoomValue, onZoomChange, activeTool, setActiveTool, 
                     {isDrawingMode ? (
                         <div className="flex-1 flex items-center gap-3 px-2 w-full">
                                 
-                                {/* SELETOR DE CORES (Apenas no modo Pincel) */}
                                 {activeTool === 'brush' && (
                                     <div className="flex items-center gap-1.5 border-r border-glass-border pr-3 mr-1 shrink-0">
                                         {BRUSH_COLORS.map((c) => (
@@ -1005,7 +997,6 @@ export const VTTLayout = ({ zoomValue, onZoomChange, activeTool, setActiveTool, 
                                                 style={{ backgroundColor: c.hex }}
                                                 title={c.label}
                                             >
-                                            {/* Indicador de selecionado */}
                                             {brushColor === c.hex && (
                                                 <div className="w-1.5 h-1.5 rounded-full bg-white/50 mix-blend-difference" />
                                             )}
@@ -1014,15 +1005,12 @@ export const VTTLayout = ({ zoomValue, onZoomChange, activeTool, setActiveTool, 
                                     </div>
                                 )}
 
-                                {/* LABEL (Borracha ou Tamanho) */}
                                 <div className="flex items-center gap-2 shrink-0">
                                     <span className="text-[10px] font-bold text-text-muted uppercase tracking-wider whitespace-nowrap">
                                         {'Tamanho'}
                                     </span>
                                 </div>
                                 
-                                {/* SLIDER FLEXÍVEL */}
-                                {/* Note o className: flex-1, w-auto e min-w-[80px] permitem que ele estique ou encolha */}
                                 <input 
                                   type="range" 
                                   min="2" 
@@ -1034,7 +1022,6 @@ export const VTTLayout = ({ zoomValue, onZoomChange, activeTool, setActiveTool, 
                                   onMouseUp={() => setIsResizingBrush(false)}
                                   onTouchStart={() => setIsResizingBrush(true)}
                                   onTouchEnd={() => setIsResizingBrush(false)}
-                                  // ALTERAÇÃO AQUI: Lógica condicional para largura fixa (165px ou 300px)
                                   className={`h-1.5 bg-white/20 rounded-lg appearance-none cursor-pointer outline-none [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white hover:[&::-webkit-slider-thumb]:bg-white ${activeTool === 'brush' ? 'w-[165px]' : 'w-[344px]'}`}
                               />
                         </div>
