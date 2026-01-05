@@ -95,6 +95,8 @@ const Board = ({ showUI }) => {
   const [transitionOpacity, setTransitionOpacity] = useState(1); 
   const [displayScene, setDisplayScene] = useState(null); 
 
+  const [isResizingBrush, setIsResizingBrush] = useState(false);
+
   const arePinsVisible = activeAdventure?.pinSettings 
       ? (isGMWindow ? activeAdventure.pinSettings.gm : activeAdventure.pinSettings.main)
       : true;
@@ -119,6 +121,7 @@ const Board = ({ showUI }) => {
   useEffect(() => {
       const canvas = canvasRef.current;
       if (!canvas || !mapParams.url) return;
+      if (isDrawingRef.current) return;
 
       const bgImg = new Image();
       bgImg.src = mapParams.url;
@@ -591,7 +594,7 @@ const Board = ({ showUI }) => {
     const isOverUI = e.target.closest('[data-ecos-ui="true"]') !== null;
 
     if (cursorRef.current) {
-        if (isOverUI) {
+        if (isOverUI && !isResizingBrush) {
             cursorRef.current.style.display = 'none';
         } else {
             cursorRef.current.style.display = 'block';
@@ -928,6 +931,7 @@ const Board = ({ showUI }) => {
                 activeTool={activeTool} 
                 setActiveTool={setActiveTool}
                 showUI={showUI}
+                setIsResizingBrush={setIsResizingBrush}
             />
             {contextMenu && <ContextMenu x={contextMenu.x} y={contextMenu.y} onOptionClick={(opt) => { if (opt === 'add_pin') openPinModal(null, { x: contextMenu.worldX, y: contextMenu.worldY }); setContextMenu(null); }} onClose={() => setContextMenu(null)} />}
             {pinModal.open && <PinModal initialData={pinModal.data} position={pinModal.position} onSave={handlePinSave} onClose={() => setPinModal({ open: false, data: null, position: { x: 0, y: 0 } })} />}

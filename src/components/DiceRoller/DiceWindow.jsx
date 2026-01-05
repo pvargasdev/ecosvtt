@@ -106,7 +106,7 @@ const DiceWindow = ({ onClose, WindowWrapperComponent }) => {
   };
 
   return (
-    <WindowWrapperComponent className="absolute top-24 right-4 w-[350px] bg-black/90 border border-glass-border backdrop-blur-sm rounded-xl flex flex-col z-50 shadow-2xl overflow-hidden max-h-[60vh]">
+    <WindowWrapperComponent className="absolute top-16 right-4 w-[350px] bg-black/90 border border-glass-border backdrop-blur-sm rounded-xl flex flex-col z-50 shadow-2xl animate-in fade-in overflow-hidden max-h-[60vh]">
       <DiceStyles />
       
       <div className="p-3 py-3 border-b border-glass-border flex justify-between items-center bg-white/5 rounded-t-xl shrink-0 z-20">

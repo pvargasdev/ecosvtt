@@ -29,7 +29,7 @@ const SceneManager = ({ onClose }) => {
   };
 
   return (
-    <div className="absolute top-16 right-4 w-80 bg-ecos-bg border border-glass-border rounded-xl shadow-2xl overflow-hidden flex flex-col animate-in fade-in slide-in-from-top-5 z-50 max-h-[80vh] pointer-events-auto">
+    <div className="absolute top-24 right-4 w-80 bg-ecos-bg border border-glass-border rounded-xl shadow-2xl overflow-hidden flex flex-col animate-in fade-in slide-in-from-top-5 z-50 max-h-[80vh] pointer-events-auto cursor-default">
       
       <div className="p-4 border-b border-glass-border flex justify-between items-center bg-black/40">
         <h3 className="font-rajdhani font-bold text-white flex items-center gap-2">

@@ -12,7 +12,7 @@ const WindowWrapper = ({ children, className, containerRef }) => (
         ref={containerRef} 
         data-ecos-window="true" 
         data-ecos-ui="true"
-        className={`pointer-events-auto ${className}`} 
+        className={`pointer-events-auto cursor-default ${className}`}
         onMouseDown={e => e.stopPropagation()} 
         onClick={e => e.stopPropagation()} 
         onWheel={e => e.stopPropagation()}
@@ -334,7 +334,7 @@ const AssetDock = ({ isOpen, onClose }) => {
     const showBreadcrumb = currentFolderId !== null;
 
     return (
-        <WindowWrapper containerRef={libraryRef} className="absolute top-24 right-4 w-[300px] bg-black/90 border border-glass-border backdrop-blur-sm rounded-xl flex flex-col max-h-[60vh] z-40 shadow-2xl scale-90 origin-top-right">
+        <WindowWrapper containerRef={libraryRef} className="absolute top-16 right-4 w-[300px] bg-black/90 border border-glass-border backdrop-blur-sm rounded-xl flex flex-col max-h-[60vh] z-40 shadow-2xl animate-in fade-in">
             <div className="p-3 border-b border-glass-border flex justify-between items-center bg-white/5 rounded-t-xl shrink-0 z-20 relative">
                 <h3 className="font-rajdhani font-bold text-white flex items-center gap-2">
                     Biblioteca de Tokens
@@ -615,7 +615,7 @@ const SceneSelector = ({ isOpen }) => {
         : "Raiz";
 
     return (
-        <WindowWrapper containerRef={sceneRef} className="absolute top-24 right-4 w-72 bg-black/90 border border-glass-border backdrop-blur-sm rounded-xl shadow-2xl z-50 overflow-hidden scale-90 origin-top-right flex flex-col max-h-[60vh]">
+        <WindowWrapper containerRef={sceneRef} className="absolute top-16 right-4 w-72 bg-black/90 border border-glass-border backdrop-blur-sm rounded-xl shadow-2xl z-50 overflow-hidden animate-in fade-in flex flex-col max-h-[60vh]">
             
             <div className="p-3 border-b border-glass-border bg-white/5 flex justify-between items-center shrink-0">
                 <h3 className="font-rajdhani font-bold text-white text-sm">Cenas & Mapas</h3>
@@ -742,7 +742,7 @@ const MapConfigModal = ({ isOpen, onClose }) => {
     };
 
     return (
-        <WindowWrapper containerRef={mapConfigRef} className="absolute top-24 right-4 bg-black/85 border border-glass-border backdrop-blur-sm p-4 rounded-xl shadow-2xl z-50 w-72 scale-90 origin-top-right">
+        <WindowWrapper containerRef={mapConfigRef} className="absolute top-16 right-4 bg-black/85 border border-glass-border backdrop-blur-sm p-4 rounded-xl shadow-2xl z-50 w-72 animate-in fade-in">
             <div className="flex justify-between items-center mb-4"><h3 className="font-rajdhani font-bold text-white">Imagem de Fundo</h3><button onClick={onClose}><X size={16} className="text-text-muted hover:text-white"/></button></div>
             <div className="space-y-4">
                 <div onClick={() => mapInputRef.current?.click()} className="flex items-center justify-center gap-2 p-3 border border-dashed border-glass-border rounded hover:bg-white/5 cursor-pointer text-sm text-neon-blue transition"><ImageIcon size={16}/> {activeScene?.mapImageId ? "Trocar Imagem" : "Escolher Imagem"}</div>
@@ -777,7 +777,7 @@ const HelpWindow = ({ isOpen, onClose }) => {
     ];
 
     return (
-        <WindowWrapper containerRef={helpRef} className="absolute top-24 right-4 w-[280px] bg-black/90 border border-glass-border backdrop-blur-sm rounded-xl flex flex-col z-50 shadow-2xl scale-90 origin-top-right">
+        <WindowWrapper containerRef={helpRef} className="absolute top-16 right-4 w-[280px] bg-black/90 border border-glass-border backdrop-blur-sm rounded-xl flex flex-col z-50 shadow-2xl animate-in fade-in">
             <div className="p-3 border-b border-glass-border flex justify-between items-center bg-white/5 rounded-t-xl">
                 <h3 className="font-rajdhani font-bold text-white flex items-center gap-2">
                     <HelpCircle size={16}/> Comandos
@@ -797,7 +797,7 @@ const HelpWindow = ({ isOpen, onClose }) => {
 };
 
 
-export const VTTLayout = ({ zoomValue, onZoomChange, activeTool, setActiveTool, showUI }) => {
+export const VTTLayout = ({ zoomValue, onZoomChange, activeTool, setActiveTool, showUI, setIsResizingBrush }) => {
   const { 
       activeAdventure, 
       activeScene, 
@@ -905,9 +905,11 @@ export const VTTLayout = ({ zoomValue, onZoomChange, activeTool, setActiveTool, 
              className={`
                 absolute top-4 right-4 flex items-center bg-black/80 rounded-lg border border-glass-border shadow-lg backdrop-blur-sm pointer-events-auto z-40 overflow-hidden scale-90 origin-top-right transition-all duration-300
                 ${showUI ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-10 pointer-events-none'}
+                cursor-default
              `}
              onClick={e => e.stopPropagation()} onMouseDown={e => e.stopPropagation()}
           >
+
 
               <div className="flex items-center gap-1 p-1.5">
 
@@ -950,6 +952,10 @@ export const VTTLayout = ({ zoomValue, onZoomChange, activeTool, setActiveTool, 
                                   step="2"
                                   value={brushSize} 
                                   onChange={(e) => setBrushSize(Number(e.target.value))}
+                                  onMouseDown={() => setIsResizingBrush(true)}
+                                  onMouseUp={() => setIsResizingBrush(false)}
+                                  onTouchStart={() => setIsResizingBrush(true)}
+                                  onTouchEnd={() => setIsResizingBrush(false)}
                                   className="flex-1 w-[300px] h-1.5 bg-white/20 rounded-lg appearance-none cursor-pointer outline-none [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white hover:[&::-webkit-slider-thumb]:bg-white transition-colors"
                               />
                               <span className="text-xs font-mono text-white w-8 text-right">{brushSize}px</span>
