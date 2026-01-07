@@ -10,6 +10,7 @@ const STORAGE_ADVENTURES_KEY = 'ecos_vtt_adventures_v3';
 const PRESETS_KEY = 'ecos_vtt_presets_v1';
 const ACTIVE_PRESET_KEY = 'ecos_vtt_active_preset_id';
 const ACTIVE_TOOL_KEY = 'ecos_vtt_active_tool';
+const STORAGE_CUSTOM_SYSTEMS_KEY = 'ecos_vtt_custom_systems_v1';
 
 const GameContext = createContext({});
 
@@ -20,15 +21,20 @@ export const GameProvider = ({ children }) => {
 
   const [isDataLoaded, setIsDataLoaded] = useState(false);
   
+  // --- ESTADOS GERAIS ---
   const [characters, setCharacters] = useState([]);
   const [presets, setPresets] = useState([]);
   const [adventures, setAdventures] = useState([]);
+  const [customSystems, setCustomSystems] = useState([]);
   
   const [activePresetId, setActivePresetId] = useState(null);
   const [activeTool, setActiveTool] = useState('select');
   
   const [internalActiveAdventureId, setInternalActiveAdventureId] = useState(null);
   const [isGMWindowOpen, setIsGMWindowOpen] = useState(false);
+  
+  // [NOVO] Estado para controlar a expansão da sidebar
+  const [isSystemBuilderOpen, setIsSystemBuilderOpen] = useState(false);
 
   const [availableFiles, setAvailableFiles] = useState(new Set());
 
@@ -38,12 +44,13 @@ export const GameProvider = ({ children }) => {
   const [brushSize, setBrushSize] = useState(5);
   const [brushColor, setBrushColor] = useState('#ffffffff');
   
-  const stateRef = useRef({ adventures, characters, presets, activeAdventureId: internalActiveAdventureId, isDataLoaded });
+  const stateRef = useRef({ adventures, characters, presets, customSystems, activeAdventureId: internalActiveAdventureId, isDataLoaded });
 
   useEffect(() => {
-    stateRef.current = { adventures, characters, presets, activeAdventureId: internalActiveAdventureId, isDataLoaded };
-  }, [adventures, characters, presets, internalActiveAdventureId, isDataLoaded]);
+    stateRef.current = { adventures, characters, presets, customSystems, activeAdventureId: internalActiveAdventureId, isDataLoaded };
+  }, [adventures, characters, presets, customSystems, internalActiveAdventureId, isDataLoaded]);
 
+  // --- SINCRONIZAÇÃO (IPC/BROADCAST) ---
   const handleIncomingMessage = useCallback((type, data) => {
       if (type === 'REQUEST_FULL_SYNC') {
           const current = stateRef.current;
@@ -52,6 +59,7 @@ export const GameProvider = ({ children }) => {
                   adventures: current.adventures, 
                   characters: current.characters, 
                   presets: current.presets, 
+                  customSystems: current.customSystems,
                   activeAdventureId: current.activeAdventureId
               };
               if (window.electron) {
@@ -69,6 +77,7 @@ export const GameProvider = ({ children }) => {
               setAdventures(data.adventures || []);
               setCharacters(data.characters || []);
               setPresets(data.presets || []);
+              setCustomSystems(data.customSystems || []);
               setInternalActiveAdventureId(urlAdvId || data.activeAdventureId);
               setIsDataLoaded(true); 
               setTimeout(() => { isRemoteUpdate.current = false; }, 100);
@@ -81,6 +90,7 @@ export const GameProvider = ({ children }) => {
           case 'SYNC_ADVENTURES': setAdventures(data); break;
           case 'SYNC_CHARACTERS': setCharacters(data); break;
           case 'SYNC_PRESETS': setPresets(data); break;
+          case 'SYNC_CUSTOM_SYSTEMS': setCustomSystems(data); break;
           case 'SYNC_ACTIVE_ADV_ID': setInternalActiveAdventureId(data); break;
           case 'TRIGGER_SFX': window.dispatchEvent(new CustomEvent('ecos-sfx-trigger', { detail: data })); break;
       }
@@ -164,6 +174,7 @@ export const GameProvider = ({ children }) => {
       }
   };
 
+  // --- INICIALIZAÇÃO ---
   useEffect(() => {
       if (isGMWindow) return;
 
@@ -171,6 +182,7 @@ export const GameProvider = ({ children }) => {
           const loadedChars = await loadData(STORAGE_CHARACTERS_KEY) || [];
           const loadedPresets = await loadData(PRESETS_KEY) || [];
           let loadedAdventures = await loadData(STORAGE_ADVENTURES_KEY) || [];
+          const loadedSystems = await loadData(STORAGE_CUSTOM_SYSTEMS_KEY) || [];
           
           loadedAdventures = loadedAdventures.map(adv => {
               if (adv.soundboard) {
@@ -206,6 +218,7 @@ export const GameProvider = ({ children }) => {
           setAdventures(loadedAdventures);
           setActiveTool(loadedTool);
           setActivePresetId(loadedActivePreset);
+          setCustomSystems(loadedSystems);
 
           setIsDataLoaded(true);
       };
@@ -213,6 +226,7 @@ export const GameProvider = ({ children }) => {
       init();
   }, [isGMWindow]);
   
+  // --- SAVE EFFECTS ---
   useEffect(() => { 
       saveData(STORAGE_CHARACTERS_KEY, characters);
       broadcast('SYNC_CHARACTERS', characters); 
@@ -222,6 +236,11 @@ export const GameProvider = ({ children }) => {
       saveData(PRESETS_KEY, presets);
       broadcast('SYNC_PRESETS', presets);
   }, [presets, isDataLoaded]);
+
+  useEffect(() => { 
+    saveData(STORAGE_CUSTOM_SYSTEMS_KEY, customSystems);
+    broadcast('SYNC_CUSTOM_SYSTEMS', customSystems); 
+  }, [customSystems, isDataLoaded]);
 
   useEffect(() => { 
       saveData(STORAGE_ADVENTURES_KEY, adventures);
@@ -342,6 +361,26 @@ export const GameProvider = ({ children }) => {
       }
   }, [isDataLoaded, internalActiveAdventureId, refreshAudioSystem]);
 
+  // --- CRUD SISTEMAS CUSTOMIZADOS ---
+  const addCustomSystem = useCallback((systemData) => {
+    const newSystem = { 
+        id: generateUUID(), 
+        author: 'GM', 
+        version: 1, 
+        updatedAt: Date.now(),
+        ...systemData 
+    };
+    setCustomSystems(prev => [...prev, newSystem]);
+    return newSystem.id;
+}, []);
+
+const updateCustomSystem = useCallback((id, updates) => {
+    setCustomSystems(prev => prev.map(sys => sys.id === id ? { ...sys, ...updates, updatedAt: Date.now() } : sys));
+}, []);
+
+const deleteCustomSystem = useCallback((id) => {
+    setCustomSystems(prev => prev.filter(sys => sys.id !== id));
+}, []);
 
   const setActiveAdventureId = useCallback((adventureId) => {
       if (adventureId === null) {
@@ -922,6 +961,8 @@ export const GameProvider = ({ children }) => {
     availableFiles, refreshAudioSystem, toggleAdventurePinVisibility,
     addSceneFolder, moveSceneItem,
     brushSize, setBrushSize, brushColor, setBrushColor, updateSceneDrawing,
+    customSystems, addCustomSystem, updateCustomSystem, deleteCustomSystem,
+    isSystemBuilderOpen, setIsSystemBuilderOpen 
   };
 
   return <GameContext.Provider value={value}>{children}</GameContext.Provider>;

@@ -4,6 +4,7 @@ import * as Dnd5e from './dnd5e_srd';
 import * as OrdemP from './ordem_paranormal';
 import * as OrdemHorror from './ordem_horror';
 import * as Vamp from './vampiro';
+import * as GenericSystem from './generic_system';
 
 export const SYSTEMS = {
     [EcosRPG.SYSTEM_ID]: EcosRPG,
@@ -15,19 +16,33 @@ export const SYSTEMS = {
 };
 
 export const getSystem = (id) => {
-    return SYSTEMS[id] || EcosRPG;
+    if (SYSTEMS[id]) return SYSTEMS[id];
     
+    return GenericSystem; 
 };
 
-export const getSystemDefaultState = (id) => {
-    const sys = getSystem(id);
-    return sys.defaultState ? JSON.parse(JSON.stringify(sys.defaultState)) : {};
-};
-
-export const getSystemList = () => {
-    return Object.values(SYSTEMS).map(sys => ({
+export const getSystemList = (customSystems = []) => {
+    const staticSystems = Object.values(SYSTEMS).map(sys => ({
         id: sys.SYSTEM_ID,
         name: sys.SYSTEM_NAME,
         description: sys.SYSTEM_DESC || "-" 
     }));
+
+    const dynamicSystems = customSystems.map(sys => ({
+        id: sys.id,
+        name: sys.name,
+        description: "Sistema Customizado"
+    }));
+
+    return [...staticSystems, ...dynamicSystems];
+};
+
+export const getSystemDefaultState = (id, customBlueprint = null) => {
+    const sys = getSystem(id);
+    
+    if (sys === GenericSystem && customBlueprint) {
+        return sys.createInitialState(customBlueprint);
+    }
+
+    return sys.defaultState ? JSON.parse(JSON.stringify(sys.defaultState)) : {};
 };

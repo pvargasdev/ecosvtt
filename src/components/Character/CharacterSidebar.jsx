@@ -1,15 +1,15 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useGame } from '../../context/GameContext';
-import { ArrowLeft, Menu, Edit2, Plus, X, Upload, Import, Trash2, Check, ChevronRight } from 'lucide-react';
+import { ArrowLeft, Menu, Edit2, Plus, X, Upload, Import, Trash2, Check, ChevronRight, Settings, Download } from 'lucide-react';
 import { getSystem, getSystemList, getSystemDefaultState } from '../../systems';
+import { SystemBuilder } from '../../components/SystemBuilder/SystemBuilder';
+import { saveAs } from 'file-saver'; 
 
-// --- CONFIGURAÇÃO DE CORES ---
 const THEME_PURPLE = "text-[#d084ff]";
 const THEME_BORDER_PURPLE = "border-[#d084ff]";
 const THEME_GLOW = "shadow-[0_0_15px_rgba(208,132,255,0.4)]";
 const THEME_GLOW_HOVER = "hover:shadow-[0_0_25px_rgba(208,132,255,0.6)]";
 
-// Componente de Animação: FADE IN VERTICAL
 const FadeInView = ({ children, className }) => (
     <div className={`h-full flex flex-col ${className}`} style={{ animation: 'fadeInUp 0.4s cubic-bezier(0.2, 0.8, 0.2, 1) forwards' }}>
         <style>{`
@@ -22,19 +22,20 @@ const FadeInView = ({ children, className }) => (
     </div>
 );
 
-// Wrapper do Formulário
-const CharacterFormWrapper = ({ formData, setFormData, handlePhotoUpload }) => {
+const CharacterFormWrapper = ({ formData, setFormData, handlePhotoUpload, customSystems }) => {
     if (!formData.systemId) return null;
 
     const SystemModule = getSystem(formData.systemId);
     
+    // Encontra o blueprint se for um sistema customizado
+    const customSystemDef = customSystems.find(sys => sys.id === formData.systemId);
+
     const handleSystemUpdate = (updates) => {
         setFormData(prev => ({ ...prev, ...updates }));
     };
 
     return (
         <div className="space-y-3 pb-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            {/* CABEÇALHO COMUM (FOTO E NOME) */}
             <div className="flex justify-center">
                 <div className="relative group cursor-pointer" onClick={() => document.getElementById('edit-photo-input').click()}>
                     <div className={`w-32 h-32 rounded-full border-2 ${formData.photo ? 'border-white/0' : 'border-glass-border border-dashed'} overflow-hidden bg-black flex items-center justify-center shadow-2xl transition-all group-hover:scale-95`}>
@@ -62,8 +63,11 @@ const CharacterFormWrapper = ({ formData, setFormData, handlePhotoUpload }) => {
                 </div>
             </div>
 
-            {/* Editor Específico do Sistema */}
-            <SystemModule.Editor data={formData} updateData={handleSystemUpdate} />
+            <SystemModule.Editor 
+                data={formData} 
+                updateData={handleSystemUpdate} 
+                systemDef={customSystemDef} 
+            />
         </div>
     );
 };
@@ -73,7 +77,7 @@ const CharacterSidebar = ({ isCollapsed, setIsCollapsed }) => {
     gameState, presets, activePresetId,
     addCharacter, updateCharacter, deleteCharacter, setAllCharacters,
     createPreset, loadPreset, saveToPreset, deletePreset, exitPreset, updatePreset,
-    exportPreset, importPreset // NOVO: Funções individuais
+    exportPreset, importPreset, customSystems, addCustomSystem, updateCustomSystem, deleteCustomSystem
   } = useGame();
   
   const [view, setView] = useState('manager'); 
@@ -91,11 +95,18 @@ const CharacterSidebar = ({ isCollapsed, setIsCollapsed }) => {
   const [footerIconSize, setFooterIconSize] = useState(48);
   const presetsListRef = useRef(null);
   const prevPresetsLength = useRef(presets.length);
-  const importInputRef = useRef(null); // Ref para o input de arquivo
+  const importInputRef = useRef(null);
+  const importSystemInputRef = useRef(null); // Ref para importar sistema
+
+  const [viewMode, setViewMode] = useState('characters');
+  const [isBuildingSystem, setIsBuildingSystem] = useState(false);
+  const [systemToEdit, setSystemToEdit] = useState(null);
 
   const activeChar = gameState.characters.find(c => c.id === activeCharId);
   const currentPreset = presets.find(p => p.id === activePresetId);
+  
   const ActiveSystemModule = activeChar ? getSystem(activeChar.systemId) : null;
+  const ActiveSystemDef = activeChar ? customSystems.find(s => s.id === activeChar.systemId) : null;
 
   useEffect(() => {
     if (presets.length > prevPresetsLength.current) {
@@ -133,7 +144,6 @@ const CharacterSidebar = ({ isCollapsed, setIsCollapsed }) => {
   const showConfirm = (title, msg, action) => setConfirmModal({ open: true, title, msg, onConfirm: action });
   const closeModal = () => setConfirmModal({ ...confirmModal, open: false });
 
-  // --- ACTIONS ---
   const handleDragSortStart = (e, index, char) => {
       setDraggedIndex(index);
       e.dataTransfer.setData('application/json', JSON.stringify({ type: 'character_drag', characterId: char.id }));
@@ -205,7 +215,8 @@ const CharacterSidebar = ({ isCollapsed, setIsCollapsed }) => {
   };
 
   const handleSelectSystem = (sysId) => {
-      const defaults = getSystemDefaultState(sysId);
+      const customBlueprint = customSystems.find(s => s.id === sysId);
+      const defaults = getSystemDefaultState(sysId, customBlueprint);
       setFormData(prev => ({ ...prev, ...defaults, systemId: sysId }));
   };
 
@@ -216,6 +227,48 @@ const CharacterSidebar = ({ isCollapsed, setIsCollapsed }) => {
 
   const navToChar = (id) => { setActiveCharId(id); setView('details'); setIsEditing(false); };
   const navToHub = () => { setView('hub'); setActiveCharId(null); };
+
+  const handleSaveSystem = (blueprint) => {
+      if (blueprint.id && customSystems.some(s => s.id === blueprint.id)) {
+          updateCustomSystem(blueprint.id, blueprint);
+      } else {
+          addCustomSystem(blueprint);
+      }
+      setIsBuildingSystem(false);
+      setSystemToEdit(null);
+  };
+
+  // --- FUNÇÕES DE IMPORTAR/EXPORTAR SISTEMAS ---
+  const handleExportSystem = (sys) => {
+      const blob = new Blob([JSON.stringify(sys, null, 2)], { type: "application/json" });
+      saveAs(blob, `${sys.name.replace(/\s+/g, '_')}_System.json`);
+  };
+
+  const handleImportSystem = (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = (event) => {
+          try {
+              const importedSys = JSON.parse(event.target.result);
+              // Validação básica
+              if (!importedSys.name || (!importedSys.attributes && !importedSys.resources)) {
+                  throw new Error("Formato inválido.");
+              }
+              // Garante ID novo para não sobrescrever
+              const newSys = { ...importedSys, id: crypto.randomUUID() };
+              addCustomSystem(newSys);
+              showAlert("Sucesso", `Sistema "${newSys.name}" importado.`);
+          } catch (err) {
+              showAlert("Erro", "Arquivo inválido ou corrompido.");
+              console.error(err);
+          }
+      };
+      reader.readAsText(file);
+      e.target.value = null; // Reseta o input
+  };
+  // ----------------------------------------------------
 
   const ConfirmationOverlay = () => {
       if (!confirmModal.open) return null;
@@ -239,28 +292,80 @@ const CharacterSidebar = ({ isCollapsed, setIsCollapsed }) => {
       );
   };
 
-  const SystemSelectionScreen = () => (
-      <div className="flex flex-col h-full animate-in fade-in zoom-in-95 duration-300">
-          <div className="p-2 mb-2">
-              <h3 className="text-sm text-text-muted uppercase tracking-widest text-center mb-4">Selecione o Sistema</h3>
-              <div className="grid grid-cols-1 gap-3">
-                  {getSystemList().map(sys => (
-                      <button 
-                          key={sys.id}
-                          onClick={() => handleSelectSystem(sys.id)}
-                          className={`relative p-4 rounded-xl border border-glass-border bg-black/40 text-left transition-all group hover:bg-[#d084ff]/5 hover:border-[#d084ff]`}
-                      >
-                          <div className="flex justify-between items-start mb-2">
-                              <span className={`font-rajdhani font-bold text-lg text-white group-hover:${THEME_PURPLE} transition-colors`}>{sys.name}</span>
+  const SystemsManagerView = () => {
+      return (
+          <FadeInView className="p-4 h-full flex flex-col">
+              <div className="flex items-center gap-3 mb-6">
+                  <button onClick={() => setViewMode('characters')} className="p-2 rounded-full bg-glass hover:bg-white/10 transition"><ArrowLeft size={20}/></button>
+                  <h2 className="text-xl font-rajdhani font-bold text-[#d084ff] uppercase">Sistemas Custom</h2>
+              </div>
+
+              <div className="mb-4 flex gap-2">
+                   <button 
+                      onClick={() => { setSystemToEdit(null); setIsBuildingSystem(true); }}
+                      className="flex-1 py-3 bg-[#d084ff]/10 border border-[#d084ff]/40 text-[#d084ff] font-bold rounded-lg hover:bg-[#d084ff] hover:text-black transition-all flex items-center justify-center gap-2"
+                  >
+                      <Plus size={18} /> CRIAR NOVO SISTEMA
+                  </button>
+                   
+                   {/* Botão Importar Sistema */}
+                   <div className="relative">
+                        <button onClick={() => importSystemInputRef.current?.click()} className="h-full px-4 bg-glass border border-glass-border text-text-muted hover:text-white rounded-lg hover:bg-white/10 transition flex items-center justify-center" title="Importar Sistema (.json)">
+                            <Import size={20}/>
+                        </button>
+                        <input ref={importSystemInputRef} type="file" className="hidden" accept=".json" onChange={handleImportSystem}/>
+                   </div>
+              </div>
+
+              <div className="flex-1 overflow-y-auto space-y-2">
+                  {customSystems.length === 0 && <p className="text-text-muted text-center text-sm italic mt-10">Nenhum sistema criado.</p>}
+                  
+                  {customSystems.map(sys => (
+                      <div key={sys.id} className="bg-black/20 border border-glass-border rounded-lg p-3 flex justify-between items-center group hover:bg-white/5 transition">
+                          <div>
+                              <h3 className="font-bold text-white text-sm">{sys.name}</h3>
+                              <p className="text-[10px] text-gray-500">{sys.attributes?.length || 0} Atributos • {sys.resources?.length || 0} Recursos</p>
                           </div>
-                          <p className="text-xs text-text-muted leading-relaxed pr-6 group-hover:text-gray-300">{sys.description}</p>
-                          <ChevronRight className="absolute right-3 top-1/2 -translate-y-1/2 text-glass-border group-hover:text-[#d084ff] transition-all group-hover:translate-x-1" size={20} />
-                      </button>
+                          <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                              {/* Botão Exportar Sistema */}
+                              <button onClick={() => handleExportSystem(sys)} className="p-2 text-gray-400 hover:text-white" title="Exportar"><Download size={14}/></button>
+                              
+                              <button onClick={() => { setSystemToEdit(sys); setIsBuildingSystem(true); }} className="p-2 text-gray-400 hover:text-white" title="Editar"><Edit2 size={14}/></button>
+                              <button onClick={() => showConfirm("Excluir Sistema", "As fichas que usam este sistema podem quebrar.", () => deleteCustomSystem(sys.id))} className="p-2 text-gray-400 hover:text-red-500" title="Excluir"><Trash2 size={14}/></button>
+                          </div>
+                      </div>
                   ))}
               </div>
-          </div>
-      </div>
-  );
+          </FadeInView>
+      );
+  };
+
+  const SystemSelectionScreen = () => {
+      const allSystems = getSystemList(customSystems);
+
+      return (
+        <div className="flex flex-col h-full animate-in fade-in zoom-in-95 duration-300">
+            <div className="p-2 mb-2">
+                <h3 className="text-sm text-text-muted uppercase tracking-widest text-center mb-4">Selecione o Sistema</h3>
+                <div className="grid grid-cols-1 gap-3">
+                    {allSystems.map(sys => (
+                        <button 
+                            key={sys.id}
+                            onClick={() => handleSelectSystem(sys.id)}
+                            className={`relative p-4 rounded-xl border border-glass-border bg-black/40 text-left transition-all group hover:bg-[#d084ff]/5 hover:border-[#d084ff]`}
+                        >
+                            <div className="flex justify-between items-start mb-2">
+                                <span className={`font-rajdhani font-bold text-lg text-white group-hover:${THEME_PURPLE} transition-colors`}>{sys.name}</span>
+                            </div>
+                            <p className="text-xs text-text-muted leading-relaxed pr-6 group-hover:text-gray-300">{sys.description}</p>
+                            <ChevronRight className="absolute right-3 top-1/2 -translate-y-1/2 text-glass-border group-hover:text-[#d084ff] transition-all group-hover:translate-x-1" size={20} />
+                        </button>
+                    ))}
+                </div>
+            </div>
+        </div>
+      );
+  };
 
   const renderEditingOverlay = () => {
     if (!isEditing) return null;
@@ -274,7 +379,16 @@ const CharacterSidebar = ({ isCollapsed, setIsCollapsed }) => {
                 <h2 className={`text-lg font-rajdhani font-bold ${THEME_PURPLE} uppercase tracking-wider`}>{title}</h2>
             </div>
             <div className="flex-1 overflow-y-auto scrollbar-thin p-4">
-                {isSelecting ? <SystemSelectionScreen /> : <CharacterFormWrapper formData={formData} setFormData={setFormData} handlePhotoUpload={handlePhotoUpload} />}
+                {isSelecting ? (
+                    <SystemSelectionScreen /> 
+                ) : (
+                    <CharacterFormWrapper 
+                        formData={formData} 
+                        setFormData={setFormData} 
+                        handlePhotoUpload={handlePhotoUpload} 
+                        customSystems={customSystems} 
+                    />
+                )}
             </div>
             {!isSelecting && (
                 <div className="p-4 border-t border-glass-border bg-black/40 shrink-0">
@@ -287,9 +401,6 @@ const CharacterSidebar = ({ isCollapsed, setIsCollapsed }) => {
     );
   };
 
-  // ==========================================
-  // VIEW: ESTADO COLAPSADO
-  // ==========================================
   if (isCollapsed) {
     return (
         <div data-ecos-ui="true" className="h-full flex flex-col items-center py-4 bg-black/80 border-r border-glass-border gap-6 overflow-hidden">
@@ -301,9 +412,27 @@ const CharacterSidebar = ({ isCollapsed, setIsCollapsed }) => {
     );
   }
 
-  // ==========================================
-  // VIEW: GERENCIADOR DE GRUPOS
-  // ==========================================
+  if (isBuildingSystem) {
+      return (
+          <div className="absolute inset-0 z-50 bg-[#121216]">
+              <SystemBuilder 
+                  systemToEdit={systemToEdit}
+                  onSave={handleSaveSystem}
+                  onCancel={() => setIsBuildingSystem(false)}
+              />
+          </div>
+      );
+  }
+
+  if (viewMode === 'systems') {
+      return (
+          <div data-ecos-ui="true" className="h-full bg-black/80 border-r border-glass-border">
+              <ConfirmationOverlay />
+              <SystemsManagerView />
+          </div>
+      );
+  }
+
   if (!activePresetId || view === 'manager') {
       return (
         <div data-ecos-ui="true" className="h-full">
@@ -318,6 +447,9 @@ const CharacterSidebar = ({ isCollapsed, setIsCollapsed }) => {
                 `}</style>
                 
                 <ConfirmationOverlay />
+                <button onClick={() => setViewMode('systems')} className="absolute top-2 left-2 p-2 rounded-full text-text-muted hover:text-[#d084ff] transition z-50" title="Gerenciar Sistemas">
+                    <Settings size={20} />
+                </button>
                 <button onClick={() => setIsCollapsed(true)} className="absolute top-2 right-2 p-2 rounded-full text-text-muted hover:text-white hover:bg-white/5 transition z-50" title="Recolher"><Menu size={20} /></button>
                 <h1 className={`text-3xl font-rajdhani font-bold ${THEME_PURPLE} mb-2 tracking-widest mt-10`}>PERSONAGENS</h1>
                 <p className="text-text-muted text-sm text-center mb-8">Selecione um grupo para começar.</p>
@@ -326,12 +458,10 @@ const CharacterSidebar = ({ isCollapsed, setIsCollapsed }) => {
                     <div className="w-full mb-4 px-1 pt-1">
                         {!isCreatingPreset ? (
                             <div className="flex gap-2">
-                                {/* BOTÃO NOVO GRUPO */}
                                 <button onClick={() => setIsCreatingPreset(true)} className={`flex-1 py-3 bg-[#d084ff]/10 border border-[#d084ff]/40 text-[#d084ff] font-bold rounded-lg hover:bg-[#d084ff] hover:text-black hover:shadow-[0_0_15px_rgba(208,132,255,0.4)] transition-all flex items-center justify-center gap-2 group`}>
                                     <Plus size={18} strokeWidth={3} className="group-hover:scale-110 transition-transform"/> NOVO GRUPO
                                 </button>
                                 
-                                {/* BOTÃO IMPORTAR GRUPO (NOVO) */}
                                 <div className="relative">
                                     <button onClick={() => importInputRef.current?.click()} className="h-full px-4 bg-glass border border-glass-border text-text-muted hover:text-white rounded-lg hover:bg-white/10 transition flex items-center justify-center" title="Importar Grupo (.zip)">
                                         <Import size={20}/>
@@ -372,9 +502,7 @@ const CharacterSidebar = ({ isCollapsed, setIsCollapsed }) => {
                                     <>
                                         <div><h3 className="font-bold text-white font-rajdhani truncate max-w-[180px]">{p.name}</h3><div className="text-xs text-text-muted">{p.characters.length} Personagens</div></div>
                                         <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity gap-1">
-                                            {/* BOTAO EXPORTAR INDIVIDUAL */}
                                             <button onClick={(e) => { e.stopPropagation(); exportPreset(p.id); }} className="p-2 hover:bg-white/10 hover:text-neon-blue rounded text-text-muted transition" title="Exportar Grupo"><Upload size={16}/></button>
-                                            
                                             <button onClick={(e) => { e.stopPropagation(); setRenamingPresetId(p.id); setRenamePresetValue(p.name); }} className="p-2 hover:bg-white/10 hover:text-yellow-400 rounded text-text-muted transition" title="Renomear"><Edit2 size={16}/></button>
                                             <button onClick={(e) => { e.stopPropagation(); showConfirm("Apagar Grupo", "Não poderá ser desfeito.", () => deletePreset(p.id)); }} className="p-2 hover:bg-red-900/50 hover:text-red-500 rounded text-text-muted transition" title="Excluir"><Trash2 size={16}/></button>
                                         </div>
@@ -384,15 +512,11 @@ const CharacterSidebar = ({ isCollapsed, setIsCollapsed }) => {
                         ))}
                     </div>
                 </div>
-                {/* FOOTER REMOVIDO (Anteriormente Exportar/Importar Bulk) */}
             </FadeInView>
         </div>
       );
   }
 
-  // ==========================================
-  // VIEW: HUB (GRID)
-  // ==========================================
   if (view === 'hub') {
     return (
       <div data-ecos-ui="true" className="h-full">
@@ -419,7 +543,7 @@ const CharacterSidebar = ({ isCollapsed, setIsCollapsed }) => {
                         className={`bg-black/20 border border-glass-border rounded-xl p-4 flex flex-col items-center justify-start py-6 gap-4 cursor-pointer hover:bg-white/5 transition relative group h-[198px] ${draggedIndex === index ? `opacity-30 border-dashed ${THEME_BORDER_PURPLE}` : ''}`}
                     >
                         <button onClick={(e) => { e.stopPropagation(); handleDeleteChar(char.id); }} className="absolute top-2 right-2 w-6 h-6 bg-red-600 rounded-full flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity z-10 text-xs hover:scale-110 shadow-md"><X size={12}/></button>
-                        <img src={char.photo || '[https://via.placeholder.com/150](https://via.placeholder.com/150)'} className="w-24 h-24 rounded-full object-cover pointer-events-none shadow-lg transition-all group-hover:scale-105" alt={char.name} />
+                        <img src={char.photo || 'https://via.placeholder.com/150'} className="w-24 h-24 rounded-full object-cover pointer-events-none shadow-lg transition-all group-hover:scale-105" alt={char.name} />
                         <div className="w-full flex flex-col items-center gap-1">
                             <span className="font-semibold text-center text-lg leading-tight w-full line-clamp-2 px-1 text-white pointer-events-none break-words">{char.name}</span>
                             {char.name.length <= 12 && (<div className="w-10 h-[2px] bg-white/20 rounded-full mt-1"></div>)}
@@ -438,9 +562,6 @@ const CharacterSidebar = ({ isCollapsed, setIsCollapsed }) => {
     );
   }
 
-  // ==========================================
-  // VIEW: DETAILS (FICHA)
-  // ==========================================
   return (
     <div data-ecos-ui="true" className="h-full flex flex-col bg-black/80 text-text-main relative overflow-hidden">
         <ConfirmationOverlay />
@@ -456,7 +577,7 @@ const CharacterSidebar = ({ isCollapsed, setIsCollapsed }) => {
 
                 <div className="flex-1 overflow-y-auto p-6 scrollbar-thin">
                     <div className="flex items-center gap-4 mb-4">
-                        <img draggable onDragStart={(e) => handleDragSortStart(e, -1, activeChar)} onDragEnd={handleDragEnd} src={activeChar.photo || '[https://via.placeholder.com/120](https://via.placeholder.com/120)'} className="w-[100px] h-[100px] rounded-2xl object-cover shadow-lg cursor-grab active:cursor-grabbing hover:scale-105 transition-transform shrink-0" alt="Avatar"/>
+                        <img draggable onDragStart={(e) => handleDragSortStart(e, -1, activeChar)} onDragEnd={handleDragEnd} src={activeChar.photo || 'https://via.placeholder.com/120'} className="w-[100px] h-[100px] rounded-2xl object-cover shadow-lg cursor-grab active:cursor-grabbing hover:scale-105 transition-transform shrink-0" alt="Avatar"/>
                         <div className="flex-1 flex flex-col justify-center gap-2 h-[100px] min-w-0">
                             <h2 className="text-2xl font-bold leading-none font-rajdhani truncate w-full text-white" title={activeChar.name}>{activeChar.name}</h2>
                         </div>
@@ -466,6 +587,7 @@ const CharacterSidebar = ({ isCollapsed, setIsCollapsed }) => {
                         <ActiveSystemModule.Viewer 
                             data={activeChar} 
                             updateData={(updates) => updateCharacter(activeChar.id, updates)} 
+                            systemDef={ActiveSystemDef}
                         />
                     )}
                 </div>
@@ -474,7 +596,7 @@ const CharacterSidebar = ({ isCollapsed, setIsCollapsed }) => {
 
         <div ref={footerRef} className="bg-black/80 border-t border-glass-border flex items-center justify-center gap-2 px-3 py-2 shrink-0 overflow-hidden" style={{ minHeight: footerIconSize + 20 }}>
              {gameState.characters.map((c, index) => (
-                 <img key={c.id} draggable onDragStart={(e) => handleDragSortStart(e, index, c)} onDragEnd={handleDragEnd} onDragOver={handleDragOver} onDrop={(e) => handleDragSortDrop(e, index)} src={c.photo || '[https://via.placeholder.com/50](https://via.placeholder.com/50)'} onClick={() => navToChar(c.id)} style={{ width: footerIconSize, height: footerIconSize }} className={`rounded-full border-2 object-cover cursor-pointer hover:scale-110 transition-transform shrink-0 ${c.id === activeChar.id ? `border-white opacity-100 shadow-[0_0_15px_rgba(208,132,255,0.5)]` : 'border-transparent opacity-50 hover:opacity-100'}`} alt={c.name} />
+                 <img key={c.id} draggable onDragStart={(e) => handleDragSortStart(e, index, c)} onDragEnd={handleDragEnd} onDragOver={handleDragOver} onDrop={(e) => handleDragSortDrop(e, index)} src={c.photo || 'https://via.placeholder.com/50'} onClick={() => navToChar(c.id)} style={{ width: footerIconSize, height: footerIconSize }} className={`rounded-full border-2 object-cover cursor-pointer hover:scale-110 transition-transform shrink-0 ${c.id === activeChar.id ? `border-white opacity-100 shadow-[0_0_15px_rgba(208,132,255,0.5)]` : 'border-transparent opacity-50 hover:opacity-100'}`} alt={c.name} />
              ))}
         </div>
         {renderEditingOverlay()}
