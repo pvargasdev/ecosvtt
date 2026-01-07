@@ -23,7 +23,7 @@
     "file-saver": "^2.0.5",
     "howler": "^2.2.4",
     "jszip": "^3.10.1",
-    "lucide-react": "^0.559.0",
+    "lucide-react": "^0.562.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "tailwindcss-animate": "^1.0.7"
@@ -35,7 +35,7 @@
     "@vitejs/plugin-react": "^5.1.1",
     "autoprefixer": "^10.4.17",
     "concurrently": "^8.2.2",
-    "electron": "^30.0.9",
+    "electron": "^39.2.7",
     "electron-builder": "^24.13.3",
     "eslint": "^9.39.1",
     "eslint-plugin-react-hooks": "^7.0.1",

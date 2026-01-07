@@ -341,69 +341,92 @@ export const createInitialState = (blueprint) => {
 
     if (!blueprint) return state;
 
-    blueprint.attributes?.forEach(x => state.attributes[x.id] = x.defaultValue || 10);
-    blueprint.counters?.forEach(x => state.counters[x.id] = x.defaultValue || 0);
-    blueprint.resources?.forEach(x => state.resources[x.id] = { current: x.defaultValue || 10, max: x.defaultValue || 10 });
-    blueprint.headers?.forEach(x => state.headers[x.id] = "");
-    blueprint.longTexts?.forEach(x => state.longTexts[x.id] = "");
-    blueprint.toggles?.forEach(x => state.toggles[x.id] = false);
-    blueprint.skills?.forEach(x => state.skills[x.id] = {});
-    blueprint.abilities?.forEach(x => state.abilities[x.id] = []);
-    blueprint.inventory?.forEach(x => state.inventory[x.id] = []);
+    // SUPORTE AO NOVO FORMATO (Items Dictionary)
+    if (blueprint.items) {
+        Object.values(blueprint.items).forEach(item => {
+            const val = item.defaultValue;
+            // Lógica de valor inicial baseada no tipo
+            if (item.type === 'skills') state.skills[item.id] = {};
+            else if (item.type === 'inventory') state.inventory[item.id] = [];
+            else if (item.type === 'abilities') state.abilities[item.id] = [];
+            else if (item.type === 'resources') state.resources[item.id] = { current: val || 10, max: val || 10 };
+            else if (item.type === 'toggles') state.toggles[item.id] = val || false;
+            else if (state[item.type]) state[item.type][item.id] = val;
+        });
+    } 
+    // FALLBACK PARA FORMATO ANTIGO (Arrays)
+    else {
+        blueprint.attributes?.forEach(x => state.attributes[x.id] = x.defaultValue || 10);
+        blueprint.counters?.forEach(x => state.counters[x.id] = x.defaultValue || 0);
+        blueprint.resources?.forEach(x => state.resources[x.id] = { current: x.defaultValue || 10, max: x.defaultValue || 10 });
+        blueprint.headers?.forEach(x => state.headers[x.id] = "");
+        blueprint.longTexts?.forEach(x => state.longTexts[x.id] = "");
+        blueprint.toggles?.forEach(x => state.toggles[x.id] = false);
+        blueprint.skills?.forEach(x => state.skills[x.id] = {});
+        blueprint.abilities?.forEach(x => state.abilities[x.id] = []);
+        blueprint.inventory?.forEach(x => state.inventory[x.id] = []);
+    }
 
     return state;
 };
 
-// MAPEAMENTO DE LAYOUT
-const DEFAULT_LAYOUT = ['headers', 'attributes', 'resources', 'counters', 'toggles', 'separators', 'longTexts', 'skills', 'abilities', 'inventory'];
-
 // Exporta o mapa de componentes para que o SystemBuilder possa usar
 export const WIDGET_REGISTRY = {
-    headers: { comp: HeaderWidget, grid: "flex flex-wrap gap-2" },
-    attributes: { comp: AttributeWidget, grid: "flex gap-2 w-full" },
-    resources: { comp: ResourceWidget, grid: "grid grid-cols-2 gap-4" },
-    counters: { comp: CounterWidget, grid: "grid grid-cols-4 gap-4" },
-    toggles: { comp: ToggleWidget, grid: "grid grid-cols-2 gap-4" },
-    longTexts: { comp: LongTextWidget, grid: "space-y-4" },
-    skills: { comp: SkillsWidget, grid: "space-y-4" },
-    abilities: { comp: AbilitiesWidget, grid: "space-y-4" },
-    inventory: { comp: InventoryWidget, grid: "space-y-4" },
-    separators: { comp: SeparatorWidget, grid: "space-y-2" }
+    headers: { comp: HeaderWidget, label: "Info / Cabeçalho" },
+    attributes: { comp: AttributeWidget, label: "Atributo Numérico" },
+    resources: { comp: ResourceWidget, label: "Barra de Recurso" },
+    counters: { comp: CounterWidget, label: "Contador Simples" },
+    toggles: { comp: ToggleWidget, label: "Interruptor (On/Off)" },
+    longTexts: { comp: LongTextWidget, label: "Texto Longo" },
+    skills: { comp: SkillsWidget, label: "Lista de Perícias" },
+    abilities: { comp: AbilitiesWidget, label: "Lista de Habilidades" },
+    inventory: { comp: InventoryWidget, label: "Inventário" },
+    separators: { comp: SeparatorWidget, label: "Divisor Visual" }
 };
 
 // Renderizador Mestre (Compartilhado entre Editor e Viewer)
 const MasterRenderer = ({ systemDef, data, onUpdate, readOnly }) => {
-    // Garante que haja um layout
-    const layout = Array.isArray(systemDef.layout) ? systemDef.layout : DEFAULT_LAYOUT;
+    if (!systemDef) return null;
+
+    // Fallback para sistemas antigos
+    if (Array.isArray(systemDef.layout) && typeof systemDef.layout[0] === 'string') {
+        return <div className="text-orange-500 text-xs p-2">Sistema em formato legado. Abra no Editor para converter.</div>;
+    }
+
+    const layout = systemDef.layout || [];
+    const itemsDef = systemDef.items || {};
 
     return (
-        <div className="space-y-6">
-            {layout.map(sectionKey => {
-                const items = systemDef[sectionKey];
-                // Safety: Se não houver itens, não renderiza
-                if (!Array.isArray(items) || items.length === 0) return null;
+        <div className="space-y-4 w-full">
+            {layout.map(row => (
+                <div key={row.id} className="w-full flex gap-4">
+                    {row.columns.map((colItems, colIndex) => (
+                        <div key={`${row.id}-col-${colIndex}`} 
+                             className="flex-1 flex flex-col gap-3 min-w-0">
+                            
+                            {colItems.map(itemId => {
+                                const itemDef = itemsDef[itemId];
+                                if (!itemDef) return null;
+                                
+                                const Config = WIDGET_REGISTRY[itemDef.type];
+                                if (!Config) return null;
+                                const Component = Config.comp;
 
-                // Safety: Se a seção não existir no registro, ignora
-                const Config = WIDGET_REGISTRY[sectionKey];
-                if (!Config) return null;
-
-                const Component = Config.comp;
-
-                return (
-                    <div key={sectionKey} className={Config.grid}>
-                        {items.map(item => (
-                            <div key={item.id} className={sectionKey === 'attributes' ? 'flex-1' : ''}>
-                                <Component 
-                                    data={item} 
-                                    value={data[sectionKey]?.[item.id]} 
-                                    onChange={(id, val) => onUpdate(sectionKey, id, val)} 
-                                    readOnly={readOnly}
-                                />
-                            </div>
-                        ))}
-                    </div>
-                );
-            })}
+                                return (
+                                    <div key={itemId} className="w-full">
+                                        <Component 
+                                            data={itemDef} 
+                                            value={data[itemDef.type]?.[itemId]} 
+                                            onChange={(id, val) => onUpdate(itemDef.type, id, val)} 
+                                            readOnly={readOnly}
+                                        />
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    ))}
+                </div>
+            ))}
         </div>
     );
 };

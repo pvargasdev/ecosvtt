@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useGame } from '../../context/GameContext';
 import { ArrowLeft, Menu, Edit2, Plus, X, Upload, Import, Trash2, Check, ChevronRight, Settings, Download } from 'lucide-react';
 import { getSystem, getSystemList, getSystemDefaultState } from '../../systems';
@@ -96,11 +96,16 @@ const CharacterSidebar = ({ isCollapsed, setIsCollapsed }) => {
   const presetsListRef = useRef(null);
   const prevPresetsLength = useRef(presets.length);
   const importInputRef = useRef(null);
-  const importSystemInputRef = useRef(null); // Ref para importar sistema
+  const importSystemInputRef = useRef(null); 
 
   const [viewMode, setViewMode] = useState('characters');
   const [isBuildingSystem, setIsBuildingSystem] = useState(false);
   const [systemToEdit, setSystemToEdit] = useState(null);
+
+  const usageCount = useMemo(() => {
+    if (!systemToEdit) return 0;
+    return (gameState.characters || []).filter(c => c.systemId === systemToEdit.id).length;
+  }, [systemToEdit, gameState.characters]);
 
   const activeChar = gameState.characters.find(c => c.id === activeCharId);
   const currentPreset = presets.find(p => p.id === activePresetId);
@@ -215,9 +220,30 @@ const CharacterSidebar = ({ isCollapsed, setIsCollapsed }) => {
   };
 
   const handleSelectSystem = (sysId) => {
-      const customBlueprint = customSystems.find(s => s.id === sysId);
-      const defaults = getSystemDefaultState(sysId, customBlueprint);
-      setFormData(prev => ({ ...prev, ...defaults, systemId: sysId }));
+    if (!sysId) return;
+
+    try {
+        const customBlueprint = customSystems.find(s => s.id === sysId);
+        
+        // Garante valores padrão mesmo se falhar
+        let defaults = {};
+        try {
+            defaults = getSystemDefaultState(sysId, customBlueprint) || {};
+        } catch (err) {
+            console.warn("Erro ao gerar estado padrão:", err);
+        }
+        
+        setFormData(prev => ({ 
+            ...prev, 
+            ...defaults, 
+            systemId: sysId 
+        }));
+        
+    } catch (e) {
+        console.error("Erro seleção sistema:", e);
+        // Fallback de emergência
+        setFormData(prev => ({ ...prev, systemId: sysId }));
+    }
   };
 
   const handlePhotoUpload = (e) => {
@@ -229,16 +255,31 @@ const CharacterSidebar = ({ isCollapsed, setIsCollapsed }) => {
   const navToHub = () => { setView('hub'); setActiveCharId(null); };
 
   const handleSaveSystem = (blueprint) => {
-      if (blueprint.id && customSystems.some(s => s.id === blueprint.id)) {
-          updateCustomSystem(blueprint.id, blueprint);
-      } else {
-          addCustomSystem(blueprint);
-      }
-      setIsBuildingSystem(false);
-      setSystemToEdit(null);
+    const isUpdate = blueprint.id && customSystems.some(s => s.id === blueprint.id);
+    
+    if (!isUpdate) {
+        addCustomSystem(blueprint);
+        showAlert("Sucesso", `Sistema "${blueprint.name}" criado.`);
+    } 
+    else if (usageCount > 0) {
+        const clonedSystem = {
+            ...blueprint,
+            id: crypto.randomUUID(), 
+            name: `${blueprint.name} (v2)`, 
+            originalId: blueprint.id 
+        };
+        addCustomSystem(clonedSystem);
+        showAlert("Sistema Clonado", `Para proteger ${usageCount} personagens existentes, criamos "${clonedSystem.name}".`);
+    }
+    else {
+        updateCustomSystem(blueprint.id, blueprint);
+        showAlert("Atualizado", `Sistema "${blueprint.name}" atualizado.`);
+    }
+
+    setIsBuildingSystem(false);
+    setSystemToEdit(null);
   };
 
-  // --- FUNÇÕES DE IMPORTAR/EXPORTAR SISTEMAS ---
   const handleExportSystem = (sys) => {
       const blob = new Blob([JSON.stringify(sys, null, 2)], { type: "application/json" });
       saveAs(blob, `${sys.name.replace(/\s+/g, '_')}_System.json`);
@@ -252,23 +293,17 @@ const CharacterSidebar = ({ isCollapsed, setIsCollapsed }) => {
       reader.onload = (event) => {
           try {
               const importedSys = JSON.parse(event.target.result);
-              // Validação básica
-              if (!importedSys.name || (!importedSys.attributes && !importedSys.resources)) {
-                  throw new Error("Formato inválido.");
-              }
-              // Garante ID novo para não sobrescrever
+              if (!importedSys.name) throw new Error("Formato inválido.");
               const newSys = { ...importedSys, id: crypto.randomUUID() };
               addCustomSystem(newSys);
               showAlert("Sucesso", `Sistema "${newSys.name}" importado.`);
           } catch (err) {
               showAlert("Erro", "Arquivo inválido ou corrompido.");
-              console.error(err);
           }
       };
       reader.readAsText(file);
-      e.target.value = null; // Reseta o input
+      e.target.value = null; 
   };
-  // ----------------------------------------------------
 
   const ConfirmationOverlay = () => {
       if (!confirmModal.open) return null;
@@ -308,7 +343,6 @@ const CharacterSidebar = ({ isCollapsed, setIsCollapsed }) => {
                       <Plus size={18} /> CRIAR NOVO SISTEMA
                   </button>
                    
-                   {/* Botão Importar Sistema */}
                    <div className="relative">
                         <button onClick={() => importSystemInputRef.current?.click()} className="h-full px-4 bg-glass border border-glass-border text-text-muted hover:text-white rounded-lg hover:bg-white/10 transition flex items-center justify-center" title="Importar Sistema (.json)">
                             <Import size={20}/>
@@ -327,9 +361,7 @@ const CharacterSidebar = ({ isCollapsed, setIsCollapsed }) => {
                               <p className="text-[10px] text-gray-500">{sys.attributes?.length || 0} Atributos • {sys.resources?.length || 0} Recursos</p>
                           </div>
                           <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                              {/* Botão Exportar Sistema */}
                               <button onClick={() => handleExportSystem(sys)} className="p-2 text-gray-400 hover:text-white" title="Exportar"><Download size={14}/></button>
-                              
                               <button onClick={() => { setSystemToEdit(sys); setIsBuildingSystem(true); }} className="p-2 text-gray-400 hover:text-white" title="Editar"><Edit2 size={14}/></button>
                               <button onClick={() => showConfirm("Excluir Sistema", "As fichas que usam este sistema podem quebrar.", () => deleteCustomSystem(sys.id))} className="p-2 text-gray-400 hover:text-red-500" title="Excluir"><Trash2 size={14}/></button>
                           </div>
@@ -340,32 +372,31 @@ const CharacterSidebar = ({ isCollapsed, setIsCollapsed }) => {
       );
   };
 
-  const SystemSelectionScreen = () => {
-      const allSystems = getSystemList(customSystems);
-
-      return (
-        <div className="flex flex-col h-full animate-in fade-in zoom-in-95 duration-300">
-            <div className="p-2 mb-2">
-                <h3 className="text-sm text-text-muted uppercase tracking-widest text-center mb-4">Selecione o Sistema</h3>
-                <div className="grid grid-cols-1 gap-3">
-                    {allSystems.map(sys => (
-                        <button 
-                            key={sys.id}
-                            onClick={() => handleSelectSystem(sys.id)}
-                            className={`relative p-4 rounded-xl border border-glass-border bg-black/40 text-left transition-all group hover:bg-[#d084ff]/5 hover:border-[#d084ff]`}
-                        >
-                            <div className="flex justify-between items-start mb-2">
-                                <span className={`font-rajdhani font-bold text-lg text-white group-hover:${THEME_PURPLE} transition-colors`}>{sys.name}</span>
-                            </div>
-                            <p className="text-xs text-text-muted leading-relaxed pr-6 group-hover:text-gray-300">{sys.description}</p>
-                            <ChevronRight className="absolute right-3 top-1/2 -translate-y-1/2 text-glass-border group-hover:text-[#d084ff] transition-all group-hover:translate-x-1" size={20} />
-                        </button>
-                    ))}
+    const SystemSelectionScreen = () => {
+        const allSystems = getSystemList(customSystems);
+        return (
+            <div className="flex flex-col h-full animate-in fade-in zoom-in-95 duration-300">
+                <div className="p-2 mb-2">
+                    <h3 className="text-sm text-text-muted uppercase tracking-widest text-center mb-4">Selecione o Sistema</h3>
+                    <div className="grid grid-cols-1 gap-3">
+                        {allSystems.map(sys => (
+                            <button 
+                                key={sys.id}
+                                onClick={(e) => { e.stopPropagation(); handleSelectSystem(sys.id); }}
+                                className={`relative p-4 rounded-xl border border-glass-border bg-black/40 text-left transition-all group hover:bg-[#d084ff]/5 hover:border-[#d084ff]`}
+                            >
+                                <div className="flex justify-between items-start mb-2">
+                                    <span className={`font-rajdhani font-bold text-lg text-white group-hover:${THEME_PURPLE} transition-colors`}>{sys.name}</span>
+                                </div>
+                                <p className="text-xs text-text-muted leading-relaxed pr-6 group-hover:text-gray-300">{sys.description}</p>
+                                <ChevronRight className="absolute right-3 top-1/2 -translate-y-1/2 text-glass-border group-hover:text-[#d084ff] transition-all group-hover:translate-x-1" size={20} />
+                            </button>
+                        ))}
+                    </div>
                 </div>
             </div>
-        </div>
-      );
-  };
+        );
+    };
 
   const renderEditingOverlay = () => {
     if (!isEditing) return null;
@@ -419,6 +450,7 @@ const CharacterSidebar = ({ isCollapsed, setIsCollapsed }) => {
                   systemToEdit={systemToEdit}
                   onSave={handleSaveSystem}
                   onCancel={() => setIsBuildingSystem(false)}
+                  usageCount={usageCount}
               />
           </div>
       );
@@ -437,15 +469,6 @@ const CharacterSidebar = ({ isCollapsed, setIsCollapsed }) => {
       return (
         <div data-ecos-ui="true" className="h-full">
             <FadeInView key="manager" className="p-6 bg-black/80 text-text-main border-r border-glass-border items-center relative">
-                <style>{`
-                    @keyframes enter-slide {
-                        0% { opacity: 0; transform: translateY(-15px) scale(0.95); max-height: 0; margin-bottom: 0; }
-                        40% { max-height: 60px; margin-bottom: 0.5rem; }
-                        100% { opacity: 1; transform: translateY(0) scale(1); max-height: 60px; margin-bottom: 0.5rem; }
-                    }
-                    .animate-enter { animation: enter-slide 0.45s cubic-bezier(0.2, 0.8, 0.2, 1) forwards; }
-                `}</style>
-                
                 <ConfirmationOverlay />
                 <button onClick={() => setViewMode('systems')} className="absolute top-2 left-2 p-2 rounded-full text-text-muted hover:text-[#d084ff] transition z-50" title="Gerenciar Sistemas">
                     <Settings size={20} />

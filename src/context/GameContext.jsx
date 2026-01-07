@@ -33,7 +33,6 @@ export const GameProvider = ({ children }) => {
   const [internalActiveAdventureId, setInternalActiveAdventureId] = useState(null);
   const [isGMWindowOpen, setIsGMWindowOpen] = useState(false);
   
-  // [NOVO] Estado para controlar a expansão da sidebar
   const [isSystemBuilderOpen, setIsSystemBuilderOpen] = useState(false);
 
   const [availableFiles, setAvailableFiles] = useState(new Set());
@@ -226,7 +225,6 @@ export const GameProvider = ({ children }) => {
       init();
   }, [isGMWindow]);
   
-  // --- SAVE EFFECTS ---
   useEffect(() => { 
       saveData(STORAGE_CHARACTERS_KEY, characters);
       broadcast('SYNC_CHARACTERS', characters); 
@@ -363,24 +361,25 @@ export const GameProvider = ({ children }) => {
 
   // --- CRUD SISTEMAS CUSTOMIZADOS ---
   const addCustomSystem = useCallback((systemData) => {
+    const newId = generateUUID();
     const newSystem = { 
-        id: generateUUID(), 
+        ...systemData, 
+        id: systemData.id || newId, 
         author: 'GM', 
         version: 1, 
-        updatedAt: Date.now(),
-        ...systemData 
+        updatedAt: Date.now()
     };
     setCustomSystems(prev => [...prev, newSystem]);
     return newSystem.id;
-}, []);
+  }, []);
 
-const updateCustomSystem = useCallback((id, updates) => {
+  const updateCustomSystem = useCallback((id, updates) => {
     setCustomSystems(prev => prev.map(sys => sys.id === id ? { ...sys, ...updates, updatedAt: Date.now() } : sys));
-}, []);
+  }, []);
 
-const deleteCustomSystem = useCallback((id) => {
+  const deleteCustomSystem = useCallback((id) => {
     setCustomSystems(prev => prev.filter(sys => sys.id !== id));
-}, []);
+  }, []);
 
   const setActiveAdventureId = useCallback((adventureId) => {
       if (adventureId === null) {
@@ -698,7 +697,7 @@ const deleteCustomSystem = useCallback((id) => {
           const meta = (await audioDB.getAllAudioMetadata()).find(f => f.id === fileId);
           if (meta) {
               originalTitle = meta.name;
-              title = meta.name.replace(/\.[^/.]+$/, "");
+              title = meta.name.replace(/\.[^/.]+$/, "").substring(0, 12);
           }
           if (!forcedDuration) duration = await getAudioDurationFromId(fileId);
       }
@@ -905,43 +904,302 @@ const deleteCustomSystem = useCallback((id) => {
       }));
   }, [internalActiveAdventureId]);
 
-  const duplicateScene = useCallback((sceneId) => { if (!internalActiveAdventureId) return; setAdventures(prev => prev.map(adv => { if (adv.id !== internalActiveAdventureId) return adv; const originalScene = adv.scenes.find(s => s.id === sceneId); if (!originalScene) return adv; const copy = JSON.parse(JSON.stringify(originalScene)); copy.id = generateUUID(); copy.name = `${copy.name} (Cópia)`; copy.tokens = copy.tokens.map(t => ({ ...t, id: generateUUID() })); copy.fogOfWar = copy.fogOfWar.map(f => ({ ...f, id: generateUUID() })); copy.pins = copy.pins.map(p => ({ ...p, id: generateUUID() })); return { ...adv, scenes: [...adv.scenes, copy] }; })); }, [internalActiveAdventureId]);
-  const updateSceneMap = useCallback(async (sceneId, file) => { if (!internalActiveAdventureId || !file) return; const imageId = await handleImageUpload(file); setAdventures(prev => prev.map(adv => adv.id !== internalActiveAdventureId ? adv : { ...adv, scenes: adv.scenes.map(s => s.id === sceneId ? { ...s, mapImageId: imageId } : s) })); }, [internalActiveAdventureId]);
-  const updateScene = useCallback((sceneId, updates) => { if (!internalActiveAdventureId) return; setAdventures(prev => prev.map(adv => adv.id !== internalActiveAdventureId ? adv : { ...adv, scenes: adv.scenes.map(s => s.id === sceneId ? { ...s, ...updates } : s) })); }, [internalActiveAdventureId]);
-  const setActiveScene = useCallback((sceneId) => { if (!internalActiveAdventureId) return; setAdventures(prev => prev.map(adv => adv.id !== internalActiveAdventureId ? adv : { ...adv, activeSceneId: sceneId })); }, [internalActiveAdventureId]);
-  const addFogArea = useCallback((sceneId, fogData) => { if (!internalActiveAdventureId) return; setAdventures(prev => prev.map(adv => { if (adv.id !== internalActiveAdventureId) return adv; return { ...adv, scenes: adv.scenes.map(s => s.id !== sceneId ? s : { ...s, fogOfWar: [...(s.fogOfWar || []), { id: generateUUID(), ...fogData }] }) }; })); }, [internalActiveAdventureId]);
-  const updateFogArea = useCallback((sceneId, fogId, updates) => { if (!internalActiveAdventureId) return; setAdventures(prev => prev.map(adv => { if (adv.id !== internalActiveAdventureId) return adv; return { ...adv, scenes: adv.scenes.map(s => s.id !== sceneId ? s : { ...s, fogOfWar: (s.fogOfWar || []).map(f => f.id === fogId ? { ...f, ...updates } : f) }) }; })); }, [internalActiveAdventureId]);
-  const deleteFogArea = useCallback((sceneId, fogId) => { if (!internalActiveAdventureId) return; setAdventures(prev => prev.map(adv => { if (adv.id !== internalActiveAdventureId) return adv; return { ...adv, scenes: adv.scenes.map(s => s.id !== sceneId ? s : { ...s, fogOfWar: (s.fogOfWar || []).filter(f => f.id !== fogId) }) }; })); }, [internalActiveAdventureId]);
-  const deleteMultipleFogAreas = useCallback((sceneId, fogIdsArray) => { if (!internalActiveAdventureId) return; const idsSet = new Set(fogIdsArray); setAdventures(prev => prev.map(adv => { if (adv.id !== internalActiveAdventureId) return adv; return { ...adv, scenes: adv.scenes.map(s => s.id !== sceneId ? s : { ...s, fogOfWar: (s.fogOfWar || []).filter(f => !idsSet.has(f.id)) }) }; })); }, [internalActiveAdventureId]);
-  const addPin = useCallback((sceneId, pinData) => { if (!internalActiveAdventureId) return; setAdventures(prev => prev.map(adv => { if (adv.id !== internalActiveAdventureId) return adv; return { ...adv, scenes: adv.scenes.map(s => s.id !== sceneId ? s : { ...s, pins: [...(s.pins || []), { ...pinData, id: generateUUID() }] }) }; })); }, [internalActiveAdventureId]);
-  const updatePin = useCallback((sceneId, pinId, updates) => { if (!internalActiveAdventureId) return; setAdventures(prev => prev.map(adv => { if (adv.id !== internalActiveAdventureId) return adv; return { ...adv, scenes: adv.scenes.map(s => s.id !== sceneId ? s : { ...s, pins: (s.pins || []).map(p => p.id === pinId ? { ...p, ...updates } : p) }) }; })); }, [internalActiveAdventureId]);
-  const deletePin = useCallback((sceneId, pinId) => { if (!internalActiveAdventureId) return; setAdventures(prev => prev.map(adv => { if (adv.id !== internalActiveAdventureId) return adv; return { ...adv, scenes: adv.scenes.map(s => s.id !== sceneId ? s : { ...s, pins: (s.pins || []).filter(p => p.id !== pinId) }) }; })); }, [internalActiveAdventureId]);
-  const deleteMultiplePins = useCallback((sceneId, pinIdsArray) => { if (!internalActiveAdventureId) return; const idsSet = new Set(pinIdsArray); setAdventures(prev => prev.map(adv => { if (adv.id !== internalActiveAdventureId) return adv; return { ...adv, scenes: adv.scenes.map(s => s.id !== sceneId ? s : { ...s, pins: (s.pins || []).filter(p => !idsSet.has(p.id)) }) }; })); }, [internalActiveAdventureId]);
-  const addTokenToLibrary = useCallback(async (file, parentId = null) => { if (!internalActiveAdventureId || !file) return; const imageId = await handleImageUpload(file); setAdventures(prev => prev.map(adv => adv.id !== internalActiveAdventureId ? adv : { ...adv, tokenLibrary: [...(adv.tokenLibrary || []), { id: generateUUID(), imageId, type: 'token', parentId: parentId || null }] })); }, [internalActiveAdventureId]);
-  const addFolder = useCallback((name, parentId = null) => { if (!internalActiveAdventureId) return; setAdventures(prev => prev.map(adv => adv.id !== internalActiveAdventureId ? adv : { ...adv, tokenLibrary: [...(adv.tokenLibrary || []), { id: generateUUID(), name: name || "Nova Pasta", type: 'folder', parentId: parentId || null }] })); }, [internalActiveAdventureId]);
-  const moveLibraryItem = useCallback((itemId, targetFolderId) => { if (!internalActiveAdventureId) return; setAdventures(prev => prev.map(adv => { if (adv.id !== internalActiveAdventureId) return adv; return { ...adv, tokenLibrary: adv.tokenLibrary.map(item => item.id === itemId ? { ...item, parentId: targetFolderId } : item) }; })); }, [internalActiveAdventureId]);
-  const renameLibraryItem = useCallback((itemId, newName) => { if (!internalActiveAdventureId) return; setAdventures(prev => prev.map(adv => { if (adv.id !== internalActiveAdventureId) return adv; return { ...adv, tokenLibrary: adv.tokenLibrary.map(item => item.id === itemId ? { ...item, name: newName } : item) }; })); }, [internalActiveAdventureId]);
-  const deleteLibraryItem = useCallback((itemId) => { if (!internalActiveAdventureId) return; setAdventures(prev => { const adv = prev.find(a => a.id === internalActiveAdventureId); if (!adv) return prev; let idsToDelete = new Set([itemId]); const findChildren = (parentId) => { const children = adv.tokenLibrary.filter(t => t.parentId === parentId); children.forEach(c => { idsToDelete.add(c.id); if (c.type === 'folder') findChildren(c.id); }); }; const targetItem = adv.tokenLibrary.find(t => t.id === itemId); if (targetItem && targetItem.type === 'folder') { findChildren(itemId); } return prev.map(a => a.id !== internalActiveAdventureId ? a : { ...a, tokenLibrary: a.tokenLibrary.filter(t => !idsToDelete.has(t.id)) }); }); }, [internalActiveAdventureId]);
+  const duplicateScene = useCallback((sceneId) => { 
+      if (!internalActiveAdventureId) return; 
+      setAdventures(prev => prev.map(adv => { 
+          if (adv.id !== internalActiveAdventureId) return adv; 
+          const originalScene = adv.scenes.find(s => s.id === sceneId); 
+          if (!originalScene) return adv; 
+          const copy = JSON.parse(JSON.stringify(originalScene)); 
+          copy.id = generateUUID(); 
+          copy.name = `${copy.name} (Cópia)`; 
+          copy.tokens = copy.tokens.map(t => ({ ...t, id: generateUUID() })); 
+          copy.fogOfWar = copy.fogOfWar.map(f => ({ ...f, id: generateUUID() })); 
+          copy.pins = copy.pins.map(p => ({ ...p, id: generateUUID() })); 
+          return { ...adv, scenes: [...adv.scenes, copy] }; 
+      })); 
+  }, [internalActiveAdventureId]);
+
+  const updateSceneMap = useCallback(async (sceneId, file) => { 
+      if (!internalActiveAdventureId || !file) return; 
+      const imageId = await handleImageUpload(file); 
+      setAdventures(prev => prev.map(adv => adv.id !== internalActiveAdventureId ? adv : { ...adv, scenes: adv.scenes.map(s => s.id === sceneId ? { ...s, mapImageId: imageId } : s) })); 
+  }, [internalActiveAdventureId]);
+
+  const updateScene = useCallback((sceneId, updates) => { 
+      if (!internalActiveAdventureId) return; 
+      setAdventures(prev => prev.map(adv => adv.id !== internalActiveAdventureId ? adv : { ...adv, scenes: adv.scenes.map(s => s.id === sceneId ? { ...s, ...updates } : s) })); 
+  }, [internalActiveAdventureId]);
+
+  const setActiveScene = useCallback((sceneId) => { 
+      if (!internalActiveAdventureId) return; 
+      setAdventures(prev => prev.map(adv => adv.id !== internalActiveAdventureId ? adv : { ...adv, activeSceneId: sceneId })); 
+  }, [internalActiveAdventureId]);
+
+  const addFogArea = useCallback((sceneId, fogData) => { 
+      if (!internalActiveAdventureId) return; 
+      setAdventures(prev => prev.map(adv => { 
+          if (adv.id !== internalActiveAdventureId) return adv; 
+          return { ...adv, scenes: adv.scenes.map(s => s.id !== sceneId ? s : { ...s, fogOfWar: [...(s.fogOfWar || []), { id: generateUUID(), ...fogData }] }) }; 
+      })); 
+  }, [internalActiveAdventureId]);
+
+  const updateFogArea = useCallback((sceneId, fogId, updates) => { 
+      if (!internalActiveAdventureId) return; 
+      setAdventures(prev => prev.map(adv => { 
+          if (adv.id !== internalActiveAdventureId) return adv; 
+          return { ...adv, scenes: adv.scenes.map(s => s.id !== sceneId ? s : { ...s, fogOfWar: (s.fogOfWar || []).map(f => f.id === fogId ? { ...f, ...updates } : f) }) }; 
+      })); 
+  }, [internalActiveAdventureId]);
+
+  const deleteFogArea = useCallback((sceneId, fogId) => { 
+      if (!internalActiveAdventureId) return; 
+      setAdventures(prev => prev.map(adv => { 
+          if (adv.id !== internalActiveAdventureId) return adv; 
+          return { ...adv, scenes: adv.scenes.map(s => s.id !== sceneId ? s : { ...s, fogOfWar: (s.fogOfWar || []).filter(f => f.id !== fogId) }) }; 
+      })); 
+  }, [internalActiveAdventureId]);
+
+  const deleteMultipleFogAreas = useCallback((sceneId, fogIdsArray) => { 
+      if (!internalActiveAdventureId) return; 
+      const idsSet = new Set(fogIdsArray); 
+      setAdventures(prev => prev.map(adv => { 
+          if (adv.id !== internalActiveAdventureId) return adv; 
+          return { ...adv, scenes: adv.scenes.map(s => s.id !== sceneId ? s : { ...s, fogOfWar: (s.fogOfWar || []).filter(f => !idsSet.has(f.id)) }) }; 
+      })); 
+  }, [internalActiveAdventureId]);
+
+  const addPin = useCallback((sceneId, pinData) => { 
+      if (!internalActiveAdventureId) return; 
+      setAdventures(prev => prev.map(adv => { 
+          if (adv.id !== internalActiveAdventureId) return adv; 
+          return { ...adv, scenes: adv.scenes.map(s => s.id !== sceneId ? s : { ...s, pins: [...(s.pins || []), { ...pinData, id: generateUUID() }] }) }; 
+      })); 
+  }, [internalActiveAdventureId]);
+
+  const updatePin = useCallback((sceneId, pinId, updates) => { 
+      if (!internalActiveAdventureId) return; 
+      setAdventures(prev => prev.map(adv => { 
+          if (adv.id !== internalActiveAdventureId) return adv; 
+          return { ...adv, scenes: adv.scenes.map(s => s.id !== sceneId ? s : { ...s, pins: (s.pins || []).map(p => p.id === pinId ? { ...p, ...updates } : p) }) }; 
+      })); 
+  }, [internalActiveAdventureId]);
+
+  const deletePin = useCallback((sceneId, pinId) => { 
+      if (!internalActiveAdventureId) return; 
+      setAdventures(prev => prev.map(adv => { 
+          if (adv.id !== internalActiveAdventureId) return adv; 
+          return { ...adv, scenes: adv.scenes.map(s => s.id !== sceneId ? s : { ...s, pins: (s.pins || []).filter(p => p.id !== pinId) }) }; 
+      })); 
+  }, [internalActiveAdventureId]);
+
+  const deleteMultiplePins = useCallback((sceneId, pinIdsArray) => { 
+      if (!internalActiveAdventureId) return; 
+      const idsSet = new Set(pinIdsArray); 
+      setAdventures(prev => prev.map(adv => { 
+          if (adv.id !== internalActiveAdventureId) return adv; 
+          return { ...adv, scenes: adv.scenes.map(s => s.id !== sceneId ? s : { ...s, pins: (s.pins || []).filter(p => !idsSet.has(p.id)) }) }; 
+      })); 
+  }, [internalActiveAdventureId]);
+
+  const addTokenToLibrary = useCallback(async (file, parentId = null) => { 
+      if (!internalActiveAdventureId || !file) return; 
+      const imageId = await handleImageUpload(file); 
+      setAdventures(prev => prev.map(adv => adv.id !== internalActiveAdventureId ? adv : { ...adv, tokenLibrary: [...(adv.tokenLibrary || []), { id: generateUUID(), imageId, type: 'token', parentId: parentId || null }] })); 
+  }, [internalActiveAdventureId]);
+
+  const addFolder = useCallback((name, parentId = null) => { 
+      if (!internalActiveAdventureId) return; 
+      setAdventures(prev => prev.map(adv => adv.id !== internalActiveAdventureId ? adv : { ...adv, tokenLibrary: [...(adv.tokenLibrary || []), { id: generateUUID(), name: name || "Nova Pasta", type: 'folder', parentId: parentId || null }] })); 
+  }, [internalActiveAdventureId]);
+
+  const moveLibraryItem = useCallback((itemId, targetFolderId) => { 
+      if (!internalActiveAdventureId) return; 
+      setAdventures(prev => prev.map(adv => { 
+          if (adv.id !== internalActiveAdventureId) return adv; 
+          return { ...adv, tokenLibrary: adv.tokenLibrary.map(item => item.id === itemId ? { ...item, parentId: targetFolderId } : item) }; 
+      })); 
+  }, [internalActiveAdventureId]);
+
+  const renameLibraryItem = useCallback((itemId, newName) => { 
+      if (!internalActiveAdventureId) return; 
+      setAdventures(prev => prev.map(adv => { 
+          if (adv.id !== internalActiveAdventureId) return adv; 
+          return { ...adv, tokenLibrary: adv.tokenLibrary.map(item => item.id === itemId ? { ...item, name: newName } : item) }; 
+      })); 
+  }, [internalActiveAdventureId]);
+
+  const deleteLibraryItem = useCallback((itemId) => { 
+      if (!internalActiveAdventureId) return; 
+      setAdventures(prev => { 
+          const adv = prev.find(a => a.id === internalActiveAdventureId); 
+          if (!adv) return prev; 
+          let idsToDelete = new Set([itemId]); 
+          const findChildren = (parentId) => { 
+              const children = adv.tokenLibrary.filter(t => t.parentId === parentId); 
+              children.forEach(c => { idsToDelete.add(c.id); if (c.type === 'folder') findChildren(c.id); }); 
+          }; 
+          const targetItem = adv.tokenLibrary.find(t => t.id === itemId); 
+          if (targetItem && targetItem.type === 'folder') { findChildren(itemId); } 
+          return prev.map(a => a.id !== internalActiveAdventureId ? a : { ...a, tokenLibrary: a.tokenLibrary.filter(t => !idsToDelete.has(t.id)) }); 
+      }); 
+  }, [internalActiveAdventureId]);
+
   const removeTokenFromLibrary = deleteLibraryItem;
-  const addTokenInstance = useCallback((sceneId, tokenData) => { if (!internalActiveAdventureId) return; setAdventures(prev => prev.map(adv => { if (adv.id !== internalActiveAdventureId) return adv; return { ...adv, scenes: adv.scenes.map(s => s.id !== sceneId ? s : { ...s, tokens: [...s.tokens, { id: generateUUID(), x: 0, y: 0, scale: 1, ...tokenData }] }) }; })); }, [internalActiveAdventureId]);
-  const updateTokenInstance = useCallback((sceneId, tokenId, updates) => { if (!internalActiveAdventureId) return; setAdventures(prev => prev.map(adv => { if (adv.id !== internalActiveAdventureId) return adv; return { ...adv, scenes: adv.scenes.map(s => s.id === sceneId ? { ...s, tokens: s.tokens.map(t => t.id === tokenId ? { ...t, ...updates } : t) } : s) }; })); }, [internalActiveAdventureId]);
+
+  const addTokenInstance = useCallback((sceneId, tokenData) => { 
+      if (!internalActiveAdventureId) return; 
+      setAdventures(prev => prev.map(adv => { 
+          if (adv.id !== internalActiveAdventureId) return adv; 
+          return { ...adv, scenes: adv.scenes.map(s => s.id !== sceneId ? s : { ...s, tokens: [...s.tokens, { id: generateUUID(), x: 0, y: 0, scale: 1, ...tokenData }] }) }; 
+      })); 
+  }, [internalActiveAdventureId]);
+
+  const updateTokenInstance = useCallback((sceneId, tokenId, updates) => { 
+      if (!internalActiveAdventureId) return; 
+      setAdventures(prev => prev.map(adv => { 
+          if (adv.id !== internalActiveAdventureId) return adv; 
+          return { ...adv, scenes: adv.scenes.map(s => s.id === sceneId ? { ...s, tokens: s.tokens.map(t => t.id === tokenId ? { ...t, ...updates } : t) } : s) }; 
+      })); 
+  }, [internalActiveAdventureId]);
+
   const deleteTokenInstance = useCallback((sceneId, tokenId) => { if (!internalActiveAdventureId) return; setAdventures(prev => prev.map(adv => { if (adv.id !== internalActiveAdventureId) return adv; return { ...adv, scenes: adv.scenes.map(s => s.id !== sceneId ? s : { ...s, tokens: s.tokens.filter(t => t.id !== tokenId) }) }; })); }, [internalActiveAdventureId]);
+
   const deleteMultipleTokenInstances = useCallback((sceneId, tokenIdsArray) => { if (!internalActiveAdventureId) return; const idsSet = new Set(tokenIdsArray); setAdventures(prev => prev.map(adv => { if (adv.id !== internalActiveAdventureId) return adv; return { ...adv, scenes: adv.scenes.map(s => s.id !== sceneId ? s : { ...s, tokens: s.tokens.filter(t => !idsSet.has(t.id)) }) }; })); }, [internalActiveAdventureId]);
-  const importCharacterAsToken = useCallback(async (characterId) => { const char = characters.find(c => c.id === characterId); if (!char || !char.photo) return null; try { let imageId = null; if (char.photo.startsWith('data:')) { const res = await fetch(char.photo); const blob = await res.blob(); imageId = await imageDB.saveImage(blob); } else { imageId = await imageDB.saveImage(char.photo); } if (imageId && internalActiveAdventureId) { setAdventures(prev => prev.map(adv => { if (adv.id !== internalActiveAdventureId) return adv; const exists = adv.tokenLibrary?.some(t => t.imageId === imageId); if (exists) return adv; return { ...adv, tokenLibrary: [...(adv.tokenLibrary || []), { id: generateUUID(), imageId, type: 'token', parentId: null }] }; })); } return imageId; } catch (e) { console.error("Erro import char token:", e); return null; } }, [characters, internalActiveAdventureId]);
-  const addCharacter = useCallback((charData) => { const systemId = charData.systemId || 'ecos_rpg_v1'; const defaults = getSystemDefaultState(systemId); const newChar = { id: generateUUID(), systemId: systemId, name: "Novo Personagem", photo: null, ...defaults, ...charData }; setCharacters(prev => [...prev, newChar]); return newChar.id; }, []);
+
+  const importCharacterAsToken = useCallback(async (characterId) => { 
+      const char = characters.find(c => c.id === characterId); 
+      if (!char || !char.photo) return null; 
+      try { 
+          let imageId = null; 
+          if (char.photo.startsWith('data:')) { 
+              const res = await fetch(char.photo); 
+              const blob = await res.blob(); 
+              imageId = await imageDB.saveImage(blob); 
+          } else { 
+              imageId = await imageDB.saveImage(char.photo); 
+          } 
+          if (imageId && internalActiveAdventureId) { 
+              setAdventures(prev => prev.map(adv => { 
+                  if (adv.id !== internalActiveAdventureId) return adv; 
+                  const exists = adv.tokenLibrary?.some(t => t.imageId === imageId); 
+                  if (exists) return adv; 
+                  return { ...adv, tokenLibrary: [...(adv.tokenLibrary || []), { id: generateUUID(), imageId, type: 'token', parentId: null }] }; 
+              })); 
+          } 
+          return imageId; 
+      } catch (e) { 
+          console.error("Erro import char token:", e); 
+          return null; 
+      } 
+  }, [characters, internalActiveAdventureId]);
+
+  const addCharacter = useCallback((charData) => { 
+      const systemId = charData.systemId || 'ecos_rpg_v1'; 
+      const defaults = getSystemDefaultState(systemId); 
+      const newChar = { 
+          id: generateUUID(), 
+          systemId: systemId, 
+          name: "Novo Personagem", 
+          photo: null, 
+          ...defaults, 
+          ...charData 
+      }; 
+      setCharacters(prev => [...prev, newChar]); 
+      return newChar.id; 
+  }, []);
+
   const updateCharacter = useCallback((id, updates) => setCharacters(prev => prev.map(char => char.id === id ? { ...char, ...updates } : char)), []);
+  
   const deleteCharacter = useCallback((id) => setCharacters(prev => prev.filter(char => char.id !== id)), []);
+  
   const setAllCharacters = useCallback((list) => setCharacters(list), []);
-  const exportPreset = useCallback(async (presetId) => { const preset = presets.find(p => p.id === presetId); if (!preset) return; const zip = new JSZip(); zip.file("preset.json", JSON.stringify(preset)); const imgFolder = zip.folder("images"); const imageIds = new Set(); preset.characters.forEach(char => { if (char.photo && !char.photo.startsWith('data:')) { imageIds.add(char.photo); } }); for (const id of imageIds) { const blob = await imageDB.getImage(id); if (blob) imgFolder.file(id, blob); } const content = await zip.generateAsync({ type: "blob" }); saveAs(content, `grupo_${preset.name.replace(/\s+/g, '_')}.zip`); }, [presets]);
-  const importPreset = useCallback(async (file) => { if (!file) return; try { const zip = await JSZip.loadAsync(file); const jsonFile = zip.file("preset.json"); if (!jsonFile) throw new Error("Arquivo de grupo inválido"); const presetData = JSON.parse(await jsonFile.async("string")); const imgFolder = zip.folder("images"); if (imgFolder) { const images = []; imgFolder.forEach((relativePath, file) => images.push({ id: relativePath, file })); for (const img of images) { const blob = await img.file.async("blob"); await imageDB.saveImage(blob, img.id); } } const newPresetId = generateUUID(); const newCharacters = presetData.characters.map(char => ({ ...char, id: generateUUID() })); const newPreset = { ...presetData, id: newPresetId, name: `${presetData.name}`, characters: newCharacters }; setPresets(prev => [...prev, newPreset]); } catch (e) { console.error(e); alert("Erro ao importar grupo."); } }, []);
-  const createPreset = useCallback((name) => { const newPreset = { id: generateUUID(), name, characters: [] }; setCharacters([]); setPresets(prev => [...prev, newPreset]); return newPreset.id; }, []);
-  const loadPreset = useCallback((pid) => { const p = presets.find(x => x.id === pid); if(p) { setCharacters([...p.characters]); setActivePresetId(pid); } }, [presets]);
-  const saveToPreset = useCallback((pid) => { setPresets(prev => prev.map(p => p.id === pid ? { ...p, characters } : p)); }, [characters]);
+  
+  const exportPreset = useCallback(async (presetId) => { 
+      const preset = presets.find(p => p.id === presetId); 
+      if (!preset) return; 
+      const zip = new JSZip(); 
+      zip.file("preset.json", JSON.stringify(preset)); 
+      const imgFolder = zip.folder("images"); 
+      const imageIds = new Set(); 
+      preset.characters.forEach(char => { 
+          if (char.photo && !char.photo.startsWith('data:')) { imageIds.add(char.photo); } 
+      }); 
+      for (const id of imageIds) { 
+          const blob = await imageDB.getImage(id); 
+          if (blob) imgFolder.file(id, blob); 
+      } 
+      const content = await zip.generateAsync({ type: "blob" }); 
+      saveAs(content, `grupo_${preset.name.replace(/\s+/g, '_')}.zip`); 
+  }, [presets]);
+
+  const importPreset = useCallback(async (file) => { 
+      if (!file) return; 
+      try { 
+          const zip = await JSZip.loadAsync(file); 
+          const jsonFile = zip.file("preset.json"); 
+          if (!jsonFile) throw new Error("Arquivo de grupo inválido"); 
+          const presetData = JSON.parse(await jsonFile.async("string")); 
+          const imgFolder = zip.folder("images"); 
+          if (imgFolder) { 
+              const images = []; 
+              imgFolder.forEach((relativePath, file) => images.push({ id: relativePath, file })); 
+              for (const img of images) { 
+                  const blob = await img.file.async("blob"); 
+                  await imageDB.saveImage(blob, img.id); 
+              } 
+          } 
+          const newPresetId = generateUUID(); 
+          const newCharacters = presetData.characters.map(char => ({ ...char, id: generateUUID() })); 
+          const newPreset = { ...presetData, id: newPresetId, name: `${presetData.name}`, characters: newCharacters }; 
+          setPresets(prev => [...prev, newPreset]); 
+      } catch (e) { 
+          console.error(e); 
+          alert("Erro ao importar grupo."); 
+      } 
+  }, []);
+
+  const createPreset = useCallback((name) => { 
+      const newPreset = { id: generateUUID(), name, characters: [] }; 
+      setCharacters([]); 
+      setPresets(prev => [...prev, newPreset]); 
+      return newPreset.id; 
+  }, []);
+
+  const loadPreset = useCallback((pid) => { 
+      const p = presets.find(x => x.id === pid); 
+      if(p) { setCharacters([...p.characters]); setActivePresetId(pid); } 
+  }, [presets]);
+
+  const saveToPreset = useCallback((pid) => { 
+      setPresets(prev => prev.map(p => p.id === pid ? { ...p, characters } : p)); 
+  }, [characters]);
+
   const exitPreset = useCallback(() => { setActivePresetId(null); setCharacters([]); }, []);
-  const deletePreset = useCallback((id) => { setPresets(prev => prev.filter(p => p.id !== id)); if(activePresetId === id) { setActivePresetId(null); setCharacters([]); } }, [activePresetId]);
-  const mergePresets = useCallback((list) => { setPresets(prev => { const ids = new Set(prev.map(p => p.id)); return [...prev, ...list.filter(p => !ids.has(p.id))]; }); }, []);
-  const updatePreset = useCallback((id, updates) => { setPresets(prev => prev.map(p => p.id === id ? { ...p, ...updates } : p)); }, []);
-  const resetAllData = async () => { if (!window.electron) { localStorage.clear(); await imageDB.clearAll(); } window.location.reload(); };
+  
+  const deletePreset = useCallback((id) => { 
+      setPresets(prev => prev.filter(p => p.id !== id)); 
+      if(activePresetId === id) { setActivePresetId(null); setCharacters([]); } 
+  }, [activePresetId]);
+
+  const mergePresets = useCallback((list) => { 
+      setPresets(prev => { 
+          const ids = new Set(prev.map(p => p.id)); 
+          return [...prev, ...list.filter(p => !ids.has(p.id))]; 
+      }); 
+  }, []);
+
+  const updatePreset = useCallback((id, updates) => { 
+      setPresets(prev => prev.map(p => p.id === id ? { ...p, ...updates } : p)); 
+  }, []);
+
+  const resetAllData = async () => { 
+      if (!window.electron) { 
+          localStorage.clear(); 
+          await imageDB.clearAll(); 
+      } 
+      window.location.reload(); 
+  };
 
   const value = {
     isGMWindow, isGMWindowOpen,
