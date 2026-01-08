@@ -564,7 +564,7 @@ const SceneItem = ({ item, isActive, onSelect, onRename, onDelete, onDuplicate, 
 
     if (isDeleting) {
         return (
-            <div className="h-14 px-2 mb-1 rounded bg-red-900/30 border border-red-500/50 flex justify-between items-center animate-in fade-in select-none">
+            <div className="h-12 px-2 mb-1 rounded bg-red-900/30 border border-red-500/50 flex justify-between items-center animate-in fade-in select-none">
                 <span className="text-white text-xs font-bold pl-1 truncate">Excluir {isFolder ? 'Pasta' : 'Cena'}?</span>
                 <div className="flex gap-1 shrink-0 items-center">
                     <button onClick={(e)=>{e.stopPropagation(); setIsDeleting(false);}} className="p-1 rounded bg-black/40 hover:bg-white/20 text-text-muted hover:text-white flex items-center"><ArrowLeft size={14}/></button>
@@ -576,7 +576,7 @@ const SceneItem = ({ item, isActive, onSelect, onRename, onDelete, onDuplicate, 
 
     if (isRenaming) {
         return (
-            <div className="h-14 px-2 mb-1 rounded bg-white/10 border border-white/30 flex items-center justify-between animate-in fade-in">
+            <div className="h-12 px-2 mb-1 rounded bg-white/10 border border-white/30 flex items-center justify-between animate-in fade-in">
                 <input 
                     autoFocus 
                     onFocus={(e) => e.target.select()} 
@@ -629,7 +629,7 @@ const SceneItem = ({ item, isActive, onSelect, onRename, onDelete, onDuplicate, 
                 else onSelect(item.id);
             }} 
             className={`
-                flex items-center p-1.5 mb-1 cursor-pointer border-l-2 group transition-all rounded select-none relative gap-3 min-h-[50px]
+                flex items-center p-1.5 mb-1 cursor-pointer border-l-2 group rounded select-none relative gap-3 min-h-[0px]
                 ${isDragOver ? 'bg-neon-green/20 border-neon-green scale-[1.02] z-10' : ''}
                 ${!isDragOver && isActive ? 'border-neon-green bg-white/5' : (!isDragOver && 'border-transparent hover:bg-white/5')}
             `}
@@ -654,10 +654,10 @@ const SceneItem = ({ item, isActive, onSelect, onRename, onDelete, onDuplicate, 
             </div>
 
             <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity items-center absolute right-2 bg-black/60 rounded px-1 backdrop-blur-sm">
-                <button onClick={(e) => { e.stopPropagation(); setIsRenaming(true); }} className="text-text-muted hover:text-yellow-400 p-1.5 flex items-center" title="Renomear"><Edit2 size={12}/></button>
                 {!isFolder && (
                     <button onClick={(e) => { e.stopPropagation(); onDuplicate(item.id); }} className="text-text-muted hover:text-neon-blue p-1.5 flex items-center" title="Duplicar"><Copy size={12}/></button>
                 )}
+                <button onClick={(e) => { e.stopPropagation(); setIsRenaming(true); }} className="text-text-muted hover:text-yellow-400 p-1.5 flex items-center" title="Renomear"><Edit2 size={12}/></button>
                 <button onClick={(e) => { e.stopPropagation(); setIsDeleting(true); }} className="text-text-muted hover:text-red-500 p-1.5 flex items-center" title="Excluir"><Trash2 size={12}/></button>
             </div>
         </div>
