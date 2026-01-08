@@ -125,8 +125,6 @@ const DiceWindow = ({ onClose, WindowWrapperComponent }) => {
                 <span className="text-[10px] font-bold text-neon-purple uppercase tracking-wider">Total</span>
                 <span className="text-[10px] font-bold text-white uppercase tracking-wider">{total}</span>
             </div>
-
-            <button onClick={onClose} className="p-1 hover:bg-white/10 rounded text-text-muted hover:text-white transition"><X size={16}/></button>
         </div>
       </div>
 

@@ -457,7 +457,6 @@ const AssetDock = ({ isOpen, onClose }) => {
                 </h3>
                 <div className="flex gap-1">
                     <button onClick={() => addFolder("Pasta", currentFolderId)} className="p-1 hover:bg-white/10 rounded text-text-muted hover:text-white" title="Criar Pasta"><FolderPlus size={16}/></button>
-                    <button onClick={onClose} className="p-1 hover:bg-white/10 rounded text-text-muted hover:text-white"><X size={16}/></button>
                 </div>
             </div>
 
@@ -865,7 +864,9 @@ const MapConfigModal = ({ isOpen, onClose }) => {
 
     return (
         <WindowWrapper containerRef={mapConfigRef} className="absolute top-16 right-4 bg-black/85 border border-glass-border backdrop-blur-sm p-4 rounded-xl shadow-2xl z-50 w-72 animate-in fade-in">
-            <div className="flex justify-between items-center mb-4"><h3 className="font-rajdhani font-bold text-white">Imagem de Fundo</h3><button onClick={onClose}><X size={16} className="text-text-muted hover:text-white"/></button></div>
+            <div className="flex justify-between items-center mb-4">
+                <h3 className="font-rajdhani font-bold text-white">Imagem de Fundo</h3>
+            </div>
             <div className="space-y-4">
                 <div onClick={() => mapInputRef.current?.click()} className="flex items-center justify-center gap-2 p-3 border border-dashed border-glass-border rounded hover:bg-white/5 cursor-pointer text-sm text-neon-blue transition"><ImageIcon size={16}/> {activeScene?.mapImageId ? "Trocar Imagem" : "Escolher Imagem"}</div>
                 <input ref={mapInputRef} type="file" className="hidden" accept="image/*" onChange={(e) => { const f = e.target.files[0]; if(f) updateSceneMap(activeScene.id, f); e.target.value = ''; }} />
@@ -905,7 +906,6 @@ const HelpWindow = ({ isOpen, onClose }) => {
                 <h3 className="font-rajdhani font-bold text-white flex items-center gap-2">
                     <HelpCircle size={16}/> Comandos
                 </h3>
-                <button onClick={onClose} className="p-1 hover:bg-white/10 rounded text-text-muted hover:text-white"><X size={16}/></button>
             </div>
             <div className="p-4 space-y-3 text-sm overflow-y-auto scrollbar-thin">
                 {shortcuts.map((item, i) => (

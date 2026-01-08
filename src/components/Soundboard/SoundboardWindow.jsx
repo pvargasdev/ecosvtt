@@ -43,8 +43,6 @@ const SoundboardWindow = ({ onClose, containerRef, WindowWrapperComponent }) => 
                         <Grid size={14} /> EFEITOS (SFX)
                     </button>
                 </div>
-                
-                <button onClick={onClose} className="p-2 text-text-muted hover:text-white mb-1"><X size={18}/></button>
             </div>
 
             <div className="flex-1 overflow-hidden bg-black/40 relative">
