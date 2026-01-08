@@ -923,21 +923,41 @@ export const GameProvider = ({ children }) => {
   const updateSceneMap = useCallback(async (sceneId, file) => { 
       if (!internalActiveAdventureId || !file) return; 
       try {
-          const imageId = await handleImageUpload(file); 
-          const thumbBlob = await imageDB.generateThumbnail(file);
-          const thumbId = await handleImageUpload(thumbBlob);
+          const currentAdv = adventures.find(a => a.id === internalActiveAdventureId);
+          const currentScene = currentAdv?.scenes.find(s => s.id === sceneId);
+          const oldImageId = currentScene?.mapImageId;
+          const oldThumbId = currentScene?.mapThumbnailId;
+          const newImageId = await handleImageUpload(file); 
+          const newThumbBlob = await imageDB.generateThumbnail(file);
+          const newThumbId = await handleImageUpload(newThumbBlob);
           setAdventures(prev => prev.map(adv => 
               adv.id !== internalActiveAdventureId ? adv : { 
                   ...adv, 
                   scenes: adv.scenes.map(s => 
-                      s.id === sceneId ? { ...s, mapImageId: imageId, mapThumbnailId: thumbId } : s
+                      s.id === sceneId ? { ...s, mapImageId: newImageId, mapThumbnailId: newThumbId } : s
                   ) 
               }
           )); 
+          if (oldImageId) {
+              const isUsedElsewhere = currentAdv.scenes.some(s => 
+                  s.id !== sceneId && s.mapImageId === oldImageId
+              );
+
+              if (!isUsedElsewhere) {
+                  console.log("Removendo imagem de mapa órfã:", oldImageId);
+                  await imageDB.deleteImage(oldImageId);
+                  if (oldThumbId) {
+                      await imageDB.deleteImage(oldThumbId);
+                  }
+              } else {
+                  console.log("Imagem antiga mantida pois é usada em outra cena (duplicada).");
+              }
+          }
+
       } catch (error) {
-          console.error("Erro ao processar mapa:", error);
+          console.error("Erro ao atualizar mapa:", error);
       }
-  }, [internalActiveAdventureId]);
+  }, [internalActiveAdventureId, adventures]);
 
   const updateScene = useCallback((sceneId, updates) => { 
       if (!internalActiveAdventureId) return; 
