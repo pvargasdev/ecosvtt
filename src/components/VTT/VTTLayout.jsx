@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback, memo } from 'react';
 import { useGame } from '../../context/GameContext';
 import { Settings, Image as ImageIcon, Box, ArrowLeft, Map, Plus, Trash2, X, ChevronDown, LogOut, Edit2, RotateCcw, Check, Search, Square, MousePointer, AlertTriangle, Folder, FolderPlus, CornerLeftUp, Copy, HelpCircle, Import, Speaker, Dices, MapPin, MapPinOff, File as FileIcon, PenTool, Eraser, } from 'lucide-react';
 import { imageDB } from '../../context/db';
@@ -22,6 +22,90 @@ const WindowWrapper = ({ children, className, containerRef }) => (
         {children}
     </div>
 );
+
+const SceneThumbnail = memo(({ imageId }) => {
+    const [src, setSrc] = useState(null);
+    const [isVisible, setIsVisible] = useState(false);
+    const containerRef = useRef(null);
+
+    useEffect(() => {
+        if (!imageId) return;
+
+        const observer = new IntersectionObserver((entries) => {
+            if (entries[0].isIntersecting) {
+                setIsVisible(true);
+                observer.disconnect();
+            }
+        }, {
+            root: null,
+            rootMargin: '100px',
+            threshold: 0.1
+        });
+
+        if (containerRef.current) {
+            observer.observe(containerRef.current);
+        }
+
+        return () => {
+            if (observer) observer.disconnect();
+        };
+    }, [imageId]);
+
+    useEffect(() => {
+        if (!isVisible || !imageId) return;
+
+        let isMounted = true;
+        let objectUrl = null;
+
+        const load = async () => {
+            try {
+                const blob = await imageDB.getImage(imageId);
+                if (isMounted && blob) {
+                    objectUrl = URL.createObjectURL(blob);
+                    setSrc(objectUrl);
+                }
+            } catch (error) {
+                console.error("Erro ao carregar thumb", error);
+            }
+        };
+
+        load();
+
+        return () => {
+            isMounted = false;
+            if (objectUrl) {
+                URL.revokeObjectURL(objectUrl);
+            }
+        };
+    }, [isVisible, imageId]);
+
+    if (!imageId) {
+        return (
+            <div className="w-16 h-9 bg-black/50 rounded flex items-center justify-center border border-white/10 shrink-0">
+                <HelpCircle size={14} className="text-text-muted opacity-50" />
+            </div>
+        );
+    }
+
+    return (
+        <div 
+            ref={containerRef}
+            className="w-16 h-9 bg-black rounded overflow-hidden border border-glass-border shrink-0 relative"
+        >
+            {src ? (
+                <img 
+                    src={src} 
+                    alt="Scene Preview" 
+                    className="w-full h-full object-cover opacity-80 animate-in fade-in duration-500"
+                />
+            ) : (
+                <div className="w-full h-full flex items-center justify-center bg-white/5">
+                    {isVisible && <div className="w-3 h-3 border-2 border-neon-green/30 border-t-neon-green rounded-full animate-spin"/>}
+                </div>
+            )}
+        </div>
+    );
+});
 
 const LibraryThumb = React.memo(({ token, onRename, onDelete, moveItem }) => {
     const [src, setSrc] = useState(null);
@@ -262,26 +346,16 @@ const InternalAlert = ({ message, clearAlert }) => {
 
     return (
         <div className="absolute bottom-4 left-0 w-full flex justify-center z-[100] pointer-events-none">
-            
             <div 
                 data-ecos-ui="true"
                 className={`
                     pointer-events-auto flex items-center gap-3 p-3 
                     bg-red-900/90 border border-red-700 rounded-lg shadow-xl backdrop-blur-sm 
                     text-sm text-white cursor-default
-                    
-                    /* TRANSITIONS: Garante suavidade apenas na opacidade */
                     transition-opacity duration-300 ease-in-out
-                    
-                    /* ESTADO: Se isVisible for true, opacidade 1. Se false, opacidade 0 */
                     ${isVisible ? 'opacity-100' : 'opacity-0'}
                 `}
-                
-                onTransitionEnd={() => {
-                    if (!isVisible) {
-                        clearAlert();
-                    }
-                }}
+                onTransitionEnd={() => { if (!isVisible) { clearAlert(); } }}
             >
                 <AlertTriangle size={18} className="text-yellow-400 shrink-0"/>
                 <span className='font-semibold'>{message}</span>
@@ -483,7 +557,7 @@ const SceneItem = ({ item, isActive, onSelect, onRename, onDelete, onDuplicate, 
 
     if (isDeleting) {
         return (
-            <div className="h-9 px-2 mb-1 rounded bg-red-900/30 border border-red-500/50 flex justify-between items-center animate-in fade-in select-none">
+            <div className="h-14 px-2 mb-1 rounded bg-red-900/30 border border-red-500/50 flex justify-between items-center animate-in fade-in select-none">
                 <span className="text-white text-xs font-bold pl-1 truncate">Excluir {isFolder ? 'Pasta' : 'Cena'}?</span>
                 <div className="flex gap-1 shrink-0 items-center">
                     <button onClick={(e)=>{e.stopPropagation(); setIsDeleting(false);}} className="p-1 rounded bg-black/40 hover:bg-white/20 text-text-muted hover:text-white flex items-center"><ArrowLeft size={14}/></button>
@@ -495,7 +569,7 @@ const SceneItem = ({ item, isActive, onSelect, onRename, onDelete, onDuplicate, 
 
     if (isRenaming) {
         return (
-            <div className="h-9 px-2 mb-1 rounded bg-white/10 border border-white/30 flex items-center justify-between animate-in fade-in">
+            <div className="h-14 px-2 mb-1 rounded bg-white/10 border border-white/30 flex items-center justify-between animate-in fade-in">
                 <input 
                     autoFocus 
                     onFocus={(e) => e.target.select()} 
@@ -548,37 +622,41 @@ const SceneItem = ({ item, isActive, onSelect, onRename, onDelete, onDuplicate, 
                 else onSelect(item.id);
             }} 
             className={`
-                h-9 px-2 mb-1 flex justify-between items-center cursor-pointer border-l-2 group transition-all rounded select-none relative
+                flex items-center p-1.5 mb-1 cursor-pointer border-l-2 group transition-all rounded select-none relative gap-3 min-h-[50px]
                 ${isDragOver ? 'bg-neon-green/20 border-neon-green scale-[1.02] z-10' : ''}
                 ${!isDragOver && isActive ? 'border-neon-green bg-white/5' : (!isDragOver && 'border-transparent hover:bg-white/5')}
             `}
         >
-            <div className="flex items-center gap-2 min-w-0">
-                {isFolder ? (
-                    <Folder size={16} className={`shrink-0 ${isDragOver ? 'text-neon-green' : 'text-yellow-500'}`} fill={isDragOver ? "currentColor" : "none"}/>
-                ) : (
-                    <Map size={16} className={`shrink-0 ${isActive ? 'text-neon-green' : 'text-text-muted'}`}/>
+            {!isFolder && (
+                <SceneThumbnail imageId={item.mapImageId || item.mapImage} />
+            )}
+
+            <div className="flex items-center gap-2 min-w-0 flex-1">
+                {isFolder && (
+                    <Folder size={20} className={`shrink-0 ${isDragOver ? 'text-neon-green' : 'text-neon-green'}`} fill={isDragOver ? "currentColor" : "none"}/>
                 )}
-                <span className={`text-sm font-bold truncate ${isActive ? 'text-neon-green' : 'text-white'}`}>
-                    {item.name}
-                </span>
+                
+                <div className="flex flex-col min-w-0 justify-center">
+                    <span className={`text-sm font-bold truncate leading-tight ${isActive ? 'text-neon-green' : 'text-white'}`}>
+                        {item.name}
+                    </span>
+                </div>
             </div>
 
-            <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity items-center">
-                <button onClick={(e) => { e.stopPropagation(); setIsRenaming(true); }} className="text-text-muted hover:text-yellow-400 p-1 flex items-center" title="Renomear"><Edit2 size={12}/></button>
+            <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity items-center absolute right-2 bg-black/60 rounded px-1 backdrop-blur-sm">
+                <button onClick={(e) => { e.stopPropagation(); setIsRenaming(true); }} className="text-text-muted hover:text-yellow-400 p-1.5 flex items-center" title="Renomear"><Edit2 size={12}/></button>
                 {!isFolder && (
-                    <button onClick={(e) => { e.stopPropagation(); onDuplicate(item.id); }} className="text-text-muted hover:text-neon-blue p-1 flex items-center" title="Duplicar"><Copy size={12}/></button>
+                    <button onClick={(e) => { e.stopPropagation(); onDuplicate(item.id); }} className="text-text-muted hover:text-neon-blue p-1.5 flex items-center" title="Duplicar"><Copy size={12}/></button>
                 )}
-                <button onClick={(e) => { e.stopPropagation(); setIsDeleting(true); }} className="text-text-muted hover:text-red-500 p-1 flex items-center" title="Excluir"><Trash2 size={12}/></button>
+                <button onClick={(e) => { e.stopPropagation(); setIsDeleting(true); }} className="text-text-muted hover:text-red-500 p-1.5 flex items-center" title="Excluir"><Trash2 size={12}/></button>
             </div>
         </div>
     );
 };
 
-const SceneSelector = ({ isOpen }) => {
+const SceneSelector = ({ isOpen, currentFolderId, setCurrentFolderId }) => {
     const { activeAdventure, addScene, addSceneFolder, moveSceneItem, setActiveScene, updateScene, deleteScene, duplicateScene, activeScene } = useGame();
     
-    const [currentFolderId, setCurrentFolderId] = useState(null);
     const [searchQuery, setSearchQuery] = useState("");
     const [isBreadcrumbActive, setIsBreadcrumbActive] = useState(false);
     
@@ -588,7 +666,6 @@ const SceneSelector = ({ isOpen }) => {
 
     const sceneRef = useRef(null);
     
-    useEffect(() => { if (!isOpen) setCurrentFolderId(null); }, [isOpen]);
 
     if (!isOpen) return null;
 
@@ -649,7 +726,7 @@ const SceneSelector = ({ isOpen }) => {
         : "Raiz";
 
     return (
-        <WindowWrapper containerRef={sceneRef} className="absolute top-16 right-4 w-72 bg-black/90 border border-glass-border backdrop-blur-sm rounded-xl shadow-2xl z-50 overflow-hidden animate-in fade-in flex flex-col max-h-[60vh]">
+        <WindowWrapper containerRef={sceneRef} className="absolute top-16 right-4 w-80 bg-black/90 border border-glass-border backdrop-blur-sm rounded-xl shadow-2xl z-50 overflow-hidden animate-in fade-in flex flex-col max-h-[60vh]">
             
             <div className="p-3 border-b border-glass-border bg-white/5 flex justify-between items-center shrink-0">
                 <h3 className="font-rajdhani font-bold text-white text-sm">Cenas & Mapas</h3>
@@ -856,6 +933,8 @@ export const VTTLayout = ({ zoomValue, onZoomChange, activeTool, setActiveTool, 
       diceOpen: false 
   });
   
+  const [sceneFolderId, setSceneFolderId] = useState(null);
+
   const [confirmModal, setConfirmModal] = useState({ open: false, message: '', onConfirm: null });
   const headerRef = useRef(null);      
 
@@ -1065,7 +1144,13 @@ export const VTTLayout = ({ zoomValue, onZoomChange, activeTool, setActiveTool, 
             <>
               <MapConfigModal isOpen={uiState.mapConfigOpen} onClose={() => setUiState(p => ({...p, mapConfigOpen: false}))} />
               <AssetDock isOpen={uiState.libraryOpen} onClose={() => setUiState(p => ({...p, libraryOpen: false}))} />
-              <SceneSelector isOpen={uiState.menuOpen} />
+              
+              <SceneSelector 
+                isOpen={uiState.menuOpen} 
+                currentFolderId={sceneFolderId} 
+                setCurrentFolderId={setSceneFolderId} 
+              />
+              
               <HelpWindow isOpen={uiState.helpOpen} onClose={() => setUiState(p => ({...p, helpOpen: false}))} />
               {uiState.soundboardOpen && <SoundboardWindow onClose={() => setUiState(p => ({...p, soundboardOpen: false}))} WindowWrapperComponent={WindowWrapper} />}
               {uiState.diceOpen && <DiceWindow onClose={() => setUiState(p => ({...p, diceOpen: false}))} WindowWrapperComponent={WindowWrapper} />}
