@@ -23,13 +23,14 @@ const WindowWrapper = ({ children, className, containerRef }) => (
     </div>
 );
 
-const SceneThumbnail = memo(({ imageId }) => {
+const SceneThumbnail = memo(({ imageId, thumbnailId }) => {
     const [src, setSrc] = useState(null);
     const [isVisible, setIsVisible] = useState(false);
     const containerRef = useRef(null);
+    const activeId = thumbnailId || imageId;
 
     useEffect(() => {
-        if (!imageId) return;
+        if (!activeId) return;
 
         const observer = new IntersectionObserver((entries) => {
             if (entries[0].isIntersecting) {
@@ -49,20 +50,27 @@ const SceneThumbnail = memo(({ imageId }) => {
         return () => {
             if (observer) observer.disconnect();
         };
-    }, [imageId]);
+    }, [activeId]);
 
     useEffect(() => {
-        if (!isVisible || !imageId) return;
+        if (!isVisible || !activeId) return;
 
         let isMounted = true;
         let objectUrl = null;
 
         const load = async () => {
             try {
-                const blob = await imageDB.getImage(imageId);
+                const blob = await imageDB.getImage(activeId);
+                
                 if (isMounted && blob) {
                     objectUrl = URL.createObjectURL(blob);
                     setSrc(objectUrl);
+                } else if (isMounted && !blob && thumbnailId) {
+                    const fallbackBlob = await imageDB.getImage(imageId);
+                    if (isMounted && fallbackBlob) {
+                        objectUrl = URL.createObjectURL(fallbackBlob);
+                        setSrc(objectUrl);
+                    }
                 }
             } catch (error) {
                 console.error("Erro ao carregar thumb", error);
@@ -77,9 +85,9 @@ const SceneThumbnail = memo(({ imageId }) => {
                 URL.revokeObjectURL(objectUrl);
             }
         };
-    }, [isVisible, imageId]);
+    }, [isVisible, activeId, imageId, thumbnailId]);
 
-    if (!imageId) {
+    if (!activeId) {
         return (
             <div className="w-16 h-9 bg-black/50 rounded flex items-center justify-center border border-white/10 shrink-0">
                 <HelpCircle size={14} className="text-text-muted opacity-50" />
@@ -628,7 +636,10 @@ const SceneItem = ({ item, isActive, onSelect, onRename, onDelete, onDuplicate, 
             `}
         >
             {!isFolder && (
-                <SceneThumbnail imageId={item.mapImageId || item.mapImage} />
+                <SceneThumbnail 
+                    imageId={item.mapImageId || item.mapImage} 
+                    thumbnailId={item.mapThumbnailId}
+                />
             )}
 
             <div className="flex items-center gap-2 min-w-0 flex-1">

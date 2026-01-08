@@ -922,8 +922,21 @@ export const GameProvider = ({ children }) => {
 
   const updateSceneMap = useCallback(async (sceneId, file) => { 
       if (!internalActiveAdventureId || !file) return; 
-      const imageId = await handleImageUpload(file); 
-      setAdventures(prev => prev.map(adv => adv.id !== internalActiveAdventureId ? adv : { ...adv, scenes: adv.scenes.map(s => s.id === sceneId ? { ...s, mapImageId: imageId } : s) })); 
+      try {
+          const imageId = await handleImageUpload(file); 
+          const thumbBlob = await imageDB.generateThumbnail(file);
+          const thumbId = await handleImageUpload(thumbBlob);
+          setAdventures(prev => prev.map(adv => 
+              adv.id !== internalActiveAdventureId ? adv : { 
+                  ...adv, 
+                  scenes: adv.scenes.map(s => 
+                      s.id === sceneId ? { ...s, mapImageId: imageId, mapThumbnailId: thumbId } : s
+                  ) 
+              }
+          )); 
+      } catch (error) {
+          console.error("Erro ao processar mapa:", error);
+      }
   }, [internalActiveAdventureId]);
 
   const updateScene = useCallback((sceneId, updates) => { 
