@@ -21,7 +21,6 @@ export const GameProvider = ({ children }) => {
 
   const [isDataLoaded, setIsDataLoaded] = useState(false);
   
-  // --- ESTADOS GERAIS ---
   const [characters, setCharacters] = useState([]);
   const [presets, setPresets] = useState([]);
   const [adventures, setAdventures] = useState([]);
@@ -49,7 +48,6 @@ export const GameProvider = ({ children }) => {
     stateRef.current = { adventures, characters, presets, customSystems, activeAdventureId: internalActiveAdventureId, isDataLoaded };
   }, [adventures, characters, presets, customSystems, internalActiveAdventureId, isDataLoaded]);
 
-  // --- SINCRONIZAÇÃO (IPC/BROADCAST) ---
   const handleIncomingMessage = useCallback((type, data) => {
       if (type === 'REQUEST_FULL_SYNC') {
           const current = stateRef.current;
@@ -173,7 +171,6 @@ export const GameProvider = ({ children }) => {
       }
   };
 
-  // --- INICIALIZAÇÃO ---
   useEffect(() => {
       if (isGMWindow) return;
 
@@ -359,7 +356,6 @@ export const GameProvider = ({ children }) => {
       }
   }, [isDataLoaded, internalActiveAdventureId, refreshAudioSystem]);
 
-  // --- CRUD SISTEMAS CUSTOMIZADOS ---
   const addCustomSystem = useCallback((systemData) => {
     const newId = generateUUID();
     const newSystem = { 

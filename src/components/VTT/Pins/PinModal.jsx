@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { useGame } from '../../../context/GameContext';
 import { X, Save, MapPin, TriangleAlert, Warehouse, Key, Skull, House, MessageCircle, Beer, DollarSign, Star } from 'lucide-react';
 
-// Lista de ícones disponíveis para escolha
 const AVAILABLE_ICONS = [
     { name: 'MapPin', Component: MapPin },
     { name: 'Star', Component: Star },
@@ -21,14 +20,12 @@ const COLORS = ['#ef4444', '#f97316', '#eab308', '#22c55e', '#06b6d4', '#3b82f6'
 const PinModal = ({ initialData, position, onSave, onClose }) => {
     const { activeAdventure } = useGame();
     
-    // Estado do formulário
     const [formData, setFormData] = useState({
         title: initialData?.title || "", 
         description: initialData?.description || "",
         icon: initialData?.icon || "MapPin",
         color: initialData?.color || "#ffffff",
         linkedSceneId: initialData?.linkedSceneId || "",
-        // REMOVIDO: visibleToPlayers
         x: initialData ? initialData.x : position.x,
         y: initialData ? initialData.y : position.y,
         id: initialData?.id || null 
@@ -60,7 +57,6 @@ const PinModal = ({ initialData, position, onSave, onClose }) => {
                 </div>
 
                 <div className="space-y-4">
-                    {/* Nome */}
                     <div>
                         <label className="text-xs text-text-muted block mb-1">Título</label>
                         <input 
@@ -72,7 +68,6 @@ const PinModal = ({ initialData, position, onSave, onClose }) => {
                         />
                     </div>
 
-                    {/* Descrição */}
                     <div>
                         <label className="text-xs text-text-muted block mb-1">Descrição (Hover)</label>
                         <textarea 
@@ -83,7 +78,6 @@ const PinModal = ({ initialData, position, onSave, onClose }) => {
                         />
                     </div>
 
-                    {/* Link de Cena */}
                     <div>
                         <label className="text-xs text-text-muted block mb-1">Link para Cena (Opcional)</label>
                         <select 
@@ -98,7 +92,6 @@ const PinModal = ({ initialData, position, onSave, onClose }) => {
                         </select>
                     </div>
 
-                    {/* Ícone e Cor */}
                     <div className="flex gap-4">
                         <div className="flex-1">
                             <label className="text-xs text-text-muted block mb-1">Ícone</label>

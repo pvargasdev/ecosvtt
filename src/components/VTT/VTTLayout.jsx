@@ -641,7 +641,7 @@ const SceneItem = ({ item, isActive, onSelect, onRename, onDelete, onDuplicate, 
                 />
             )}
 
-            <div className="flex items-center gap-2 min-w-0 flex-1">
+            <div className="flex items-center gap-2 min-w-0 min-h-9 flex-1">
                 {isFolder && (
                     <Folder size={20} className={`shrink-0 ${isDragOver ? 'text-neon-green' : 'text-neon-green'}`} fill={isDragOver ? "currentColor" : "none"}/>
                 )}

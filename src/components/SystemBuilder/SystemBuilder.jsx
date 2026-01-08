@@ -26,9 +26,6 @@ import {
 import * as GenericSystem from '../../systems/generic_system';
 import { useGame } from '../../context/GameContext';
 
-// --- COMPONENTES AUXILIARES DND ---
-
-// 1. Item da Sidebar (Arrastável)
 const SidebarItem = ({ type, config }) => {
     const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
         id: `sidebar_new_${type}`,
@@ -49,7 +46,6 @@ const SidebarItem = ({ type, config }) => {
     );
 };
 
-// 2. Item Sortable (Widget no Canvas)
 const SortableItem = ({ id, data, onClick, isSelected }) => {
     const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
     
@@ -57,8 +53,8 @@ const SortableItem = ({ id, data, onClick, isSelected }) => {
         transform: CSS.Transform.toString(transform),
         transition,
         opacity: isDragging ? 0.3 : 1,
-        height: '100%', // Força altura 100% no estilo inline
-        flex: 1         // Força flex-grow
+        height: '100%',
+        flex: 1        
     };
 
     if (!data) return null;
@@ -66,16 +62,13 @@ const SortableItem = ({ id, data, onClick, isSelected }) => {
     const WidgetComp = GenericSystem.WIDGET_REGISTRY[data.type]?.comp;
 
     return (
-        // ADICIONADO: 'flex-1 h-full' na div container
         <div ref={setNodeRef} style={style} {...attributes} className="group relative mb-2 flex-1 h-full flex flex-col">
             <div 
-                // ADICIONADO: 'h-full' na div interna
                 className={`relative rounded-xl border transition-all overflow-hidden h-full flex flex-col flex-1
                 ${isSelected ? 'border-[#d084ff] ring-1 ring-[#d084ff] z-10 bg-[#0a0a0c]' : 'border-transparent hover:border-white/20 bg-[#0a0a0c]'}
                 `}
                 onClick={(e) => { e.stopPropagation(); onClick(); }}
             >
-                {/* ... (Overlay e Handle mantidos iguais) ... */}
                 <div {...listeners} className="absolute inset-0 bg-[#d084ff]/5 opacity-0 group-hover:opacity-100 transition-opacity z-20 cursor-grab active:cursor-grabbing pointer-events-none" />
                 
                 <div className="absolute top-2 right-2 z-30 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -85,7 +78,6 @@ const SortableItem = ({ id, data, onClick, isSelected }) => {
                 </div>
 
                 <div className="pointer-events-none p-0.5 h-full flex-1 flex flex-col">
-                     {/* WidgetComp renderizado com flex-1 para preencher */}
                     {WidgetComp ? 
                         <div className="flex-1 h-full">
                             <WidgetComp data={data} readOnly={true} value={data.defaultValue} /> 
@@ -97,19 +89,16 @@ const SortableItem = ({ id, data, onClick, isSelected }) => {
     );
 };
 
-// 3. Container de Coluna
 const ColumnContainer = ({ id, items, children }) => {
     const { setNodeRef, isOver } = useSortable({ id, data: { type: 'container' } });
     
     return (
         <div ref={setNodeRef} 
-             // ADICIONADO: 'h-full' para ocupar toda a altura da linha
              className={`flex-1 min-h-[60px] rounded-xl p-2 transition-all flex flex-col gap-2 min-w-0 h-full
              ${isOver ? 'bg-[#d084ff]/10 border border-[#d084ff] shadow-[inset_0_0_20px_rgba(208,132,255,0.05)]' : 'border border-dashed border-white/5 hover:border-white/10'}
              `}>
             {items.length === 0 && !isOver && (
                 <div className="h-full flex items-center justify-center text-[9px] text-gray-700 uppercase tracking-widest pointer-events-none opacity-30">
-                    {/* Vazio */}
                 </div>
             )}
             {children}
@@ -117,7 +106,6 @@ const ColumnContainer = ({ id, items, children }) => {
     );
 };
 
-// 4. Linha Sortable (POLIDA)
 const SortableRow = ({ row, rowId, itemsDef, onDelete, onSelectItem, selectedItemId, onChangeColumns }) => {
     const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: rowId, data: { type: 'row' } });
     
@@ -132,18 +120,15 @@ const SortableRow = ({ row, rowId, itemsDef, onDelete, onSelectItem, selectedIte
     return (
         <div ref={setNodeRef} style={style} className="group/row relative mb-2 transition-all">
             
-            {/* Action Bar: Agora com z-index maior para garantir clique na ultima linha */}
             <div className="absolute -top-3 left-1/2 -translate-x-1/2 z-50 opacity-0 group-hover/row:opacity-100 transition-all duration-200 translate-y-2 group-hover/row:translate-y-0 pointer-events-none group-hover/row:pointer-events-auto">
                 <div className="flex items-center gap-1 p-1 bg-[#121216] border border-white/20 rounded-full shadow-2xl">
                     
-                    {/* Drag Handle */}
                     <button {...listeners} {...attributes} className="p-1.5 text-gray-400 hover:text-white cursor-grab active:cursor-grabbing hover:bg-white/10 rounded-full transition-colors" title="Arrastar Linha">
                         <GripHorizontal size={14} />
                     </button>
 
                     <div className="w-px h-3 bg-white/10 mx-0.5" />
 
-                    {/* Columns Control */}
                     <button onClick={() => onChangeColumns(rowId, -1)} className="p-1.5 text-gray-500 hover:text-red-400 hover:bg-white/10 rounded-full transition-colors" title="- Coluna">
                         <Minus size={12} />
                     </button>
@@ -160,7 +145,6 @@ const SortableRow = ({ row, rowId, itemsDef, onDelete, onSelectItem, selectedIte
                 </div>
             </div>
 
-            {/* Conteúdo da Linha: REMOVIDO bg-gradient e bordas fortes */}
             <div className={`rounded-xl p-1 transition-colors ${isDragging ? 'ring-1 ring-[#d084ff] border-[#d084ff] bg-black' : 'border border-transparent'}`}>
                 <div className="flex gap-4 min-h-[50px]">
                     {row.columns.map((colItems, colIndex) => {
@@ -191,7 +175,6 @@ const SortableRow = ({ row, rowId, itemsDef, onDelete, onSelectItem, selectedIte
     );
 };
 
-// --- SYSTEM BUILDER PRINCIPAL ---
 
 export const SystemBuilder = ({ systemToEdit, onSave, onCancel, usageCount = 0 }) => {
     const { setIsSystemBuilderOpen } = useGame();
@@ -225,7 +208,6 @@ export const SystemBuilder = ({ systemToEdit, onSave, onCancel, usageCount = 0 }
     
     const generateId = () => `node_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
 
-    // Adiciona uma linha padrão com 1 coluna
     const addRow = () => {
         const newRow = {
             id: generateId(),
@@ -252,9 +234,8 @@ export const SystemBuilder = ({ systemToEdit, onSave, onCancel, usageCount = 0 }
             const newColumns = [...row.columns];
 
             if (delta > 0) {
-                newColumns.push([]); // Adiciona coluna vazia
+                newColumns.push([]);
             } else {
-                // Ao remover, move itens da última coluna para a penúltima
                 const itemsToSave = newColumns.pop();
                 if (itemsToSave && itemsToSave.length > 0) {
                     const prevColIndex = newColumns.length - 1;
@@ -299,7 +280,6 @@ export const SystemBuilder = ({ systemToEdit, onSave, onCancel, usageCount = 0 }
         });
     };
 
-    // Sensores DND
     const sensors = useSensors(
         useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
         useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
@@ -373,7 +353,6 @@ export const SystemBuilder = ({ systemToEdit, onSave, onCancel, usageCount = 0 }
 
         if (!over) return;
 
-        // 1. Drop Sidebar Item
         if (active.data.current?.isSidebar) {
             const overContainer = findContainer(over.id);
             if (overContainer && overContainer !== 'root') {
@@ -410,7 +389,6 @@ export const SystemBuilder = ({ systemToEdit, onSave, onCancel, usageCount = 0 }
             return;
         }
 
-        // 2. Reorder Rows
         if (active.data.current?.type === 'row' && over.data.current?.type === 'row') {
             if (active.id !== over.id) {
                 setBlueprint(prev => {
@@ -422,7 +400,6 @@ export const SystemBuilder = ({ systemToEdit, onSave, onCancel, usageCount = 0 }
             return;
         }
 
-        // 3. Reorder Items in Same Column
         const activeContainer = findContainer(active.id);
         const overContainer = findContainer(over.id);
 
@@ -461,7 +438,6 @@ export const SystemBuilder = ({ systemToEdit, onSave, onCancel, usageCount = 0 }
 
     return (
         <div className="flex flex-col h-full bg-[#050505] text-white w-full font-inter select-none">
-             {/* HEADER */}
              <div className="flex justify-between items-center p-4 border-b border-white/5 bg-[#0a0a0c]/80 backdrop-blur-md sticky top-0 z-20">
                 <div className="flex items-center gap-4">
                     <div className="p-2.5 bg-gradient-to-br from-[#d084ff]/10 to-transparent rounded-xl border border-[#d084ff]/30 shadow-[0_0_15px_rgba(208,132,255,0.1)]">
@@ -488,7 +464,6 @@ export const SystemBuilder = ({ systemToEdit, onSave, onCancel, usageCount = 0 }
                 onDragEnd={handleDragEnd}
             >
                 <div className="flex flex-1 overflow-hidden">
-                    {/* TOOLBAR */}
                     <div className="w-[280px] bg-[#0a0a0c] border-r border-white/5 flex flex-col p-4 gap-6 shrink-0 overflow-y-auto">
                         {!activeItemDef ? (
                             <div className="animate-in slide-in-from-left-2 duration-300">
@@ -564,14 +539,11 @@ export const SystemBuilder = ({ systemToEdit, onSave, onCancel, usageCount = 0 }
                         )}
                     </div>
 
-                    {/* CANVAS */}
                     <div className="flex-1 relative overflow-y-auto custom-scrollbar bg-gradient-to-br from-[#050505] to-[#0a0a0c]">
-                         {/* Background Grid Pattern */}
                         <div className="absolute inset-0 opacity-[0.03] pointer-events-none" 
                              style={{ backgroundImage: 'radial-gradient(#ffffff 1px, transparent 1px)', backgroundSize: '20px 20px' }}>
                         </div>
 
-                        {/* ALTERADO: pb-60 (Padding Bottom enorme) para garantir que a última linha flutue e seja clicável */}
                         <div className="min-h-full p-10 flex flex-col items-center relative z-10 pb-60">
                             <div className="w-full max-w-5xl">
                                 {blueprint.layout.length === 0 && (
@@ -624,7 +596,6 @@ export const SystemBuilder = ({ systemToEdit, onSave, onCancel, usageCount = 0 }
                 </DragOverlay>
             </DndContext>
 
-             {/* Footer */}
              <div className="p-4 border-t border-white/5 bg-[#0a0a0c]/90 backdrop-blur-md flex justify-between items-center gap-4 z-20">
                 <div className="flex items-center gap-3 text-xs text-gray-500 px-4">
                     <Info size={14} className={saveMode === 'clone' ? "text-amber-500" : "text-gray-600"}/>
