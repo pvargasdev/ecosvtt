@@ -1,44 +1,36 @@
-// src/systems/ecos_guild.jsx
 import React, { useState, useMemo } from 'react';
 import { 
     Building, Siren, Coins, Crown, LayoutGrid, MapPin,
     Handshake, Plus, Trash2, Package, CheckSquare, Square, X,
     Shield, Zap, Activity, BookOpen, PenLine, Weight, Search,
-    Filter, Layers, Sparkles, Check, Pencil, ChevronsUp, Landmark
+    Filter, Layers, Sparkles, Check, Pencil, ChevronsUp, Landmark,
+    Briefcase, HeartPulse, GraduationCap, Eye
 } from 'lucide-react';
 
-// --- CONFIGURAÇÃO VISUAL ---
 const THEME_MAIN = "text-[#d084ff]"; 
 const GLASS_BG = "bg-glass border border-glass-border";
-
-// ==================================================================================
-// --- DADOS E REGRAS ---
-// ==================================================================================
 
 export const SYSTEM_ID = 'ecos_guild_v3';
 export const SYSTEM_NAME = 'ECOS: Guilda';
 export const SYSTEM_DESC = 'Gerenciamento de Facção e Base.';
 
-// Estado Padrão
 export const defaultState = {
-    name: "Nova Guilda",
+    name: "",
     reputation: "",     
     baseLocation: "",   
     
-    tier: 1,            // Categoria
-    coins: 10,          // Tesouro
-    wantedLevel: 0,     // Procurado
-    territory: 0,       // Territórios
+    tier: 1,            
+    coins: 10,          
+    wantedLevel: 0,     
+    territory: 0,       
     
-    // Barras
     prestige: 0,        
     prestigeMax: 6,     
     heat: 0,            
     heatMax: 5,
     
-    // Listas
-    upgrades: [],       // IDs das melhorias (string)
-    customUpgrades: [], // Melhorias customizadas { id, name, description }
+    upgrades: [],
+    customUpgrades: [],
     
     factions: [],       
     stock: [],          
@@ -51,71 +43,57 @@ const handleNumber = (value) => {
     return clean === '' || clean === '-' ? 0 : parseInt(clean);
 };
 
-// --- BANCO DE MELHORIAS (DATA) ---
 const DATA_UPGRADES = [
-    // Base & Segurança
-    { id: 'santuario', name: 'Santuário', type: 'base', description: 'Jogadores começam a sessão com 2 Karma.' },
-    { id: 'santuario_ii', name: 'Santuário II', type: 'base', description: 'Jogadores começam a sessão com 3 Karma (Requer Santuário).' },
-    { id: 'santuario_iii', name: 'Santuário III', type: 'base', description: '+1 no valor máximo de Karma dos jogadores.' },
-    { id: 'tuneis', name: 'Sistema de Túneis', type: 'base', description: 'A base torna-se imune a ser descoberta ou invadida.' },
-    { id: 'base_segura', name: 'Base Segura', type: 'base', description: 'Ignora restrição de apenas 1 atividade de folga durante guerra.' },
-    
-    // Recursos & Operações
-    { id: 'gerencia', name: 'Gerência de Operações', type: 'ops', description: '+1 dado em testes de missões enviadas com funcionários.' },
-    { id: 'lealdade', name: 'Lealdade', type: 'ops', description: 'O funcionário mais antigo não cobra salário semanal.' },
-    { id: 'lealdade_ii', name: 'Lealdade II', type: 'ops', description: 'Os dois funcionários mais antigos não cobram salário.' },
-    { id: 'mapas', name: 'Sala de Mapas', type: 'ops', description: 'Planejamento: Faça 1 pergunta específica sobre a estrutura do local.' },
-    { id: 'informantes', name: 'Informantes', type: 'ops', description: 'Planejamento: Faça 1 pergunta específica sobre perigos da missão.' },
-    
-    // Serviços & Conexões
-    { id: 'enfermaria', name: 'Enfermaria', type: 'service', description: 'A atividade "Recuperar" cura 100% do PV.' },
-    { id: 'enfermaria_ii', name: 'Enfermaria II', type: 'service', description: 'Todos os membros recebem +2 PV Máximo.' },
-    { id: 'enfermaria_iii', name: 'Enfermaria III', type: 'service', description: 'Todos os membros recebem +2 PV Máximo adicional.' },
-    { id: 'contatos_gov', name: 'Contatos no Governo', type: 'service', description: 'Pode pagar 10 moedas para reduzir Atenção em -2 imediatamente.' },
-    { id: 'advocacia', name: 'Eq. de Advocacia', type: 'service', description: 'O valor de fiança para liberar membros presos é reduzido pela metade.' },
-    { id: 'negociante', name: 'Negociante Exclusivo', type: 'service', description: 'Compra itens raros/ilegais sem gastar ação de folga.' },
-    { id: 'treino', name: 'Campo de Treino', type: 'service', description: 'Ao treinar, o teste é crítico a partir do valor 18.' },
-    { id: 'trofeus', name: 'Mural de Troféus', type: 'service', description: '+1 Prestígio extra sempre que completar uma missão com sucesso.' },
+    { id: 'enfermaria', name: 'Enfermaria', type: 'saude', description: 'O máximo de PV dos jogadores aumenta em +1.' },
+    { id: 'enfermaria_ii', name: 'Enfermaria II', type: 'saude', description: 'O máximo de PV dos jogadores aumenta em +1 adicional.' },
+    { id: 'enfermaria_iii', name: 'Enfermaria III', type: 'saude', description: 'A atividade "Recuperar" restaura todos os PV perdidos (ao invés de 5).' },
+
+    { id: 'biblioteca', name: 'Biblioteca', type: 'conhecimento', description: 'O valor máximo de Karma dos jogadores aumenta em +1.' },
+    { id: 'biblioteca_ii', name: 'Biblioteca II', type: 'conhecimento', description: 'O valor máximo de Karma dos jogadores aumenta em +1 adicional.' },
+    { id: 'biblioteca_iii', name: 'Biblioteca III', type: 'conhecimento', description: 'O valor máximo de Karma dos jogadores aumenta em +1 adicional.' },
+
+    { id: 'reconhecimento', name: 'Op. de Reconhecimento', type: 'seguranca', description: 'Planejamento: O grupo pode fazer uma pergunta específica sobre perigos da missão.' },
+    { id: 'base_segura', name: 'Base Segura', type: 'seguranca', description: 'Ignora a restrição de apenas 1 atividade de folga durante guerra.' },
+    { id: 'tuneis', name: 'Sistema de Túneis', type: 'seguranca', description: 'A base torna-se imune a ser descoberta ou invadida.' },
+
+    { id: 'negociante', name: 'Negociante Exclusivo', type: 'influencia', description: 'Compra itens raros/ilegais sem gastar atividade de folga.' },
+    { id: 'advocacia', name: 'Equipe de Advocacia', type: 'influencia', description: 'O valor da fiança para liberar membros presos é reduzido pela metade.' },
+    { id: 'contatos_guarda', name: 'Contatos na Guarda', type: 'influencia', description: 'Uma vez por folga: Pague 10 Granas para reduzir Atenção em -2.' },
+
+    { id: 'gerencia', name: 'Gerência de Operações', type: 'funcionarios', description: '+1 dado em testes de missões enviadas com funcionários.' },
+    { id: 'lealdade', name: 'Lealdade', type: 'funcionarios', description: 'Dois funcionários da guilda não exigem pagamento de salário.' },
+    { id: 'parceiros', name: 'Parceiros do Crime', type: 'funcionarios', description: 'O valor de salário para funcionários passa a ser 3 (ao invés de 5).' },
+
+    { id: 'mapas', name: 'Sala de Mapas', type: 'utilidades', description: 'Planejamento: O grupo pode fazer uma pergunta específica sobre a estrutura do local.' },
+    { id: 'trofeus', name: 'Mural de Troféus', type: 'utilidades', description: '+1 Prestígio extra sempre que completar uma missão com sucesso.' },
+    { id: 'treino', name: 'Campo de Treino', type: 'utilidades', description: 'Ao treinar, o teste de Guilda é crítico a partir do valor 18.' },
 ];
 
-// --- REGRAS DE UPGRADE (MERGE) ---
-// Define como as melhorias se fundem visualmente
 const GUILD_UPGRADE_RULES = {
-    'santuario_ii': {
-        target: 'santuario',
-        modifier: (base) => { base.description = 'Jogadores começam a sessão com 3 Karma.'; }
-    },
-    'santuario_iii': {
-        target: 'santuario',
-        modifier: (base) => { 
-            // Adiciona a informação sem apagar a anterior (seja ela I ou II)
-            base.description += ' (+1 Máx. de Karma).'; 
-        }
-    },
-    'lealdade_ii': {
-        target: 'lealdade',
-        modifier: (base) => { base.description = 'Os dois funcionários mais antigos não cobram salário.'; }
-    },
     'enfermaria_ii': {
         target: 'enfermaria',
-        modifier: (base) => { base.description += ' (Membros recebem +2 PV Máx).'; }
+        modifier: (base) => { base.description = 'O máximo de PV dos jogadores aumenta em +2.'; }
     },
     'enfermaria_iii': {
         target: 'enfermaria',
-        modifier: (base) => {
-            // Lógica acumulativa inteligente para PV
-            if (base.description.includes('+2 PV')) {
-                base.description = base.description.replace('+2 PV', '+4 PV');
+        modifier: (base) => { 
+            if(base.description.includes('+2')) {
+                 base.description = 'PV Máx +2. Atividade "Recuperar" restaura todos os PV.'; 
             } else {
-                base.description += ' (Membros recebem +4 PV Máx).';
+                 base.description += ' Atividade "Recuperar" restaura todos os PV.';
             }
         }
+    },
+
+    'biblioteca_ii': {
+        target: 'biblioteca',
+        modifier: (base) => { base.description = 'O valor máximo de Karma dos jogadores aumenta em +2.'; }
+    },
+    'biblioteca_iii': {
+        target: 'biblioteca',
+        modifier: (base) => { base.description = 'O valor máximo de Karma dos jogadores aumenta em +3.'; }
     }
 };
-
-// ==================================================================================
-// --- COMPONENTES COMPARTILHADOS ---
-// ==================================================================================
 
 const StockWidget = ({ data, updateData, readOnly = false }) => {
     const [newItemName, setNewItemName] = useState("");
@@ -194,7 +172,6 @@ const FactionList = ({ data, updateData }) => {
                 {(data.factions || []).length === 0 ? <div className="text-center text-gray-600 text-[9px] italic">Nenhuma relação.</div> :
                 (data.factions || []).map(f => (
                     <div key={f.id} className="flex items-center justify-between bg-black/20 rounded px-2 py-1">
-                        {/* min-w-0 é essencial para o truncate funcionar dentro do flex */}
                         <div className="flex-1 min-w-0 mr-2">
                              <div className="text-[10px] text-gray-200 font-bold truncate" title={f.name}>
                                  {f.name}
@@ -210,7 +187,6 @@ const FactionList = ({ data, updateData }) => {
                 ))}
             </div>
             
-            {/* CORREÇÃO: Input com w-full e padding ajustado para ter espaço */}
             <div className="p-2 border-t border-white/5 flex flex-col gap-1.5">
                 <div className="flex gap-1 w-full">
                     <input 
@@ -228,13 +204,8 @@ const FactionList = ({ data, updateData }) => {
     );
 };
 
-// ==================================================================================
-// --- EDITOR (Para Editar Atributos e Selecionar Habilidades) ---
-// ==================================================================================
-
 export const Editor = ({ data, updateData }) => {
     
-    // UI Local
     const [searchTerm, setSearchTerm] = useState("");
     const [customName, setCustomName] = useState("");
     const [customDesc, setCustomDesc] = useState("");
@@ -256,7 +227,6 @@ export const Editor = ({ data, updateData }) => {
         updateData({ customUpgrades: (data.customUpgrades||[]).filter(u => u.id !== id) });
     };
 
-    // Lista Combinada para Filtro
     const allOptions = [...DATA_UPGRADES];
 
     const filtered = allOptions.filter(u => 
@@ -266,29 +236,24 @@ export const Editor = ({ data, updateData }) => {
 
     return (
         <div className="space-y-4 h-full overflow-y-auto pr-2 scrollbar-thin text-gray-200">
-            {/* 2. ATRIBUTOS (GRID 4) */}
             <div>
                 <label className="text-xs text-gray-400 mb-1 block">Características</label>
                 <div className="grid grid-cols-4 gap-2">
-                    {/* Categoria */}
                     <div className="bg-black/20 border border-glass-border rounded p-2 flex flex-col items-center">
                         <span className="text-[9px] uppercase text-[#d084ff] font-bold">Categoria</span>
                         <input type="number" className="w-full bg-transparent text-center font-rajdhani font-bold text-lg text-white outline-none"
                             value={data.tier} onChange={e => updateData({ tier: handleNumber(e.target.value) })} />
                     </div>
-                    {/* Territórios */}
                     <div className="bg-black/20 border border-glass-border rounded p-2 flex flex-col items-center">
                         <span className="text-[9px] uppercase text-gray-300 font-bold">Territórios</span>
                         <input type="number" className="w-full bg-transparent text-center font-rajdhani font-bold text-lg text-white outline-none"
                             value={data.territory} onChange={e => updateData({ territory: handleNumber(e.target.value) })} />
                     </div>
-                     {/* Moedas */}
                      <div className="bg-black/20 border border-glass-border rounded p-2 flex flex-col items-center">
-                        <span className="text-[9px] uppercase text-yellow-400 font-bold">Moedas</span>
+                        <span className="text-[9px] uppercase text-yellow-400 font-bold">Grana</span>
                         <input type="number" className="w-full bg-transparent text-center font-rajdhani font-bold text-lg text-white outline-none"
                             value={data.coins} onChange={e => updateData({ coins: handleNumber(e.target.value) })} />
                     </div>
-                     {/* Procurado */}
                      <div className="bg-black/20 border border-glass-border rounded p-2 flex flex-col items-center">
                         <span className="text-[9px] uppercase text-red-400 font-bold">Procurado</span>
                         <input type="number" className="w-full bg-transparent text-center font-rajdhani font-bold text-lg text-white outline-none"
@@ -297,7 +262,6 @@ export const Editor = ({ data, updateData }) => {
                 </div>
             </div>
 
-            {/* 3. LIMITES DE BARRAS */}
             <div className="grid grid-cols-2 gap-2">
                 <div className="bg-black/20 p-2 rounded border border-white/5">
                     <label className="text-[9px] text-purple-400 block text-center font-bold uppercase">Prestígio Máx</label>
@@ -311,11 +275,9 @@ export const Editor = ({ data, updateData }) => {
                 </div>
             </div>
 
-            {/* 4. BANCO DE MELHORIAS (Seleção) */}
             <div className="space-y-2">
                 <label className="text-xs text-gray-400 block font-bold">Banco de Melhorias</label>
                 
-                {/* Busca */}
                 <div className="relative group">
                     <div className="absolute top-1.5 left-2.5 text-gray-500"><Search size={14} /></div>
                     <input type="text" placeholder="Buscar melhoria..."
@@ -323,7 +285,6 @@ export const Editor = ({ data, updateData }) => {
                         value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
                 </div>
 
-                {/* Lista Padrão */}
                 <div className="bg-black/20 p-1 rounded border border-glass-border max-h-48 overflow-y-auto scrollbar-thin">
                     {filtered.map(upg => {
                         const isSelected = (data.upgrades || []).includes(upg.id);
@@ -339,7 +300,6 @@ export const Editor = ({ data, updateData }) => {
                     })}
                 </div>
 
-                {/* Customizadas */}
                 <div className="bg-black/20 p-2 rounded border border-glass-border">
                     <div className="text-[10px] font-bold text-gray-400 mb-2 uppercase">Customizadas</div>
                     {(data.customUpgrades || []).map(u => (
@@ -358,7 +318,6 @@ export const Editor = ({ data, updateData }) => {
                 </div>
             </div>
 
-            {/* 5. GESTÃO DE ESTOQUE/FACÇÕES */}
             <FactionList data={data} updateData={updateData} />
             <StockWidget data={data} updateData={updateData} />
 
@@ -371,36 +330,22 @@ export const Editor = ({ data, updateData }) => {
     );
 };
 
-// ==================================================================================
-// --- VIEWER (Visualização e Uso Diário) ---
-// ==================================================================================
-
-// src/systems/ecos_guild.jsx
-
-// ... (imports e dados anteriores permanecem iguais)
-
-// 4. COMPONENTE DE VISUALIZAÇÃO
 export const Viewer = ({ data, updateData }) => {
     
-    // Funções de manipulação de barras
     const adjustStat = (stat, max, amount) => {
         const current = data[stat] || 0;
         const maximum = data[max] || 10;
         updateData({ [stat]: Math.min(maximum, Math.max(0, current + amount)) });
     };
 
-    // --- PROCESSAMENTO DE MERGE DAS MELHORIAS ---
     const activeUpgrades = useMemo(() => {
-        // 1. Clona a lista bruta de melhorias selecionadas
         let rawList = [
             ...DATA_UPGRADES.filter(u => (data.upgrades || []).includes(u.id)).map(u => ({...u})),
             ...(data.customUpgrades || []).map(u => ({...u}))
         ];
 
-        // 2. Filtra apenas os itens que são modificadores (ex: santuario_ii)
         const modifiers = rawList.filter(item => GUILD_UPGRADE_RULES[item.id]);
 
-        // 3. Aplica as modificações nos itens alvo
         modifiers.forEach(mod => {
             const rule = GUILD_UPGRADE_RULES[mod.id];
             const target = rawList.find(i => i.id === rule.target);
@@ -408,32 +353,26 @@ export const Viewer = ({ data, updateData }) => {
             if (target) {
                 rule.modifier(target);
                 
-                // --- ALTERAÇÃO: Soma +1 ao contador de upgrades ---
                 target._upgradeCount = (target._upgradeCount || 0) + 1;
                 
-                // Marca para remoção da lista visual
                 mod._merged = true;      
             }
         });
 
-        // 4. Retorna lista limpa (sem os itens que foram fundidos)
         return rawList.filter(i => !i._merged);
     }, [data.upgrades, data.customUpgrades]);
 
     return (
         <div className="w-full max-w-2xl mx-auto p-1 font-sans text-gray-200">
             
-            {/* 1. IDENTIDADE (Top Bar) */}
             <div className="flex items-center justify-center gap-2 mb-3 mt-1">
                 <div className="bg-black/40 border border-[#d084ff]/30 rounded-full px-4 py-1 flex items-center gap-2 shadow-[0_0_10px_rgba(208,132,255,0.15)] backdrop-blur-md">
                     <span className="text-[10px] text-white-400 uppercase tracking-wider font-semibold">{data.reputation || "Reputação"}</span>
                 </div>
             </div>
 
-            {/* 2. BARRAS VITAIS (Prestígio & Atenção) */}
             <div className="flex gap-2 mb-4 h-[55px]">
                 
-                {/* PRESTÍGIO */}
                 <div className="flex-1 flex items-center justify-between bg-purple-950/30 border border-purple-500/30 rounded-xl p-1 shadow-[0_0_15px_rgba(208,132,255,0.15)] relative overflow-hidden group">
                     <div className="absolute left-0 top-0 bottom-0 bg-gradient-to-r from-purple-900/60 to-[#d084ff]/40 z-0 transition-all duration-500 ease-out" 
                          style={{ width: `${Math.min(100, (data.prestige / (data.prestigeMax || 6)) * 100)}%` }} />
@@ -448,7 +387,6 @@ export const Viewer = ({ data, updateData }) => {
                     <button onClick={() => adjustStat('prestige', 'prestigeMax', 1)} className="z-10 w-8 h-full flex items-center justify-center text-xl rounded bg-black/10 hover:bg-purple-500/20 text-purple-200 hover:text-white transition-colors pb-1">+</button>
                 </div>
 
-                {/* ATENÇÃO */}
                 <div className="flex-1 flex items-center justify-between bg-red-950/30 border border-red-500/30 rounded-xl p-1 shadow-[0_0_15px_rgba(239,68,68,0.15)] relative overflow-hidden group">
                     <div className="absolute left-0 top-0 bottom-0 bg-gradient-to-r from-red-900/60 to-red-600/40 z-0 transition-all duration-500 ease-out" 
                          style={{ width: `${Math.min(100, (data.heat / (data.heatMax || 5)) * 100)}%` }} />
@@ -464,15 +402,12 @@ export const Viewer = ({ data, updateData }) => {
                 </div>
             </div>
 
-            {/* 3. ATRIBUTOS & RECURSOS (Grid de 4) */}
             <div className="grid grid-cols-4 gap-1.5 mb-4">
-                {/* Categoria */}
                 <div className="bg-glass border border-white/10 rounded-lg flex flex-col items-center justify-center py-2 relative overflow-hidden group">
                     <span className="text-[8px] uppercase text-[#d084ff] font-bold tracking-wider z-10">Categoria</span>
                     <input type="text" className="w-full bg-transparent text-xl font-rajdhani font-bold text-white text-center outline-none z-10"
                         value={data.tier} onChange={e => updateData({ tier: handleNumber(e.target.value) })}/>
                 </div>
-                 {/* Territórios */}
                 <div className="bg-glass border border-white/10 rounded-lg flex flex-col items-center justify-center py-2 relative overflow-hidden group">
                     <span className="text-[8px] uppercase text-gray-300 font-bold tracking-wider z-10">Territórios</span>
                     <div className="flex items-center gap-1 z-10">
@@ -481,16 +416,14 @@ export const Viewer = ({ data, updateData }) => {
                             value={data.territory} onChange={e => updateData({ territory: handleNumber(e.target.value) })}/>
                     </div>
                 </div>
-                 {/* Moedas */}
                 <div className="bg-glass border border-white/10 rounded-lg flex flex-col items-center justify-center py-2 relative overflow-hidden group">
-                    <span className="text-[8px] uppercase text-yellow-400 font-bold tracking-wider z-10">Moedas</span>
+                    <span className="text-[8px] uppercase text-yellow-400 font-bold tracking-wider z-10">Grana</span>
                     <div className="flex items-center gap-1 z-10">
                         <Coins size={12} className="text-yellow-400"/>
                         <input type="text" className="w-12 bg-transparent text-xl font-rajdhani font-bold text-white text-center outline-none"
                             value={data.coins} onChange={e => updateData({ coins: handleNumber(e.target.value) })}/>
                     </div>
                 </div>
-                 {/* Procurado */}
                 <div className="bg-glass border border-white/10 rounded-lg flex flex-col items-center justify-center py-2 relative overflow-hidden group">
                     <span className="text-[8px] uppercase text-red-400 font-bold tracking-wider z-10">Procurado</span>
                     <div className="flex items-center gap-1 z-10">
@@ -501,10 +434,8 @@ export const Viewer = ({ data, updateData }) => {
                 </div>
             </div>
 
-            {/* 4. ÁREA PRINCIPAL - LAYOUT EM GRID FIXO (2 COLUNAS) */}
             <div className="grid grid-cols-2 gap-2 flex-1 min-h-[300px]">
                 
-                {/* COLUNA 1: MELHORIAS (Apenas Leitura) */}
                 <div className="flex flex-col bg-glass border border-glass-border rounded-xl p-0 overflow-hidden h-full">
                     <div className="bg-white/5 p-2 border-b border-white/5 flex items-center gap-2">
                         <Crown size={12} className="text-[#d084ff]" />
@@ -521,10 +452,8 @@ export const Viewer = ({ data, updateData }) => {
                                         <div className="flex items-center gap-2">
                                             <span className="text-[11px] font-bold text-white">{upg.name}</span>
                                             
-                                            {/* --- TAG DE MELHORIA MÚLTIPLA --- */}
                                             {upg._upgradeCount > 0 && (
                                                 <div className="flex items-center gap-0.5 px-1.5 py-0.5 rounded-sm bg-purple-950/50 border border-purple-500/30 text-purple-400">
-                                                    {/* Renderiza um ícone para cada nível de upgrade */}
                                                     {Array.from({ length: upg._upgradeCount }).map((_, i) => (
                                                         <ChevronsUp key={i} size={8} />
                                                     ))}
@@ -539,7 +468,6 @@ export const Viewer = ({ data, updateData }) => {
                     </div>
                 </div>
 
-                {/* COLUNA 2: FACÇÕES & NOTAS */}
                 <div className="flex flex-col gap-2 h-full">
                     <div className="flex-1">
                         <FactionList data={data} updateData={updateData} />
@@ -560,7 +488,6 @@ export const Viewer = ({ data, updateData }) => {
                 </div>
             </div>
 
-            {/* 5. ESTOQUE */}
             <StockWidget data={data} updateData={updateData} />
 
         </div>

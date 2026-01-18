@@ -1,4 +1,3 @@
-// src/systems/ecos_rpg.jsx
 import React, { useMemo, useState } from 'react';
 import { 
     Shield, Zap, Activity, BookOpen, Plus, Trash2, Search, Filter, 
@@ -6,15 +5,13 @@ import {
     CheckSquare, Square, Pencil, Check, ChevronsUp
 } from 'lucide-react';
 
-// --- CONFIGURAÇÃO VISUAL ---
 const THEME_MAIN = "text-[#d084ff]"; 
 const THEME_GLOW = "shadow-[0_0_15px_rgba(208,132,255,0.4)]";
 
 // ==================================================================================
-// --- ÁREA DE DADOS (TEMPLATES) ---
-// ==================================================================================
 
 const DATA_ORIGINS = [
+    { id: 'constructo', name: 'Constructo', description: 'Seres de corpo mecânico que possuem consciência.' },
     { id: 'elfo', name: 'Elfo', description: 'Seres longevos e graciosos com forte conexão mágica e natural.' },
     { id: 'pequenino', name: 'Pequenino', description: 'Povos de baixa estatura, pacatos mas bravos quando ameaçados.' },
     { id: 'humano', name: 'Humano', description: 'A mais jovem, ambiciosa e versátil das espécies comuns.' },
@@ -26,11 +23,11 @@ const DATA_ORIGINS = [
 const DATA_CLASSES = [
     { id: 'acolito', name: 'Acólito' },
     { id: 'artifice', name: 'Artífice' },
-    { id: 'atirador', name: 'Atirador' },
     { id: 'bardo', name: 'Bardo' },
     { id: 'bruto', name: 'Bruto' },
-    { id: 'feiticeiro', name: 'Feiticeiro' },
+    { id: 'cacador', name: 'Caçador' },
     { id: 'combatente', name: 'Combatente' },
+    { id: 'feiticeiro', name: 'Feiticeiro' },
     { id: 'vigarista', name: 'Vigarista' },
 ];
 
@@ -41,135 +38,142 @@ const DATA_SKILLS_LIST = [
 ];
 
 const DATA_ABILITIES = [
-    // --- HABILIDADES DE ORIGEM [Pág. 6] ---
-    { id: 'serenidade', name: 'Serenidade', type: 'origin', req: 'elfo', description: 'Seu valor máximo de Karma inicial é 4.' },
-    { id: 'espirito_civico', name: 'Espírito Cívico', type: 'origin', req: 'pequenino', description: 'Gaste 1 Karma extra ao ajudar para dar +2 dados no total.' },
+    // --- HABILIDADES DE ORIGEM [Pág. 25] ---
+    { id: 'corpo_maquina', name: 'Corpo de Máquina', type: 'origin', req: 'constructo', description: 'Você possui resistência a dano de Raio e de Fogo.' },
+    { id: 'serenidade', name: 'Serenidade', type: 'origin', req: 'elfo', description: 'Seu valor máximo de Karma é aumentado em +1.' },
+    { id: 'espirito_civico', name: 'Espírito Cívico', type: 'origin', req: 'pequenino', description: 'Até 2 vezes por sessão, ajude alguém sem gastar Karma.' },
     { id: 'determinacao_versatil', name: 'Determinação Versátil', type: 'origin', req: 'humano', description: 'Uma vez por sessão, adicione +2 dados para qualquer teste.' },
     { id: 'parrudo', name: 'Parrudo', type: 'origin', req: 'meio_orc', description: 'Imune a efeitos de veneno, toxina ou atordoamento.' },
     { id: 'nascido_do_inferno', name: 'Nascido do Inferno', type: 'origin', req: 'tiefling', description: 'Você possui imunidade contra chamas e calor intenso.' },
-    { id: 'heranca_vampirica', name: 'Herança Vampírica', type: 'origin', req: 'vampiro', description: 'Sugar sangue cura 1 dano. Sofre 1 dano/turno sob luz do Sol.' },
+    { id: 'heranca_vampirica', name: 'Herança Vampírica', type: 'origin', req: 'vampiro', description: 'Sugar sangue cura 1 PV. Sofre 1 dano sob luz do Sol.' },
 
-    // --- ACÓLITO [Pág. 7] ---
+    // --- ACÓLITO [Pág. 28] ---
     { id: 'patrono', name: 'Patrono', type: 'class', req: 'acolito', description: 'Uma vez, suplique por ajuda de sua entidade em grande necessidade.' },
-    { id: 'punicao', name: 'Punição', type: 'class', req: 'acolito', description: 'Ao atacar, gaste 2 Karma para aumentar o dano em +3.' },
+    { id: 'maos_que_curam', name: 'Mãos que Curam', type: 'class', req: 'acolito', cost: 2, description: '2 Karma: Cura 2 PV de você ou de um aliado próximo.' },
+    { id: 'iluminacao', name: 'Iluminação', type: 'class', req: 'acolito', description: 'Faz um objeto brilhar em uma luz forte até o fim da cena.' },
     { id: 'aura_de_protecao', name: 'Aura de Proteção', type: 'class', req: 'acolito', description: 'Aliados próximos recebem +1 dado para resistir a efeitos mentais.' },
-    { id: 'sexto_sentido', name: 'Sexto Sentido', type: 'class', req: 'acolito', description: 'Gaste 2 Karma para saber a localização de seres a até 10m.' },
+    { id: 'cura_em_massa', name: 'Cura em Massa', type: 'class', req: 'acolito', cost: 4, description: '4 Karma: Cura 2 PV de todos os aliados próximos.' },
     { id: 'vingador', name: 'Vingador', type: 'class', req: 'acolito', description: 'Dano duplo contra inimigo que colocou aliado em Morrendo.' },
-    { id: 'vinculo_de_sangue', name: 'Vínculo de Sangue', type: 'class', req: 'acolito', description: 'Gaste 1 Karma para transferir dano sofrido por aliado para você.' },
-    { id: 'ataque_vampirico', name: 'Ataque Vampírico', type: 'class', req: 'acolito', description: 'Ao causar 3+ dano em um ataque, você cura 1 PV.' },
-    { id: 'maos_que_curam', name: 'Mãos que Curam', type: 'class', req: 'acolito', description: 'Gaste 2 Karma e toque em um aliado para curá-lo em 3 PV.' },
-    { id: 'abencoado', name: 'Abençoado', type: 'class', req: 'acolito', description: 'Você começa toda missão com seu Karma preenchido ao máximo.' },
+    { id: 'punicao', name: 'Punição', type: 'class', req: 'acolito', cost: 2, description: '3 Karma: Concede +3 dados para uma rolagem de ataque.' },
+    { id: 'vinculo', name: 'Vínculo', type: 'class', req: 'acolito', description: 'Transfere para você um dano sofrido por um aliado próximo.' },
+    { id: 'acordo_sobrenatural', name: 'Acordo Sobrenatural', type: 'class', req: 'acolito', description: 'Você imediatamente recebe 3 Karma, mas sofre 2 de dano.' },
+    { id: 'amaldicoado', name: 'Amaldiçoado', type: 'class', req: 'acolito', description: 'Karma Máx +3, mas PV Máx -3.' },
+    { id: 'sugar_vitalidade', name: 'Sugar Vitalidade', type: 'class', req: 'acolito', description: 'Ao causar 3+ dano em um ataque, você cura 1 PV.' },
 
-    // --- ARTÍFICE [Pág. 7] ---
-    { id: 'bolsa_de_tralhas', name: 'Bolsa de Tralhas', type: 'class', req: 'artifice', description: 'Gaste 1 Karma para retirar um item útil improvisado da bolsa.' },
-    { id: 'sobrecarga', name: 'Sobrecarga', type: 'class', req: 'artifice', description: 'Use +2 dados em Tecnologia. Se falhar, sofre 3 de dano.' },
-    { id: 'projetil_teleguiado', name: 'Projétil Teleguiado', type: 'class', req: 'artifice', description: 'Gaste 1 Karma para curvar projétil, ignorando cobertura.' },
-    { id: 'ricochete', name: 'Ricochete', type: 'class', req: 'artifice', description: 'Gaste 1 Karma para projétil ricochetear para outro alvo.' },
-    { id: 'tiro_ameacador', name: 'Tiro Ameaçador', type: 'class', req: 'artifice', description: 'Seus acertos em ataques à distância são críticos a partir de 17.' },
-    { id: 'raio_omega', name: 'Raio Ômega', type: 'class', req: 'artifice', description: 'Gaste 2 Karma para ataque em linha reta que acerta todos (Raio).' },
-    { id: 'exoesqueleto', name: 'Exoesqueleto', type: 'class', req: 'artifice', description: '1 Karma: Até o fim da cena, permite saltos irreais.' },
-    { id: 'mente_astuta', name: 'Mente Astuta', type: 'class', req: 'artifice', description: 'Gaste 1 Karma para usar Intelecto em vez de Destreza ou Força.' },
-    { id: 'drone_sentinela', name: 'Drone Sentinela', type: 'class', req: 'artifice', description: '1 Karma: Cria drone até fim da cena. +2 dados em Percepção.' },
-    { id: 'drone_sentinela_ii', name: 'Drone Sentinela II', type: 'class', req: 'artifice', description: 'Ao atacar, gaste 2 Karma para drone atirar também (+3 dados).' },
-    { id: 'drone_sentinela_iii', name: 'Drone Sentinela III', type: 'class', req: 'artifice', description: 'Gaste 3 Karma: Drone se destrói para anular próximo dano em você.' },
-    { id: 'tiro_elemental', name: 'Tiro Elemental', type: 'class', req: 'artifice', description: '1 Karma: Alterar tipo de dano de ataque à distância para qualquer outro.' },
+    // --- ARTÍFICE [Pág. 30] ---
+    { id: 'bolsa_de_tralhas', name: 'Bolsa de Tralhas', type: 'class', req: 'artifice', description: '2x/Sessão: Retira item útil improvisado da bolsa (desfaz após uso).' },
+    { id: 'exoesqueleto', name: 'Exoesqueleto', type: 'class', req: 'artifice', description: 'Permite saltos irreais até o fim da cena.' },
+    { id: 'inquebravel', name: 'Inquebrável', type: 'class', req: ['artifice', 'bruto'], cost: 3, description: '3 Karma: Reduz um dano sofrido pela metade.' },
+    { id: 'drone_sentinela', name: 'Drone Sentinela', type: 'class', req: 'artifice', description: 'Cria drone: +2 dados em testes de Percepção até o fim da cena.' },
+    { id: 'mente_astuta', name: 'Mente Astuta', type: 'class', req: 'artifice', description: 'Use Intelecto em vez de Destreza ou Força em um ataque.' },
+    { id: 'drone_sentinela_ii', name: 'Drone Sentinela II', type: 'class', req: 'artifice', cost: 1, description: '1 Karma (Drone Ativo): Concede +2 dados para um ataque.' },
+    { id: 'drone_sentinela_iii', name: 'Drone Sentinela III', type: 'class', req: 'artifice', description: 'Drone se destrói para anular o próximo dano que você receberia.' },
+    { id: 'margem_de_acerto', name: 'Margem de Acerto', type: 'class', req: ['artifice', 'bruto', 'cacador', 'combatente'], description: 'Seus acertos são críticos a partir do valor 19.' },
+    { id: 'projetil_teleguiado', name: 'Projétil Teleguiado', type: 'class', req: 'artifice', description: 'Projétil curva, permitindo acertar alvo atrás de cobertura.' },
+    { id: 'margem_de_acerto_ii', name: 'Margem de Acerto II', type: 'class', req: ['artifice', 'bruto', 'cacador', 'combatente'], description: 'Seus acertos são críticos a partir do valor 18.' },
+    { id: 'ricochete', name: 'Ricochete', type: 'class', req: 'artifice', description: 'Projétil ricocheteia, acertando outro alvo próximo.' },
+    { id: 'tiro_elemental', name: 'Tiro Elemental', type: 'class', req: 'artifice', description: 'Altera o tipo de dano de um ataque à distância.' },
+    { id: 'scanner', name: 'Scanner', type: 'class', req: 'artifice', description: 'Vê localização de seres a até 10m (mesmo através de paredes) até fim da cena.' },
+    { id: 'sobrecarga', name: 'Sobrecarga', type: 'class', req: 'artifice', description: '+2 dados em Tecnologia. Se falhar, sofre 2 de dano.' },
+    { id: 'raio_omega', name: 'Raio Ômega', type: 'class', req: 'artifice', description: 'Ataque à distância (DES+2 Raio) que acerta todos em linha reta.' },
 
-    // --- ATIRADOR [Pág. 8] ---
-    { id: 'olho_de_aguia', name: 'Olho de Águia', type: 'class', req: 'atirador', description: 'Ignora penalidade por distância estendida com armas de fogo.' },
-    { id: 'tiro_sucessivo', name: 'Tiro Sucessivo', type: 'class', req: 'atirador', description: 'Ao matar alvo, pode imediatamente fazer ataque adicional.' },
-    { id: 'brecha_na_guarda', name: 'Brecha na Guarda', type: 'class', req: 'atirador', description: 'Quando aliado ataca, gaste 1 Karma para atacar o mesmo alvo.' },
-    { id: 'dedo_no_gatilho', name: 'Dedo no Gatilho', type: 'class', req: 'atirador', description: 'Gaste 1 Karma para ser o primeiro a agir no combate.' },
-    { id: 'interrupcao', name: 'Interrupção', type: 'class', req: 'atirador', description: 'Gaste 2 Karma para atacar oponente que vai atacar. 3+ dano anula o dele.' },
-    { id: 'mira_estabilizada', name: 'Mira Estabilizada', type: 'class', req: 'atirador', description: 'Se não mover, recebe +1 dado para ataque à distância.' },
-    { id: 'tiro_certeiro', name: 'Tiro Certeiro', type: 'class', req: 'atirador', description: '1 Karma: Dano triplicado contra alvo focado no próximo turno.' },
-    { id: 'roleta_russa', name: 'Roleta Russa', type: 'class', req: 'atirador', description: 'Role 1d: Par (dano duplicado), Ímpar (ataque anulado).' },
-    { id: 'caindo_com_estilo', name: 'Caindo com Estilo', type: 'class', req: 'atirador', description: 'Ao entrar em Morrendo, realiza ataque com dano duplicado.' },
-    { id: 'critico_letal', name: 'Crítico Letal', type: 'class', req: 'atirador', description: 'Acertos críticos valem como 3 danos ao invés de 2.' },
-    { id: 'tiro_de_advertencia', name: 'Tiro de Advertência', type: 'class', req: 'atirador', description: 'Gaste 1 Karma e teste Presença. Sucesso atordoa o alvo.' },
-
-    // --- BARDO [Pág. 8] ---
+    // --- BARDO [Pág. 32] ---
     { id: 'artista_profissional', name: 'Artista Profissional', type: 'class', req: 'bardo', description: 'Use +3 dados em testes de performance de arte escolhida.' },
-    { id: 'quebra_de_ritmo', name: 'Quebra de Ritmo', type: 'class', req: 'bardo', description: 'Gaste 2 Karma para reduzir ataque sofrido em -2 dados.' },
-    { id: 'cativar', name: 'Cativar', type: 'class', req: 'bardo', description: 'Gaste 2 Karma para distrair personagem, focando atenção em você.' },
-    { id: 'sugestao', name: 'Sugestão', type: 'class', req: 'bardo', description: 'Gaste 2 Karma para implantar pensamento plausível na mente do alvo.' },
-    { id: 'riso_histerico', name: 'Riso Histérico', type: 'class', req: 'bardo', description: 'Gaste 2 Karma e teste Presença. Sucesso causa risada incontrolável.' },
-    { id: 'compreender_idiomas', name: 'Compreender Idiomas', type: 'class', req: 'bardo', description: 'Você decifra instantaneamente qualquer língua falada ou escrita.' },
-    { id: 'bis', name: 'Bis!', type: 'class', req: 'bardo', description: 'Gaste 2 Karma: Aliado escolhido realiza ataque adicional no turno dele.' },
-    { id: 'ilusao_maior', name: 'Ilusão Maior', type: 'class', req: 'bardo', description: 'Gaste 2 Karma para conjurar ilusão imóvel realista até ser tocada.' },
+    { id: 'ilusao', name: 'Ilusão', type: 'class', req: ['bardo', 'feiticeiro'], description: 'Conjura ilusão imóvel realista, durando até ser tocada.' },
+    { id: 'passo_nebuloso', name: 'Passo Nebuloso', type: 'class', req: ['bardo', 'vigarista'], cost: 2, description: '2 Karma: Teleporta para qualquer lugar próximo visível.' },
+    { id: 'disfarce', name: 'Disfarce', type: 'class', req: ['bardo', 'vigarista'], description: 'Ilusão altera aparência até fim da cena (não engana tato).' },
+    { id: 'invisibilidade', name: 'Invisibilidade', type: 'class', req: ['bardo', 'feiticeiro', 'vigarista'], cost: 2, description: '2 Karma: Fica invisível por uma curta duração.' },
+    { id: 'insulto_afiado', name: 'Insulto Afiado', type: 'class', req: 'bardo', description: 'Alvo próximo sofre -1 dado no próximo ataque contra você ou aliado.' },
+    { id: 'silencio', name: 'Silêncio', type: 'class', req: 'bardo', description: 'Esfera de silêncio absoluto anula sons em área próxima.' },
+    { id: 'talento_confiavel', name: 'Talento Confiável', type: 'class', req: ['bardo', 'vigarista'], cost: 2, description: '2 Karma: Role novamente teste auxiliado por perícia.' },
+    { id: 'inspirar', name: 'Inspirar', type: 'class', req: ['bardo', 'combatente'], cost: 4, description: '4 Karma: Aliado próximo rola novamente teste recém realizado.' },
+    { id: 'bis', name: 'Bis!', type: 'class', req: 'bardo', description: 'Aliado escolhido realiza ataque adicional no turno dele.' },
+    { id: 'cativar', name: 'Cativar', type: 'class', req: 'bardo', cost: 2, description: '2 Karma: Distrai alvo, fazendo ele prestar atenção só em você.' },
+    { id: 'sugestao', name: 'Sugestão', type: 'class', req: 'bardo', description: 'Implanta pensamento plausível na mente do alvo.' },
+    { id: 'riso_histerico', name: 'Riso Histérico', type: 'class', req: 'bardo', cost: 2, description: '2 Karma: Teste vs Alvo. Sucesso causa risada incontrolável.' },
 
-    // --- BRUTO [Pág. 9] ---
+    // --- BRUTO [Pág. 34] ---
     { id: 'duro_na_queda', name: 'Duro na Queda', type: 'class', req: 'bruto', description: 'Seu valor máximo de PV é aumentado em +2.' },
-    { id: 'cai_dentro', name: 'Cai Dentro', type: 'class', req: 'bruto', description: '2 Karma: Se alvo atacar outro que não você, usa -2 dados.' },
-    { id: 'cargueiro', name: 'Cargueiro', type: 'class', req: 'bruto', description: 'Sua capacidade de carga aumenta em +3.' },
-    { id: 'furia', name: 'Fúria', type: 'class', req: 'bruto', description: '2 Karma: +1 dado em testes (exceto Intelecto) por curta duração.' },
-    { id: 'rejeitar_fraqueza', name: 'Rejeitar Fraqueza', type: 'class', req: 'bruto', description: 'Uma vez/sessão, negue um fracasso e considere resultado 20.' },
-    { id: 'presenca_avassaladora', name: 'Presença Avassaladora', type: 'class', req: 'bruto', description: 'Gaste 1 Karma para +1 dado em testes de Intimidação.' },
+    { id: 'cai_dentro', name: 'Cai Dentro', type: 'class', req: ['bruto', 'combatente'], cost: 3, description: '3 Karma: Alvo usa -2 dados se atacar outro que não você.' },
     { id: 'pele_resistente', name: 'Pele Resistente', type: 'class', req: 'bruto', description: 'Imune a ataques que causariam apenas 1 de dano.' },
-    { id: 'ataque_imprudente', name: 'Ataque Imprudente', type: 'class', req: 'bruto', description: '1 Karma: +2 dados no ataque. Defesa com -1 dado no próximo teste.' },
-    { id: 'furia_ii', name: 'Fúria II', type: 'class', req: 'bruto', description: 'Fúria custa 4 Karma, mas tem duração ilimitada.' },
-    { id: 'furia_iii', name: 'Fúria III', type: 'class', req: 'bruto', description: 'Fúria volta a custar 2 Karma, mantendo duração ilimitada.' },
+    { id: 'adrenalina', name: 'Adrenalina', type: 'class', req: ['bruto', 'combatente'], description: 'Desloca-se o dobro da distância normal por duração breve.' },
+    { id: 'ataque_extra', name: 'Ataque Extra', type: 'class', req: ['bruto', 'cacador', 'combatente'], cost: 2, description: '2 Karma: Realiza um ataque adicional no seu turno.' },
+    { id: 'ataque_imprudente', name: 'Ataque Imprudente', type: 'class', req: 'bruto', description: '+2 dados no ataque, mas -1 dado na sua próxima defesa.' },
+    { id: 'ataque_extra_ii', name: 'Ataque Extra II', type: 'class', req: ['bruto', 'cacador', 'combatente'], description: 'Ataque Extra passa a custar apenas 1 Karma.' },
+    { id: 'furia', name: 'Fúria', type: 'class', req: 'bruto', cost: 2, description: '2 Karma: +1 dado para ataques por duração curta.' },
+    { id: 'presenca_avassaladora', name: 'Presença Avassaladora', type: 'class', req: 'bruto', description: '+1 dado em um teste de Intimidação.' },
+    { id: 'furia_ii', name: 'Fúria II', type: 'class', req: 'bruto', description: 'Fúria dura até fim da cena, mas custa 4 Karma.' },
+    { id: 'furia_iii', name: 'Fúria III', type: 'class', req: 'bruto', description: 'Fúria volta a custar 2 Karma (mantendo duração de cena).' },
+    { id: 'cargueiro', name: 'Cargueiro', type: 'class', req: 'bruto', description: 'Sua Capacidade de Carga aumenta em +2.' },
+    { id: 'cargueiro_ii', name: 'Cargueiro II', type: 'class', req: 'bruto', description: 'Sua Capacidade de Carga aumenta em +2 adicionais.' },
+    { id: 'rejeitar_fraqueza', name: 'Rejeitar Fraqueza', type: 'class', req: 'bruto', description: 'Role novamente um teste recém realizado.' },
 
-    // --- FEITICEIRO [Pág. 9] ---
-    { id: 'fome_por_conhecimento', name: 'Fome por Conhecimento', type: 'class', req: 'feiticeiro', description: 'Começa com 1 espaço adicional desbloqueado na árvore.' },
-    { id: 'elemento_de_poder', name: 'Elemento de Poder', type: 'class', req: 'feiticeiro', description: 'Escolha um tipo de dano para suas habilidades elementais.' },
-    { id: 'maos_magicas', name: 'Mãos Mágicas', type: 'class', req: 'feiticeiro', description: '1 Karma: Conjura mão fantasma que executa tarefas à distância.' },
-    { id: 'conjurar_espiritos', name: 'Conjurar Espíritos', type: 'class', req: 'feiticeiro', description: 'Invoca espíritos que atacam (INT+1) por duração curta.' },
-    { id: 'forma_animal', name: 'Forma Animal', type: 'class', req: 'feiticeiro', description: 'Gaste 3 Karma para adotar a forma de um animal até fim da cena.' },
-    { id: 'falar_com_natureza', name: 'Falar com Natureza', type: 'class', req: 'feiticeiro', description: 'Conversa com animais e plantas para obter info ou favores.' },
-    { id: 'forma_animal_ii', name: 'Forma Animal II', type: 'class', req: 'feiticeiro', description: 'Forma Animal passa a custar 2 Karma.' },
-    { id: 'projetil_elemental', name: 'Projétil Elemental', type: 'class', req: 'feiticeiro', description: '1 Karma: Ataque (INT+2) à distância com seu Elemento de Poder.' },
-    { id: 'toque_elemental', name: 'Toque Elemental', type: 'class', req: 'feiticeiro', description: 'Ataques desarmados usam Intelecto e seu Elemento de Poder.' },
-    { id: 'explosao_elemental', name: 'Explosão Elemental', type: 'class', req: 'feiticeiro', description: '2 Karma: Ataque (INT+2) em área média com Elemento de Poder.' },
+    // --- CAÇADOR [Pág. 36] ---
+    { id: 'olho_de_aguia', name: 'Olho de Águia', type: 'class', req: 'cacador', description: 'Ignora penalidade por distância estendida (1 nível).' },
+    { id: 'ataques_sucessivos', name: 'Ataques Sucessivos', type: 'class', req: 'cacador', description: 'Após matar um alvo, faça dois ataques adicionais.' },
+    { id: 'so_pra_garantir', name: 'Só pra Garantir', type: 'class', req: ['cacador', 'vigarista'], description: 'Receba +1 dado em um teste que está prestes a fazer.' },
+    { id: 'brecha_na_guarda', name: 'Brecha na Guarda', type: 'class', req: 'cacador', description: 'Quando aliado ataca, você ataca o mesmo alvo imediatamente.' },
+    { id: 'interrupcao', name: 'Interrupção', type: 'class', req: 'cacador', description: 'Ataque oponente antes dele atacar. Se causar 3+ dano, anula o dele.' },
+    { id: 'roleta_russa', name: 'Roleta Russa', type: 'class', req: 'cacador', description: 'Dado extra: Par (dano duplo), Ímpar (ataque anulado).' },
+    { id: 'advertencia', name: 'Advertência', type: 'class', req: 'cacador', description: 'Teste Presença vs Alvo. Sucesso atordoa o alvo.' },
+    { id: 'camuflagem', name: 'Camuflagem', type: 'class', req: 'cacador', description: 'Camuflagem perfeita em ambiente natural/cobertura até mover.' },
+    { id: 'disparo_perfurante', name: 'Disparo Perfurante', type: 'class', req: 'cacador', description: 'Projétil atravessa alvo, acertando um segundo atrás dele.' },
+    { id: 'ponto_fraco', name: 'Ponto Fraco', type: 'class', req: 'cacador', description: 'Escolha alvo. Até fim da cena, seus ataques nele usam +1 dado.' },
+    { id: 'mira_estabilizada', name: 'Mira Estabilizada', type: 'class', req: 'cacador', description: 'Se não mover, recebe +1 dado para ataque à distância no próximo turno.' },
+    { id: 'caindo_com_estilo', name: 'Caindo com Estilo', type: 'class', req: 'cacador', description: 'Ao entrar em Morrendo, realiza ataque com dano duplicado.' },
+    { id: 'critico_letal', name: 'Crítico Letal', type: 'class', req: ['cacador', 'combatente'], description: 'Acertos críticos valem como 3 danos (ao invés de 2).' },
 
-    // --- COMBATENTE [Pág. 10] ---
-    { id: 'posturas_de_luta', name: 'Posturas de Luta', type: 'class', req: 'combatente', description: 'Fim do turno: gaste 1 Karma para entrar em postura Zen (Karma máx todo turno, mas não ataca) ou Frenesi (+3 dados em ataques feitos ou recebidos).' },
-    { id: 'intuicao_cega', name: 'Intuição Cega', type: 'class', req: 'combatente', description: 'Imune a efeitos de cegueira/invisibilidade para atacar.' },
-    { id: 'precisao_critica', name: 'Precisão Crítica', type: 'class', req: 'combatente', description: 'Ataques com resultado 18+ são considerados críticos.' },
-    { id: 'protecao', name: 'Proteção', type: 'class', req: 'combatente', description: 'Gaste 2 Karma para reduzir ataque contra aliado próximo em -2 dados.' },
+    // --- COMBATENTE [Pág. 38] ---
     { id: 'a_favorita', name: 'A Favorita', type: 'class', req: 'combatente', description: 'Recebe +1 dado ao atacar com sua arma favorita escolhida.' },
-    { id: 'desarmar', name: 'Desarmar', type: 'class', req: 'combatente', description: '2 Karma e teste de Destreza. Sucesso desarma o inimigo.' },
-    { id: 'ataque_especial', name: 'Ataque Especial', type: 'class', req: 'combatente', description: '2 Karma: Realizar ataque com arma Favorita usando +2 dados.' },
-    { id: 'ataque_especial_ii', name: 'Ataque Especial II', type: 'class', req: 'combatente', description: 'O Ataque Especial passa a custar apenas 1 Karma.' },
-    { id: 'estrategia_de_combate', name: 'Estratégia de Combate', type: 'class', req: 'combatente', description: '1 Karma: Adicione +1 dado aos ataques de aliados (curta duração).' },
-    { id: 'inspirar', name: 'Inspirar', type: 'class', req: 'combatente', description: '4 Karma: Aliado próximo rola novamente um teste recém realizado.' },
-    { id: 'oficial_comandante', name: 'Oficial Comandante', type: 'class', req: 'combatente', description: '4 Karma: Aliados próximos recebem +1 dado em tudo até fim da cena.' },
+    { id: 'passo_das_nuvens', name: 'Passo das Nuvens', type: 'class', req: 'combatente', description: 'Corre por superfícies verticais sem cair por breve duração.' },
+    { id: 'ataque_especial', name: 'Ataque Especial', type: 'class', req: 'combatente', cost: 2, description: '3 Karma: Adiciona +2 dados em uma rolagem de ataque.' },
+    { id: 'protecao', name: 'Proteção', type: 'class', req: 'combatente', description: 'Reduz em -2 dados um ataque contra aliado próximo.' },
+    { id: 'ataque_especial_ii', name: 'Ataque Especial II', type: 'class', req: 'combatente', description: 'Ataque Especial passa a custar apenas 2 Karma.' },
+    { id: 'reflexos_de_combate', name: 'Reflexos de Combate', type: 'class', req: ['combatente', 'vigarista'], description: 'Ataque adicional na 1ª rodada de qualquer combate.' },
+    { id: 'estrategia_de_defesa', name: 'Estratégia de Defesa', type: 'class', req: 'combatente', description: 'Aliados próximos recebem +1 dado em Defesa até fim da cena.' },
+    { id: 'grito_de_guerra', name: 'Grito de Guerra', type: 'class', req: 'combatente', description: 'Aliados próximos recebem +1 dado em Ataque até fim da cena.' },
+    { id: 'inspirar_ii', name: 'Inspirar II', type: 'class', req: 'combatente', description: 'Inspirar passa a custar apenas 3 Karma.' },
 
-    // --- VIGARISTA [Pág. 10] ---
-    { id: 'plagio', name: 'Plágio', type: 'class', req: 'vigarista', description: 'Começa com 1 espaço desbloqueado na árvore de outra classe.' },
+    // --- FEITICEIRO [Pág. 40] ---
+    { id: 'fome_por_conhecimento', name: 'Fome por Conhecimento', type: 'class', req: 'feiticeiro', description: 'Começa com "Projétil Elemental" desbloqueado.' },
+    { id: 'projetil_elemental', name: 'Projétil Elemental', type: 'class', req: 'feiticeiro', description: 'Ataque desarmado (INT+1) à distância, dano à escolha.' },
+    { id: 'projetil_poderoso', name: 'Projétil Poderoso', type: 'class', req: 'feiticeiro', cost: 2, description: '2 Karma: +2 dados para ataque à distância desarmado.' },
+    { id: 'ataque_elemental', name: 'Ataque Elemental', type: 'class', req: 'feiticeiro', description: 'Ataques corpo a corpo causam tipo de dano à escolha.' },
+    { id: 'explosao_elemental', name: 'Explosão Elemental', type: 'class', req: 'feiticeiro', description: 'Converte ataque desarmado em área média.' },
+    { id: 'maos_magicas', name: 'Mãos Mágicas', type: 'class', req: 'feiticeiro', description: 'Conjura mão fantasma que executa tarefas à distância.' },
+    { id: 'conjurar_espiritos', name: 'Conjurar Espíritos', type: 'class', req: 'feiticeiro', cost: 2, description: '2 Karma: Espírito aliado ataca (INT+1) por duração curta.' },
+    { id: 'flagelo', name: 'Flagelo', type: 'class', req: 'feiticeiro', description: 'Recebe 3 Karma, mas sofre 2 de dano.' },
+    { id: 'forma_animal', name: 'Forma Animal', type: 'class', req: 'feiticeiro', description: 'Adota forma de animal tocado hoje (até fim da cena).' },
+    { id: 'falar_com_natureza', name: 'Falar com Natureza', type: 'class', req: 'feiticeiro', description: 'Conversa com animais e plantas.' },
+    { id: 'forma_animal_ii', name: 'Forma Animal II', type: 'class', req: 'feiticeiro', description: 'Forma Animal passa a custar apenas 2 Karma.' },
+    { id: 'constricao', name: 'Constrição', type: 'class', req: 'feiticeiro', description: 'Teste vs Alvo. Sucesso prende alvo em vinhas.' },
+
+    // --- VIGARISTA [Pág. 42] ---
+    { id: 'plagio', name: 'Plágio', type: 'class', req: 'vigarista', description: 'Recebe habilidade Grau 1 de outra classe.' },
     { id: 'ataque_furtivo', name: 'Ataque Furtivo', type: 'class', req: 'vigarista', description: 'Receba +1 dado para qualquer ataque furtivo.' },
     { id: 'ataque_furtivo_ii', name: 'Ataque Furtivo II', type: 'class', req: 'vigarista', description: 'Ataques furtivos são críticos a partir do valor 18.' },
-    { id: 'ataque_furtivo_iii', name: 'Ataque Furtivo III', type: 'class', req: 'vigarista', description: 'Ataques furtivos são críticos a partir do valor 16.' },
-    { id: 'ataque_furtivo_iv', name: 'Ataque Furtivo IV', type: 'class', req: 'vigarista', description: 'Recebe +2 dados para ataques furtivos (ao invés de +1).' },
-    { id: 'truque_de_mestre', name: 'Truque de Mestre', type: 'class', req: 'vigarista', description: '3 Karma: Usar habilidade que viu aliado usar na cena.' },
-    { id: 'esquiva_sobrenatural', name: 'Esquiva Sobrenatural', type: 'class', req: 'vigarista', description: 'Ao sofrer dano, gaste 3 Karma para reduzi-lo pela metade.' },
+    { id: 'ataque_furtivo_iii', name: 'Ataque Furtivo III', type: 'class', req: 'vigarista', description: 'Recebe +2 dados para ataques furtivos (ao invés de +1).' },
+    { id: 'ataque_furtivo_iv', name: 'Ataque Furtivo IV', type: 'class', req: 'vigarista', description: 'Ataques furtivos são críticos a partir do valor 16.' },
+    { id: 'esquiva_sobrenatural', name: 'Esquiva Sobrenatural', type: 'class', req: 'vigarista', cost: 2, description: '2 Karma: Reduz ataque sofrido em -2 dados.' },
+    { id: 'truque_de_mestre', name: 'Truque de Mestre', type: 'class', req: 'vigarista', description: 'Realiza habilidade que viu aliado usar na cena.' },
 
-    // --- HABILIDADES COMPARTILHADAS (MULTI-CLASSE) ---
-    { id: 'flagelador', name: 'Flagelador', type: 'class', req: ['acolito', 'feiticeiro'], description: 'Cause 2 de dano em si mesmo para receber 2 Karma.' },
-    { id: 'conexao_espiritual', name: 'Conexão Espiritual', type: 'class', req: ['acolito', 'bardo', 'feiticeiro', 'vigarista'], description: 'Seu valor máx. de Karma aumenta em +1.' },
-    { id: 'inquebravel', name: 'Inquebrável', type: 'class', req: ['artifice', 'bruto'], description: 'Ao sofrer dano, gaste 3 Karma para reduzi-lo pela metade.' },
-    { id: 'ataque_extra', name: 'Ataque Extra', type: 'class', req: ['atirador', 'bruto', 'combatente'], description: 'Gaste 2 Karma para realizar um ataque adicional no seu turno.' },
-    { id: 'ataque_extra_ii', name: 'Ataque Extra II', type: 'class', req: ['atirador', 'bruto', 'combatente'], description: 'Ataque Extra passa a custar 1 Karma.' },
-    { id: 'so_pra_garantir', name: 'Só pra Garantir', type: 'class', req: ['atirador', 'vigarista'], description: 'Gaste 1 Karma e receba +1 dado em um teste prestes a fazer.' },
-    { id: 'margem_de_ameaca', name: 'Margem de Ameaça', type: 'class', req: ['atirador', 'bruto'], description: 'Seus acertos são críticos a partir do valor 18.' },
-    { id: 'passo_nebuloso', name: 'Passo Nebuloso', type: 'class', req: ['bardo', 'vigarista'], description: 'Gaste 2 Karma para se teleportar para qualquer lugar próximo visível.' },
-    { id: 'invisibilidade', name: 'Invisibilidade', type: 'class', req: ['bardo', 'feiticeiro', 'vigarista'], description: 'Gaste 2 Karma para ficar invisível por uma curta duração.' },
-    { id: 'talento_confiavel', name: 'Talento Confiável', type: 'class', req: ['bardo', 'vigarista'], description: 'Ao falhar teste ajudado por perícia, gaste 2 Karma para rerolar.' },
-    { id: 'disfarce', name: 'Disfarce', type: 'class', req: ['bardo', 'vigarista'], description: '2 Karma: Ilusão altera aparência até fim da cena (não engana tato).' },
-    { id: 'adrenalina', name: 'Adrenalina', type: 'class', req: ['bruto', 'combatente'], description: '1 Karma: Desloca-se o dobro da distância normal no turno.' },
-    { id: 'reflexos_de_combate', name: 'Reflexos de Combate', type: 'class', req: ['combatente', 'vigarista'], description: 'Pode realizar um ataque adicional na 1ª rodada de qualquer combate.' }
+    // --- HABILIDADES COMPARTILHADAS ---
+    { id: 'iniciado_combatente', name: 'Iniciado Combatente', type: 'class', req: ['acolito', 'artifice', 'feiticeiro'], description: 'Desbloqueia uma habilidade de Combatente Grau 1.' },
+    { id: 'iniciado_combatente_ii', name: 'Iniciado Combatente II', type: 'class', req: ['acolito', 'artifice', 'feiticeiro'], description: 'Desbloqueia outra habilidade de Combatente Grau 1.' },
+    { id: 'iniciado_feiticeiro', name: 'Iniciado Feiticeiro', type: 'class', req: ['acolito', 'bardo', 'vigarista'], description: 'Desbloqueia uma habilidade de Feiticeiro Grau 1.' },
+    { id: 'iniciado_feiticeiro_ii', name: 'Iniciado Feiticeiro II', type: 'class', req: ['acolito', 'bardo', 'vigarista'], description: 'Desbloqueia outra habilidade de Feiticeiro Grau 1.' },
+    { id: 'conexao_espiritual', name: 'Conexão Espiritual', type: 'class', req: ['acolito', 'bardo', 'vigarista'], description: 'Seu valor máx. de Karma aumenta em +1.' },
+    { id: 'conexao_espiritual_ii', name: 'Conexão Espiritual II', type: 'class', req: ['acolito', 'bardo', 'vigarista'], description: 'Seu valor máx. de Karma aumenta em +1 adicional.' },
 ];
 
-// ==================================================================================
-
 const handleNumber = (value) => {
-    const clean = value.replace(/[^0-9-]/g, '').slice(0, 3);
+    const clean = value.toString().replace(/[^0-9-]/g, '').slice(0, 3);
     return clean === '' || clean === '-' ? 0 : parseInt(clean);
 };
 
-// 1. METADADOS E ESTADO PADRÃO
 export const SYSTEM_ID = 'ecos_rpg_v1';
 export const SYSTEM_NAME = 'ECOS RPG';
-export const SYSTEM_DESC = 'Sistema narrativo e estratégico.';
+export const SYSTEM_DESC = 'Versão 0.6.0.1';
 
 export const defaultState = {
     originId: "",
@@ -188,19 +192,16 @@ export const defaultState = {
 
     notes: "", 
     
-    // Novo Inventário
     maxLoad: 5,
-    inventory: [] // { id, name, desc, weight, carried }
+    inventory: []
 };
 
-// --- WIDGET DE INVENTÁRIO COMPARTILHADO ---
 const InventoryWidget = ({ data, updateData, readOnlyMode = false }) => {
     const [newItemName, setNewItemName] = useState("");
     const [newItemWeight, setNewItemWeight] = useState(1);
     const [newItemDesc, setNewItemDesc] = useState("");
     const [isAdding, setIsAdding] = useState(false);
 
-    // Cálculos
     const currentLoad = (data.inventory || [])
         .filter(i => i.carried)
         .reduce((acc, i) => acc + (parseInt(i.weight) || 0), 0);
@@ -314,26 +315,20 @@ const InventoryWidget = ({ data, updateData, readOnlyMode = false }) => {
     );
 };
 
-
-// 2. COMPONENTE DE EDIÇÃO
 export const Editor = ({ data, updateData }) => {
     const handleFocus = (e) => e.target.select();
     
-    // UI States - Criação
     const [customAbilityName, setCustomAbilityName] = useState("");
     const [customAbilityDesc, setCustomAbilityDesc] = useState("");
     const [customSkillInput, setCustomSkillInput] = useState("");
     
-    // UI States - Edição
     const [editingId, setEditingId] = useState(null);
     const [editName, setEditName] = useState("");
     const [editDesc, setEditDesc] = useState("");
 
-    // UI States - Filtros
     const [searchTerm, setSearchTerm] = useState("");
     const [filterMode, setFilterMode] = useState("recommended"); 
 
-    // --- Perícias ---
     const toggleSkill = (skillName) => {
         const current = data.trainedSkills || [];
         if (current.includes(skillName)) updateData({ trainedSkills: current.filter(s => s !== skillName) });
@@ -350,7 +345,6 @@ export const Editor = ({ data, updateData }) => {
         updateData({ customSkills: (data.customSkills || []).filter(s => s !== skillName) });
     };
 
-    // --- Habilidades ---
     const toggleAbility = (abilityId) => {
         const currentList = data.selectedAbilities || [];
         if (currentList.includes(abilityId)) updateData({ selectedAbilities: currentList.filter(id => id !== abilityId) });
@@ -374,7 +368,6 @@ export const Editor = ({ data, updateData }) => {
         updateData({ customAbilities: (data.customAbilities || []).filter(a => a.id !== id) });
     };
 
-    // --- Lógica de Edição ---
     const startEdit = (ability) => {
         setEditingId(ability.id);
         setEditName(ability.name);
@@ -406,13 +399,11 @@ export const Editor = ({ data, updateData }) => {
             if (filterMode === 'recommended') {
                 if (ab.type === 'generic') return true;
                 
-                // Lógica Multi-Requisito para Origem
                 if (ab.type === 'origin') {
                     if (Array.isArray(ab.req)) return ab.req.includes(data.originId);
                     return ab.req === data.originId;
                 }
                 
-                // Lógica Multi-Requisito para Classe
                 if (ab.type === 'class') {
                     if (Array.isArray(ab.req)) return ab.req.includes(data.classId);
                     return ab.req === data.classId;
@@ -574,7 +565,6 @@ export const Editor = ({ data, updateData }) => {
                         {(data.customAbilities || []).length > 0 ? (
                             <div className="space-y-1 max-h-40 overflow-y-auto scrollbar-thin mb-3">
                                 {data.customAbilities.map(ab => {
-                                    // MODO EDIÇÃO
                                     if (editingId === ab.id) {
                                         return (
                                             <div key={ab.id} className="bg-black/60 rounded p-1.5 border border-[#d084ff] flex flex-col gap-1.5 animate-in zoom-in-95 duration-200">
@@ -592,7 +582,6 @@ export const Editor = ({ data, updateData }) => {
                                         );
                                     }
 
-                                    // MODO VISUALIZAÇÃO
                                     return (
                                         <div key={ab.id} className="group relative flex justify-between items-start bg-white/5 rounded px-2 py-1.5 border border-white/5 hover:border-white/10 transition-all">
                                             <div className="flex-1 pr-6">
@@ -600,7 +589,6 @@ export const Editor = ({ data, updateData }) => {
                                                 <div className="text-[9px] text-gray-500 leading-tight mt-0.5">{ab.description}</div>
                                             </div>
                                             
-                                            {/* Botões de Ação (Aparecem no Hover) - LADO A LADO */}
                                             <div className="absolute right-1 top-1 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity bg-black/80 rounded p-0.5 backdrop-blur-sm">
                                                 <button onClick={() => startEdit(ab)} className="text-gray-400 hover:text-[#d084ff] p-1" title="Editar">
                                                     <Pencil size={10} />
@@ -647,39 +635,53 @@ export const Editor = ({ data, updateData }) => {
     );
 };
 
-// 3. LOGICA DE MERGE PARA VISUALIZAÇÃO
-// Define quais habilidades modificam outras para criar uma visualização unificada.
 const UPGRADE_RULES = {
-    // ID da Melhoria : { ID do Alvo, Função de Modificação }
     'forma_animal_ii': { 
         target: 'forma_animal', 
-        modifier: (base) => { base.description = 'Gaste 2 Karma para adotar a forma de um animal até fim da cena.'; } 
+        modifier: (base) => { base.description = 'Forma Animal passa a custar apenas 2 Karma.'; } 
     },
     'ataque_especial_ii': { 
         target: 'ataque_especial', 
-        modifier: (base) => { base.description = '1 Karma: Realizar ataque com arma Favorita usando +2 dados.'; } 
+        modifier: (base) => { base.description = '1 Karma: Adiciona +2 dados em uma rolagem de ataque.'; } 
     },
     'ataque_extra_ii': { 
         target: 'ataque_extra', 
-        modifier: (base) => { base.description = 'Gaste 1 Karma para realizar um ataque adicional no seu turno.'; } 
+        modifier: (base) => { base.description = '1 Karma: Realiza um ataque adicional no seu turno.'; } 
+    },
+    'inspirar_ii': {
+        target: 'inspirar',
+        modifier: (base) => { base.description = '3 Karma: Aliado próximo rola novamente teste recém realizado.'; }
     },
     'furia_ii': { 
         target: 'furia', 
-        modifier: (base) => { base.description = '4 Karma: +1 dado em testes (exceto Intelecto) com duração ilimitada.'; } 
+        modifier: (base) => { base.description = '4 Karma: Fúria dura até fim da cena.'; } 
     },
     'furia_iii': { 
         target: 'furia', 
-        modifier: (base) => { base.description = '2 Karma: +1 dado em testes (exceto Intelecto) com duração ilimitada.'; } 
+        modifier: (base) => { base.description = '2 Karma: Fúria dura até fim da cena.'; } 
     },
-    // Ataque Furtivo: Lógica Acumulativa
+    'drone_sentinela_ii': {
+        target: 'drone_sentinela',
+        modifier: (base) => { base.description += ' (Ativo 1K: +2 dados no ataque).'; }
+    },
+    'drone_sentinela_iii': {
+        target: 'drone_sentinela',
+        modifier: (base) => { base.description += ' (Sacrifício: Anula dano).'; }
+    },
+    'cargueiro_ii': {
+        target: 'cargueiro',
+        modifier: (base) => { base.description = 'Sua Capacidade de Carga aumenta em +4.'; }
+    },
     'ataque_furtivo_iv': {
         target: 'ataque_furtivo',
-        modifier: (base) => { base.description = base.description.replace('+1 dado', '+2 dados'); }
+        modifier: (base) => { 
+             base.description = base.description.replace('(Crítico 18+)', '');
+             base.description += ' (Crítico 16+)';
+        }
     },
     'ataque_furtivo_ii': {
         target: 'ataque_furtivo',
         modifier: (base) => { 
-            // CORREÇÃO: Verifica se já existe qualquer menção a "Crítico" (seja 18+ ou 16+)
             if(!base.description.includes('Crítico')) {
                 base.description += ' (Crítico 18+)';
             }
@@ -688,20 +690,11 @@ const UPGRADE_RULES = {
     'ataque_furtivo_iii': {
         target: 'ataque_furtivo',
         modifier: (base) => {
-            // Remove a versão anterior (18+) se ela existir e adiciona a nova (16+)
-            // Se a string 16+ já existir (caso raro de duplicação), não adiciona novamente
-            base.description = base.description.replace(' (Crítico 18+)', '');
-            
-            if(!base.description.includes('(Crítico 16+)')) {
-                 base.description += ' (Crítico 16+)';
-            }
+             base.description = base.description.replace('+1 dado', '+2 dados');
         }
     }
 };
 
-// 4. COMPONENTE DE VISUALIZAÇÃO
-// 4. COMPONENTE DE VISUALIZAÇÃO
-// 4. COMPONENTE DE VISUALIZAÇÃO
 export const Viewer = ({ data, updateData }) => {
     
     const adjustStat = (stat, max, amount) => {
@@ -714,9 +707,7 @@ export const Viewer = ({ data, updateData }) => {
     const className = DATA_CLASSES.find(c => c.id === data.classId)?.name || "Sem Classe";
     const originName = DATA_ORIGINS.find(o => o.id === data.originId)?.name || "Sem Origem";
     
-    // --- LÓGICA DE PROCESSAMENTO DE HABILIDADES (MERGE) ---
     const displayedAbilities = useMemo(() => {
-        // 1. Pega todas as habilidades originais
         let rawList = [
             ...(data.selectedAbilities || []).map(id => {
                 const item = DATA_ABILITIES.find(a => a.id === id);
@@ -725,29 +716,19 @@ export const Viewer = ({ data, updateData }) => {
             ...(data.customAbilities || []).map(item => ({ ...item }))
         ];
 
-        // 2. Identifica upgrades presentes na lista do usuário
         const upgradesPresent = rawList.filter(item => UPGRADE_RULES[item.id]);
 
-        // 3. Aplica modificações
         upgradesPresent.forEach(upgrade => {
             const rule = UPGRADE_RULES[upgrade.id];
-            
-            // Procura a habilidade alvo na lista do usuário
             const targetAbility = rawList.find(i => i.id === rule.target);
 
             if (targetAbility) {
-                // Se o alvo existe, aplica a mudança na descrição dele
                 rule.modifier(targetAbility);
-                
-                // --- ALTERAÇÃO: Soma +1 ao contador de upgrades ao invés de apenas marcar true ---
                 targetAbility._upgradeCount = (targetAbility._upgradeCount || 0) + 1;
-                
-                // Marca o upgrade para remoção (para não aparecer duplicado)
                 upgrade._merged = true;
             }
         });
 
-        // 4. Retorna lista limpa (sem os upgrades que foram fundidos)
         return rawList.filter(i => !i._merged);
 
     }, [data.selectedAbilities, data.customAbilities]);
@@ -831,16 +812,13 @@ export const Viewer = ({ data, updateData }) => {
                                         <div className="flex items-center gap-2">
                                             <span className="text-[11px] font-bold text-white">{ab.name}</span>
                                             
-                                            {/* --- TAG DE MELHORIA MULTIPLA (ALTERADA) --- */}
                                             {ab._upgradeCount > 0 && (
                                                 <div className="flex items-center gap-0.5 px-1.5 py-0.5 rounded-sm bg-purple-950/50 border border-purple-500/30 text-purple-400">
-                                                    {/* Renderiza um ícone para cada nível de upgrade */}
                                                     {Array.from({ length: ab._upgradeCount }).map((_, i) => (
                                                         <ChevronsUp key={i} size={8} />
                                                     ))}
                                                 </div>
                                             )}
-                                            {/* ------------------------------------------ */}
                                         </div>
                                     </div>
                                     <p className="text-[9px] text-gray-400 leading-snug font-mono mt-0.5">{ab.description}</p>

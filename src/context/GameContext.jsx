@@ -677,7 +677,7 @@ export const GameProvider = ({ children }) => {
       await refreshAudioSystem(); 
   }, [refreshAudioSystem]);
 
-  const addTrackToPlaylist = useCallback(async (playlistId, fileOrId, forcedDuration = 0) => {
+  const addTrackToPlaylist = useCallback(async (playlistId, fileOrId, forcedDuration = 0, parentId = null) => {
       let fileId = fileOrId;
       let title = "Faixa Importada";
       let duration = forcedDuration;
@@ -693,14 +693,14 @@ export const GameProvider = ({ children }) => {
           const meta = (await audioDB.getAllAudioMetadata()).find(f => f.id === fileId);
           if (meta) {
               originalTitle = meta.name;
-              title = meta.name.replace(/\.[^/.]+$/, "").substring(0, 12);
+              title = meta.name.replace(/\.[^/.]+$/, ""); 
           }
           if (!forcedDuration) duration = await getAudioDurationFromId(fileId);
       }
 
       if(!fileId) return;
 
-      const newTrack = { id: generateUUID(), title, originalTitle, fileId, duration };
+      const newTrack = { id: generateUUID(), title, originalTitle, fileId, duration, type: 'track', parentId: parentId || null };
 
       setActiveAdvSoundboard(prev => ({ 
           ...prev, 
@@ -709,6 +709,36 @@ export const GameProvider = ({ children }) => {
       
       refreshAudioSystem();
   }, [internalActiveAdventureId, refreshAudioSystem]);
+
+  const addTrackFolder = useCallback((playlistId, name, parentId = null) => {
+      const newFolder = {
+          id: generateUUID(),
+          title: name || "Nova Pasta",
+          type: 'folder',
+          parentId: parentId || null,
+          duration: 0
+      };
+      setActiveAdvSoundboard(prev => ({ 
+          ...prev, 
+          playlists: prev.playlists.map(pl => pl.id === playlistId ? { ...pl, tracks: [...pl.tracks, newFolder] } : pl) 
+      }));
+  }, [internalActiveAdventureId]);
+
+  const moveTrackItem = useCallback((playlistId, itemId, targetFolderId) => {
+        if (!internalActiveAdventureId) return;
+        if (itemId === targetFolderId) return;
+
+        setActiveAdvSoundboard(prev => ({ 
+            ...prev, 
+            playlists: prev.playlists.map(pl => {
+                if(pl.id !== playlistId) return pl;
+                return {
+                    ...pl,
+                    tracks: pl.tracks.map(item => item.id === itemId ? { ...item, parentId: targetFolderId } : item)
+                };
+            }) 
+        }));
+  }, [internalActiveAdventureId]);
 
   const addSfx = useCallback(async (fileOrId, parentId = null) => {
       let fileId = fileOrId;
@@ -739,7 +769,31 @@ export const GameProvider = ({ children }) => {
   }, [internalActiveAdventureId, refreshAudioSystem]);
 
   const removeTrack = useCallback((playlistId, trackId) => {
-      setActiveAdvSoundboard(prev => ({ ...prev, playlists: prev.playlists.map(pl => pl.id === playlistId ? { ...pl, tracks: pl.tracks.filter(t => t.id !== trackId) } : pl) }));
+      setActiveAdvSoundboard(prev => {
+           const playlist = prev.playlists.find(pl => pl.id === playlistId);
+           if (!playlist) return prev;
+
+           const idsToDelete = new Set([trackId]);
+           
+           const findChildren = (parentId) => {
+               const children = playlist.tracks.filter(t => t.parentId === parentId);
+               children.forEach(c => {
+                   idsToDelete.add(c.id);
+                   if (c.type === 'folder') findChildren(c.id);
+               });
+           };
+
+           const target = playlist.tracks.find(t => t.id === trackId);
+           if (target && target.type === 'folder') findChildren(trackId);
+
+           return {
+               ...prev,
+               playlists: prev.playlists.map(pl => pl.id === playlistId ? { 
+                   ...pl, 
+                   tracks: pl.tracks.filter(t => !idsToDelete.has(t.id)) 
+               } : pl)
+           };
+      });
   }, [internalActiveAdventureId]);
 
   const reorderPlaylist = useCallback((playlistId, newTracksOrder) => {
@@ -1235,7 +1289,7 @@ export const GameProvider = ({ children }) => {
     adventures, activeAdventureId: internalActiveAdventureId, activeAdventure, activeScene,
     createAdventure, deleteAdventure, updateAdventure, duplicateAdventure, setActiveAdventureId,
     exportAdventure, importAdventure,
-    soundboard, updateSoundboard, addPlaylist, addTrackToPlaylist, removeTrack, reorderPlaylist, playTrack, stopTrack, setMusicVolume,
+    soundboard, updateSoundboard, addPlaylist, addTrackToPlaylist, removeTrack, reorderPlaylist, playTrack, stopTrack, setMusicVolume, addTrackFolder, moveTrackItem,
     addSfx, removeSfx, updateSfx, reorderSfx, setSfxMasterVolume, triggerSfxRemote,
     addScene, duplicateScene, updateScene, updateSceneMap, setActiveScene, deleteScene,
     activeTool, setActiveTool, addFogArea, updateFogArea, deleteFogArea, deleteMultipleFogAreas,
