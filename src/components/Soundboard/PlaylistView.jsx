@@ -3,7 +3,6 @@ import { useGame } from '../../context/GameContext';
 import { Music, Trash2, Plus, Loader2, Search, X, ArrowLeft, Link2Off, Folder, FolderPlus, CornerLeftUp, Check } from 'lucide-react';
 import AudioLibraryModal from './AudioLibraryModal';
 
-// Componente individual da faixa/pasta (Baseado no SceneItem do VTTLayout)
 const TrackItem = ({ track, isCurrent, isPlaying, isDeleting, onDeleteClick, onPlayClick, onCancelDelete, onConfirmDelete, playlistId, isMissing, onEnterFolder, onMove }) => {
     const [isDragOver, setIsDragOver] = useState(false);
     const isFolder = track.type === 'folder';
@@ -13,15 +12,12 @@ const TrackItem = ({ track, isCurrent, isPlaying, isDeleting, onDeleteClick, onP
             e.preventDefault();
             return;
         }
-        // Configura os dados do arraste (igual ao VTTLayout)
         e.dataTransfer.setData('application/json', JSON.stringify({ 
             type: 'playlist_item', 
             id: track.id,
             isFolder: isFolder 
         }));
         e.dataTransfer.effectAllowed = 'move';
-        
-        // Imagem fantasma padrão do navegador
     };
 
     const handleDragOver = (e) => {
@@ -40,12 +36,9 @@ const TrackItem = ({ track, isCurrent, isPlaying, isDeleting, onDeleteClick, onP
         e.preventDefault();
         e.stopPropagation();
         setIsDragOver(false);
-        
         if (!isFolder) return;
-
         try {
             const data = JSON.parse(e.dataTransfer.getData('application/json'));
-            // Só move se for um item de playlist e não for ele mesmo
             if (data.type === 'playlist_item' && data.id !== track.id) {
                 onMove(playlistId, data.id, track.id);
             }
@@ -54,15 +47,32 @@ const TrackItem = ({ track, isCurrent, isPlaying, isDeleting, onDeleteClick, onP
         }
     };
 
+    const rowHeightClass = "h-[42px] mb-1 px-2";
+
     if (isDeleting) {
         return (
-            <div className="h-10 px-2 mb-1 rounded bg-red-900/30 border border-red-500/50 flex justify-between items-center animate-in fade-in select-none">
-                <span className="text-white text-xs font-bold pl-1 truncate">
-                    Excluir {isFolder ? 'Pasta' : 'Faixa'}?
-                </span>
+            <div className={`${rowHeightClass} rounded bg-red-900/30 border border-red-500/50 flex justify-between items-center animate-in fade-in select-none`}>
+                <div className="flex items-center gap-2 min-w-0">
+                    <Trash2 size={14} className="text-red-500 shrink-0" />
+                    <span className="text-white text-xs font-bold truncate">
+                        Excluir {isFolder ? 'pasta' : 'faixa'}?
+                    </span>
+                </div>
                 <div className="flex gap-1 shrink-0 items-center">
-                    <button onClick={(e)=>{e.stopPropagation(); onCancelDelete(e);}} className="p-1 rounded bg-black/40 hover:bg-white/20 text-text-muted hover:text-white flex items-center"><ArrowLeft size={14}/></button>
-                    <button onClick={(e)=>{e.stopPropagation(); onConfirmDelete(e);}} className="p-1 rounded bg-red-600 hover:bg-red-500 text-white flex items-center"><Check size={14}/></button>
+                    <button 
+                        onClick={(e)=>{e.stopPropagation(); onCancelDelete(e);}} 
+                        className="p-1.5 rounded bg-black/40 hover:bg-white/20 text-text-muted hover:text-white flex items-center transition-colors"
+                        title="Cancelar"
+                    >
+                        <ArrowLeft size={14}/>
+                    </button>
+                    <button 
+                        onClick={(e)=>{e.stopPropagation(); onConfirmDelete(e);}} 
+                        className="p-1.5 rounded bg-red-600 hover:bg-red-500 text-white flex items-center transition-colors shadow-lg shadow-red-900/20"
+                        title="Confirmar"
+                    >
+                        <Check size={14}/>
+                    </button>
                 </div>
             </div>
         );
@@ -81,7 +91,7 @@ const TrackItem = ({ track, isCurrent, isPlaying, isDeleting, onDeleteClick, onP
                 else if (!isMissing) onPlayClick({ ...track, isPlaying: true }, playlistId);
             }}
             className={`
-                flex items-center px-2 py-2 mb-1 cursor-pointer border-l-2 group rounded select-none relative gap-3 min-h-[40px] transition-all
+                ${rowHeightClass} flex items-center cursor-pointer border-l-2 group rounded select-none relative gap-2 transition-all
                 ${isDragOver 
                     ? 'bg-pink-500/20 border-pink-500 scale-[1.01] z-10 shadow-[0_0_10px_rgba(236,72,153,0.2)]' 
                     : isCurrent 
@@ -91,7 +101,7 @@ const TrackItem = ({ track, isCurrent, isPlaying, isDeleting, onDeleteClick, onP
                 ${isMissing ? 'opacity-60 bg-red-900/10' : ''}
             `}
         >
-            {/* Ícone / Status */}
+
             <div className="w-5 flex justify-center shrink-0">
                 {isFolder ? (
                     <Folder size={18} className={`${isDragOver ? 'text-pink-300 scale-110' : 'text-pink-500'}`} fill={isDragOver ? "currentColor" : "none"}/>
@@ -108,29 +118,28 @@ const TrackItem = ({ track, isCurrent, isPlaying, isDeleting, onDeleteClick, onP
                 )}
             </div>
 
-            {/* Nome */}
             <div className="flex flex-col min-w-0 flex-1 justify-center">
                 <span className={`text-sm font-medium truncate leading-tight ${isCurrent && !isFolder ? 'text-pink-400' : 'text-gray-300 group-hover:text-white'} ${isFolder ? 'font-bold text-white' : ''}`}>
                     {track.title}
                 </span>
             </div>
 
-            {/* Duração (se não for pasta) */}
             {!isFolder && (
-                <div className="text-xs text-text-muted font-mono shrink-0 w-10 text-right">
+                <div className="text-[12px] text-text-muted font-mono shrink-0 w-10 text-right group-hover:opacity-0 transition-opacity">
                      {Math.floor(track.duration / 60)}:{(Math.floor(track.duration % 60)).toString().padStart(2, '0')}
                 </div>
             )}
 
-            {/* Botão Deletar (Hover) */}
-            <div className="absolute right-2 bg-black/80 rounded backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity flex items-center">
-                <button 
-                    onClick={onDeleteClick}
-                    className="p-1.5 text-text-muted hover:text-red-500 transition-colors"
-                    title={isFolder ? "Excluir Pasta" : "Excluir Faixa"}
-                >
-                    <Trash2 size={12} />
-                </button>
+            <div className="w-8 h-8 flex items-center justify-center shrink-0">
+                <div className="absolute right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button 
+                        onClick={(e) => { e.stopPropagation(); onDeleteClick(e); }}
+                        className="p-1.5 text-text-muted hover:text-red-500 hover:bg-white/10 rounded-md transition-colors"
+                        title={isFolder ? "Excluir Pasta" : "Excluir Faixa"}
+                    >
+                        <Trash2 size={14} />
+                    </button>
+                </div>
             </div>
         </div>
     );
@@ -143,7 +152,6 @@ const PlaylistView = () => {
     const [deletingId, setDeletingId] = useState(null); 
     const [searchQuery, setSearchQuery] = useState(""); 
     
-    // NAVEGAÇÃO DE PASTAS
     const [currentFolderId, setCurrentFolderId] = useState(null);
     const [isBreadcrumbActive, setIsBreadcrumbActive] = useState(false);
     
@@ -182,7 +190,6 @@ const PlaylistView = () => {
         addTrackFolder(playlistId, "Nova Pasta", currentFolderId);
     };
 
-    // Lógica do Drop no Breadcrumb (Voltar nível)
     const handleDropOnBreadcrumb = (e) => {
         e.preventDefault();
         e.stopPropagation();
@@ -194,8 +201,6 @@ const PlaylistView = () => {
                 const currentFolder = activePlaylist.tracks.find(t => t.id === currentFolderId);
                 const targetId = currentFolder ? (currentFolder.parentId || null) : null;
                 
-                // Só move se o destino for diferente da pasta atual do item
-                // (O item já está na pasta 'currentFolderId', queremos movê-lo para 'targetId')
                 if (data.id !== targetId) {
                     moveTrackItem(playlistId, data.id, targetId);
                 }
@@ -207,7 +212,6 @@ const PlaylistView = () => {
 
     const normalizeText = (text) => text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
     
-    // FILTRAGEM E ORDENAÇÃO
     let displayTracks = [];
     if (searchQuery) {
         displayTracks = activePlaylist.tracks.filter(track => normalizeText(track.title).includes(normalizeText(searchQuery)));
@@ -218,7 +222,6 @@ const PlaylistView = () => {
         });
     }
 
-    // ORDENAÇÃO IGUAL AO SCENESELECTOR (Pastas > Arquivos, Alfabética)
     displayTracks.sort((a, b) => {
         if (a.type === 'folder' && b.type !== 'folder') return -1;
         if (a.type !== 'folder' && b.type === 'folder') return 1;
@@ -286,24 +289,34 @@ const PlaylistView = () => {
                     </div>
                 </div>
 
-                {/* Breadcrumb Navigation (Igual ao SceneSelector) */}
                 <div 
                     className={`
-                        border-b transition-all duration-200 ease-in-out shrink-0 z-10 flex items-center px-2 gap-2 text-xs relative overflow-hidden
+                        border-b shrink-0 z-10 flex items-center px-2 gap-2 text-xs relative overflow-hidden
                         ${showBreadcrumb ? 'max-h-12 opacity-100 py-2 translate-y-0' : 'max-h-0 opacity-0 py-0 -translate-y-2 pointer-events-none'}
                         ${isBreadcrumbActive 
                             ? 'bg-pink-500/20 border-pink-500 shadow-[inset_0_0_10px_rgba(236,72,153,0.3)]' 
-                            : 'bg-black/40 border-glass-border'
+                            : 'bg-black/40 border-white/5'
                         }
                     `}
-                    onDragOver={(e) => { e.preventDefault(); setIsBreadcrumbActive(true); }}
+                    onDragOver={(e) => { 
+                        e.preventDefault(); 
+                        e.stopPropagation(); 
+                        setIsBreadcrumbActive(true); 
+                    }}
                     onDragLeave={() => setIsBreadcrumbActive(false)}
                     onDrop={handleDropOnBreadcrumb}
                 >
+                    <div className={`absolute inset-0 flex items-center justify-center bg-black/80 backdrop-blur-[1px] z-30 transition-opacity duration-200 pointer-events-none ${isBreadcrumbActive ? 'opacity-100' : 'opacity-0'}`}>
+                        <div className="flex items-center gap-2 text-pink-400 font-bold animate-pulse">
+                            <CornerLeftUp size={18} strokeWidth={3} />
+                            <span className="uppercase tracking-widest text-[10px]">Mover para pasta acima</span>
+                        </div>
+                    </div>
+
                     <button 
                         onClick={() => {
-                                const curr = activePlaylist.tracks.find(t => t.id === currentFolderId);
-                                setCurrentFolderId(curr?.parentId || null);
+                            const curr = activePlaylist.tracks.find(t => t.id === currentFolderId);
+                            setCurrentFolderId(curr?.parentId || null);
                         }}
                         className="p-1.5 bg-white/10 rounded hover:bg-white/20 text-white flex items-center gap-1 transition-colors shrink-0 z-10"
                         title="Voltar"
@@ -314,11 +327,6 @@ const PlaylistView = () => {
                         <div className="text-[10px] text-pink-500 uppercase font-bold leading-none mb-0.5">Pasta Atual</div>
                         <div className="font-mono text-white truncate leading-none font-bold">{currentFolderName}</div>
                     </div>
-                    {isBreadcrumbActive && (
-                        <div className="absolute inset-0 flex items-center justify-center bg-black/60 font-bold text-pink-500 text-[10px] uppercase pointer-events-none backdrop-blur-[1px]">
-                            Mover para Pasta Acima
-                        </div>
-                    )}
                 </div>
 
                 <div className="flex-1 overflow-y-auto p-2 scrollbar-thin">
