@@ -5,7 +5,7 @@ import PlaylistView from './PlaylistView';
 import PlayerBar from './PlayerBar';
 import SFXGrid from './SFXGrid';
 
-const SoundboardWindow = ({ onClose, containerRef, WindowWrapperComponent }) => {
+const SoundboardWindow = ({ onClose, containerRef, WindowWrapperComponent, currentFolderId, setCurrentFolderId }) => {
     const { soundboard, addPlaylist } = useGame();
     const [activeTab, setActiveTab] = useState('music');
 
@@ -17,7 +17,12 @@ const SoundboardWindow = ({ onClose, containerRef, WindowWrapperComponent }) => 
 
     const renderContent = () => {
         if (activeTab === 'music') {
-            return <PlaylistView />;
+            return (
+                <PlaylistView 
+                    currentFolderId={currentFolderId} 
+                    setCurrentFolderId={setCurrentFolderId} 
+                />
+            );
         }
         return <SFXGrid />;
     };
@@ -26,7 +31,7 @@ const SoundboardWindow = ({ onClose, containerRef, WindowWrapperComponent }) => 
 
     return (
         <Wrapper containerRef={containerRef} 
-            className="absolute top-16 right-4 w-[437px] h-[calc(100vh-80px)] max-h-[500px] bg-black/90 border border-glass-border backdrop-blur-xl rounded-xl shadow-2xl z-40 flex flex-col animate-in fade-in overflow-hidden"
+            className="absolute top-16 right-4 bottom-4 w-[437px] bg-black/90 border border-glass-border backdrop-blur-xl rounded-xl shadow-2xl z-40 flex flex-col animate-in fade-in overflow-hidden"
         >
             <div className="flex items-center justify-between px-2 pt-2 border-b border-white/5 shrink-0 bg-[#0a0a0a]">
                 <div className="flex gap-1">
@@ -45,7 +50,7 @@ const SoundboardWindow = ({ onClose, containerRef, WindowWrapperComponent }) => 
                 </div>
             </div>
 
-            <div className="flex-1 overflow-hidden bg-black/40 relative">
+            <div className="flex-1 overflow-hidden bg-black/40 relative flex flex-col min-h-0">
                 {renderContent()}
             </div>
 

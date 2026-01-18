@@ -657,7 +657,7 @@ const SceneItem = ({ item, isActive, onSelect, onRename, onDelete, onDuplicate, 
                 {!isFolder && (
                     <button onClick={(e) => { e.stopPropagation(); onDuplicate(item.id); }} className="text-text-muted hover:text-neon-blue p-1.5 flex items-center" title="Duplicar"><Copy size={12}/></button>
                 )}
-                <button onClick={(e) => { e.stopPropagation(); setIsRenaming(true); }} className="text-text-muted hover:text-yellow-400 p-1.5 flex items-center" title="Renomear"><Edit2 size={12}/></button>
+                <button onClick={(e) => { e.stopPropagation(); setIsRenaming(true); }} className="text-text-muted hover:text-neon-green p-1.5 flex items-center" title="Renomear"><Edit2 size={12}/></button>
                 <button onClick={(e) => { e.stopPropagation(); setIsDeleting(true); }} className="text-text-muted hover:text-red-500 p-1.5 flex items-center" title="Excluir"><Trash2 size={12}/></button>
             </div>
         </div>
@@ -945,6 +945,7 @@ export const VTTLayout = ({ zoomValue, onZoomChange, activeTool, setActiveTool, 
   });
   
   const [sceneFolderId, setSceneFolderId] = useState(null);
+  const [soundboardFolderId, setSoundboardFolderId] = useState(null);
 
   const [confirmModal, setConfirmModal] = useState({ open: false, message: '', onConfirm: null });
   const headerRef = useRef(null);      
@@ -1163,7 +1164,14 @@ export const VTTLayout = ({ zoomValue, onZoomChange, activeTool, setActiveTool, 
               />
               
               <HelpWindow isOpen={uiState.helpOpen} onClose={() => setUiState(p => ({...p, helpOpen: false}))} />
-              {uiState.soundboardOpen && <SoundboardWindow onClose={() => setUiState(p => ({...p, soundboardOpen: false}))} WindowWrapperComponent={WindowWrapper} />}
+              {uiState.soundboardOpen && (
+                  <SoundboardWindow 
+                      onClose={() => setUiState(p => ({...p, soundboardOpen: false}))} 
+                      WindowWrapperComponent={WindowWrapper}
+                      currentFolderId={soundboardFolderId}
+                      setCurrentFolderId={setSoundboardFolderId}
+                  />
+              )}
               {uiState.diceOpen && <DiceWindow onClose={() => setUiState(p => ({...p, diceOpen: false}))} WindowWrapperComponent={WindowWrapper} />}
               <ConfirmationModal />
             </>

@@ -1,14 +1,17 @@
 import React, { useState, useRef } from 'react';
 import { useGame } from '../../context/GameContext';
-import { Music, Trash2, Plus, Loader2, Search, X, ArrowLeft, Link2Off, Folder, FolderPlus, CornerLeftUp, Check } from 'lucide-react';
+import { Music, Trash2, Plus, Loader2, Search, X, ArrowLeft, Link2Off, Folder, FolderPlus, CornerLeftUp, Check, Edit2 } from 'lucide-react';
 import AudioLibraryModal from './AudioLibraryModal';
 
-const TrackItem = ({ track, isCurrent, isPlaying, isDeleting, onDeleteClick, onPlayClick, onCancelDelete, onConfirmDelete, playlistId, isMissing, onEnterFolder, onMove }) => {
+const TrackItem = ({ track, isCurrent, isPlaying, isDeleting, onDeleteClick, onPlayClick, onCancelDelete, onConfirmDelete, playlistId, isMissing, onEnterFolder, onMove, onRename }) => {
     const [isDragOver, setIsDragOver] = useState(false);
+    const [isRenaming, setIsRenaming] = useState(false);
+    const [renameVal, setRenameVal] = useState(track.title);
+    
     const isFolder = track.type === 'folder';
 
     const handleDragStart = (e) => {
-        if (isDeleting) {
+        if (isDeleting || isRenaming) {
             e.preventDefault();
             return;
         }
@@ -43,8 +46,17 @@ const TrackItem = ({ track, isCurrent, isPlaying, isDeleting, onDeleteClick, onP
                 onMove(playlistId, data.id, track.id);
             }
         } catch (err) {
-            console.error("Erro no drop:", err);
+            console.error(err);
         }
+    };
+
+    const handleRenameSubmit = () => {
+        if (renameVal.trim()) {
+            onRename(playlistId, track.id, renameVal);
+        } else {
+            setRenameVal(track.title);
+        }
+        setIsRenaming(false);
     };
 
     const rowHeightClass = "h-[42px] mb-1 px-2";
@@ -70,6 +82,40 @@ const TrackItem = ({ track, isCurrent, isPlaying, isDeleting, onDeleteClick, onP
                         onClick={(e)=>{e.stopPropagation(); onConfirmDelete(e);}} 
                         className="p-1.5 rounded bg-red-600 hover:bg-red-500 text-white flex items-center transition-colors shadow-lg shadow-red-900/20"
                         title="Confirmar"
+                    >
+                        <Check size={14}/>
+                    </button>
+                </div>
+            </div>
+        );
+    }
+
+    if (isRenaming) {
+        return (
+            <div className={`${rowHeightClass} rounded bg-white/10 border border-white/30 flex justify-between items-center animate-in fade-in select-none`}>
+                <input 
+                    autoFocus
+                    className="bg-transparent border-none outline-none text-white text-sm font-bold w-full min-w-0 placeholder-text-muted"
+                    value={renameVal}
+                    onChange={(e) => setRenameVal(e.target.value)}
+                    onKeyDown={(e) => {
+                        if (e.key === 'Enter') handleRenameSubmit();
+                        if (e.key === 'Escape') { setIsRenaming(false); setRenameVal(track.title); }
+                    }}
+                    onClick={(e) => e.stopPropagation()}
+                />
+                <div className="flex gap-1 shrink-0 items-center ml-2">
+                    <button 
+                        onClick={(e) => { e.stopPropagation(); setIsRenaming(false); setRenameVal(track.title); }} 
+                        className="p-1.5 rounded bg-black/40 hover:bg-white/20 text-text-muted hover:text-white flex items-center transition-colors"
+                        title="Cancelar"
+                    >
+                        <ArrowLeft size={14}/>
+                    </button>
+                    <button 
+                        onClick={(e) => { e.stopPropagation(); handleRenameSubmit(); }} 
+                        className="p-1.5 rounded bg-pink-500 hover:bg-white text-black flex items-center transition-colors"
+                        title="Salvar"
                     >
                         <Check size={14}/>
                     </button>
@@ -118,7 +164,7 @@ const TrackItem = ({ track, isCurrent, isPlaying, isDeleting, onDeleteClick, onP
                 )}
             </div>
 
-            <div className="flex flex-col min-w-0 flex-1 justify-center">
+            <div className={`flex flex-col min-w-0 flex-1 justify-center ${isFolder ? 'pr-16' : ''}`}>
                 <span className={`text-sm font-medium truncate leading-tight ${isCurrent && !isFolder ? 'text-pink-400' : 'text-gray-300 group-hover:text-white'} ${isFolder ? 'font-bold text-white' : ''}`}>
                     {track.title}
                 </span>
@@ -130,29 +176,36 @@ const TrackItem = ({ track, isCurrent, isPlaying, isDeleting, onDeleteClick, onP
                 </div>
             )}
 
-            <div className="w-8 h-8 flex items-center justify-center shrink-0">
-                <div className="absolute right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+            <div className="h-8 flex items-center justify-end shrink-0 gap-1 absolute right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                {isFolder && (
                     <button 
-                        onClick={(e) => { e.stopPropagation(); onDeleteClick(e); }}
-                        className="p-1.5 text-text-muted hover:text-red-500 hover:bg-white/10 rounded-md transition-colors"
-                        title={isFolder ? "Excluir Pasta" : "Excluir Faixa"}
+                        onClick={(e) => { e.stopPropagation(); setIsRenaming(true); }}
+                        className="p-1.5 text-text-muted hover:text-pink-400 hover:bg-white/10 rounded-md transition-colors"
+                        title="Renomear Pasta"
                     >
-                        <Trash2 size={14} />
+                        <Edit2 size={14} />
                     </button>
-                </div>
+                )}
+                
+                <button 
+                    onClick={(e) => { e.stopPropagation(); onDeleteClick(e); }}
+                    className="p-1.5 text-text-muted hover:text-red-500 hover:bg-white/10 rounded-md transition-colors"
+                    title={isFolder ? "Excluir Pasta" : "Excluir Faixa"}
+                >
+                    <Trash2 size={14} />
+                </button>
             </div>
         </div>
     );
 };
 
-const PlaylistView = () => {
-    const { soundboard, addTrackToPlaylist, addTrackFolder, moveTrackItem, playTrack, removeTrack, availableFiles } = useGame();
+const PlaylistView = ({ currentFolderId, setCurrentFolderId }) => {
+    const { soundboard, addTrackToPlaylist, addTrackFolder, moveTrackItem, playTrack, removeTrack, availableFiles, renameTrackItem } = useGame();
     const [isLibraryOpen, setIsLibraryOpen] = useState(false);
     const [isUploading, setIsUploading] = useState(false);
     const [deletingId, setDeletingId] = useState(null); 
     const [searchQuery, setSearchQuery] = useState(""); 
     
-    const [currentFolderId, setCurrentFolderId] = useState(null);
     const [isBreadcrumbActive, setIsBreadcrumbActive] = useState(false);
     
     const activePlaylist = soundboard.playlists[0] || { id: 'default', name: 'Geral', tracks: [] };
@@ -206,7 +259,7 @@ const PlaylistView = () => {
                 }
             }
         } catch (err) {
-            console.error("Erro drop breadcrumb:", err);
+            console.error(err);
         }
     };
 
@@ -359,6 +412,7 @@ const PlaylistView = () => {
                                         onPlayClick={playTrack} 
                                         onEnterFolder={setCurrentFolderId}
                                         onMove={moveTrackItem}
+                                        onRename={renameTrackItem}
                                         onDeleteClick={(e) => { e.stopPropagation(); setDeletingId(track.id); }} 
                                         onCancelDelete={(e) => { e.stopPropagation(); setDeletingId(null); }} 
                                         onConfirmDelete={(e) => { e.stopPropagation(); removeTrack(playlistId, track.id); setDeletingId(null); }} 

@@ -171,6 +171,22 @@ export const GameProvider = ({ children }) => {
       }
   };
 
+  const renameTrackItem = useCallback((playlistId, trackId, newName) => {
+      if (!internalActiveAdventureId) return;
+      if (!newName || !newName.trim()) return;
+
+      setActiveAdvSoundboard(prev => ({
+          ...prev,
+          playlists: prev.playlists.map(pl => {
+              if (pl.id !== playlistId) return pl;
+              return {
+                  ...pl,
+                  tracks: pl.tracks.map(t => t.id === trackId ? { ...t, title: newName } : t)
+              };
+          })
+      }));
+  }, [internalActiveAdventureId]);
+
   useEffect(() => {
       if (isGMWindow) return;
 
@@ -1303,7 +1319,8 @@ export const GameProvider = ({ children }) => {
     addSceneFolder, moveSceneItem,
     brushSize, setBrushSize, brushColor, setBrushColor, updateSceneDrawing,
     customSystems, addCustomSystem, updateCustomSystem, deleteCustomSystem,
-    isSystemBuilderOpen, setIsSystemBuilderOpen 
+    isSystemBuilderOpen, setIsSystemBuilderOpen,
+    renameTrackItem
   };
 
   return <GameContext.Provider value={value}>{children}</GameContext.Provider>;
