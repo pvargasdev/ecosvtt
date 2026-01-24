@@ -39,7 +39,7 @@ export const audioDB = {
         if (window.electron && window.electron.saveAudio) {
             try {
                 const buffer = await blobToArrayBuffer(fileOrBlob);
-                await window.electron.saveAudio(id, buffer, fileName); 
+                await window.electron.saveAudio(id, buffer, fileName, category); 
                 return id;
             } catch (e) {
                 console.warn("Falha no Electron, tentando Web...", e);

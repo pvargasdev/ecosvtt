@@ -723,13 +723,13 @@ const SceneSelector = ({ isOpen, currentFolderId, setCurrentFolderId }) => {
             const pId = s.parentId || null;
             return pId === currentFolderId;
         }) || [];
-        
-        displayItems.sort((a, b) => {
-            if (a.type === 'folder' && b.type !== 'folder') return -1;
-            if (a.type !== 'folder' && b.type === 'folder') return 1;
-            return a.name.localeCompare(b.name);
-        });
     }
+
+    displayItems.sort((a, b) => {
+        if (a.type === 'folder' && b.type !== 'folder') return -1;
+        if (a.type !== 'folder' && b.type === 'folder') return 1;
+        return a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' });
+    });
 
     const currentFolderName = currentFolderId 
         ? activeAdventure?.scenes.find(s => s.id === currentFolderId)?.name || "Pasta"
@@ -835,7 +835,10 @@ const SceneSelector = ({ isOpen, currentFolderId, setCurrentFolderId }) => {
                         isActive={activeScene?.id === item.id}
                         activeSceneId={activeScene?.id}
                         onSelect={setActiveScene}
-                        onEnterFolder={setCurrentFolderId}
+                        onEnterFolder={(id) => {
+                            setCurrentFolderId(id);
+                            setSearchQuery("");
+                        }}
                         onRename={handleRename}
                         onDelete={deleteScene}
                         onDuplicate={duplicateScene}
