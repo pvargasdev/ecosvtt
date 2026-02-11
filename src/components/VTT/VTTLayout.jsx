@@ -1077,7 +1077,7 @@ export const VTTLayout = ({ zoomValue, onZoomChange, activeTool, setActiveTool, 
 
                 <div className="w-px h-6 bg-glass-border mx-1"></div>
 
-                <div className="flex-1 flex items-center min-w-[380px]">
+                <div className="flex-1 flex items-center min-w-[501px]">
                     {isDrawingMode ? (
                         <div className="flex-1 flex items-center gap-3 px-2 w-full">
                                 

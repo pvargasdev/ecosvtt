@@ -777,7 +777,7 @@ const Board = ({ showUI }) => {
                             {renamingId === adv.id ? (
                                 <div className="flex flex-1 items-center gap-2 animate-in fade-in duration-200" onClick={(e) => e.stopPropagation()}>
                                     <input autoFocus className="flex-1 bg-black/50 border border-white/50 rounded px-2 py-1 text-white text-sm outline-none" value={renameValue} onChange={(e) => setRenameValue(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { updateAdventure(adv.id, { name: renameValue }); setRenamingId(null); } if (e.key === 'Escape') setRenamingId(null); }} />
-                                    <button onClick={() => setRenamingId(null)} className="p-1 rounded bg-black/40 hover:bg-white/20 text-text-muted hover:text-white transition"><X size={16}/></button>
+                                    <button onClick={() => setRenamingId(null)} className="p-1 rounded bg-black/40 hover:bg-white/20 text-text-muted hover:text-white transition"><ArrowLeft size={16}/></button>
                                     <button onClick={() => { updateAdventure(adv.id, { name: renameValue }); setRenamingId(null); }} className="p-1 rounded bg-neon-green hover:bg-white text-black transition"><Check size={16}/></button>
                                 </div>
                             ) : (
