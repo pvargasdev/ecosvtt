@@ -13,6 +13,8 @@
 
 Diferente das plataformas baseadas em navegador, o EcosVTT roda **100% localmente**. Isso significa que você tem total liberdade: **sem limites de upload** para seus mapas e músicas, e **sem travamentos** causados por instabilidade de servidores externos. É a ferramenta ideal para mestres que buscam performance máxima, imersão total e custo zero.
 
+<img width="1916" height="1076" alt="Captura de tela 2026-02-12 102052" src="https://github.com/user-attachments/assets/f9a31de8-b065-41a2-aedd-c8ba17a97778" />
+
 ---
 
 <details>
