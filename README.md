@@ -3,6 +3,8 @@
 ![Tech Stack](https://img.shields.io/badge/stack-React_|_Electron_|_Tailwind-blue)
 ![License](https://img.shields.io/badge/license-GPLv3-red)
 
+![ECOS VTT banner2](https://github.com/user-attachments/assets/422b5f00-cea9-41a6-a232-5278e1003a69)
+
 ---
 
 ## 📖 Sobre o Projeto
