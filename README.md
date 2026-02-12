@@ -7,6 +7,8 @@
 
 ---
 
+[![Última Versão](https://img.shields.io/github/v/release/pvargasdev/ecosvtt?style=for-the-badge&label=Baixar&color=blue)](https://github.com/pvargasdev/ecosvtt/releases/latest)
+
 ## 📖 Sobre o Projeto
 
 **EcosVTT** é uma aplicação gratuita e open-source desenvolvida para elevar a experiência de mesas de RPG presenciais ou híbridas. O projeto se destaca como uma **alternativa robusta** aos serviços de VTT online, oferecendo uma experiência visual e sonora polida sem a necessidade de assinaturas mensais ou altos custos de licença.
@@ -70,5 +72,9 @@ src/
 │   ├── GameContext.jsx  # Estado global, lógica de import/export e sincronização
 │   └── db.js            # Gerenciamento de IndexedDB e FileSystem
 └── App.jsx              # Roteamento e layouts
-
+```
 </details>
+
+---
+
+[![Última Versão](https://img.shields.io/github/v/release/pvargasdev/ecosvtt?style=for-the-badge&label=Baixar&color=blue)](https://github.com/pvargasdev/ecosvtt/releases/latest)
