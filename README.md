@@ -23,7 +23,6 @@ Diferente das plataformas baseadas em navegador, o EcosVTT roda **100% localment
 ### 🚀 Funcionalidades Principais
 
 * **Gerenciador de Personagens Universal:** Crie e personalize fichas para **qualquer sistema de RPG**.
-* **Diário de Campanha (Modo Wiki):** Uma ferramenta completa de escrita e organização de mundo. Crie páginas ricas em texto para documentar a lore, NPCs, sessões e contos.
 * **Sistema de Pins (Pontos de Interesse):** Marque locais estratégicos diretamente sobre o mapa.
 * **Portabilidade de Aventuras (Import/Export):** Exporte suas aventuras completas — incluindo cenas, mapas, wikis, tokens, músicas — em um único arquivo `.zip`. Isso facilita a criação de backups seguros e permite compartilhar aventuras prontas com outras pessoas.
 * **Tabuleiro Infinito:** Movimente-se livremente pelo mapa com zoom e pan suaves.
