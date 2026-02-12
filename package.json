@@ -1,8 +1,8 @@
 {
-  "name": "ecos-rpg-vtt",
+  "name": "ecos-vtt",
   "productName": "ECOS Tabletop",
   "private": true,
-  "version": "4.1.8",
+  "version": "1.0.0",
   "type": "module",
   "main": "electron/main.cjs",
   "description": "ECOS Tabletop - Tabuleiro Virtual para RPG",
