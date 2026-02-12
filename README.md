@@ -3,6 +3,8 @@
 ![Tech Stack](https://img.shields.io/badge/stack-React_|_Electron_|_Tailwind-blue)
 ![License](https://img.shields.io/badge/license-GPLv3-red)
 
+![ECOS VTT banner2](https://github.com/user-attachments/assets/422b5f00-cea9-41a6-a232-5278e1003a69)
+
 ---
 
 ## 📖 Sobre o Projeto
@@ -10,6 +12,8 @@
 **EcosVTT** é uma aplicação gratuita e open-source desenvolvida para elevar a experiência de mesas de RPG presenciais ou híbridas. O projeto se destaca como uma **alternativa robusta** aos serviços de VTT online, oferecendo uma experiência visual e sonora polida sem a necessidade de assinaturas mensais ou altos custos de licença.
 
 Diferente das plataformas baseadas em navegador, o EcosVTT roda **100% localmente**. Isso significa que você tem total liberdade: **sem limites de upload** para seus mapas e músicas, e **sem travamentos** causados por instabilidade de servidores externos. É a ferramenta ideal para mestres que buscam performance máxima, imersão total e custo zero.
+
+<img width="1916" height="1076" alt="Captura de tela 2026-02-12 102052" src="https://github.com/user-attachments/assets/f9a31de8-b065-41a2-aedd-c8ba17a97778" />
 
 ---
 
