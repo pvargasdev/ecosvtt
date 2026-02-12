@@ -1116,14 +1116,14 @@ export const VTTLayout = ({ zoomValue, onZoomChange, activeTool, setActiveTool, 
                                   onMouseUp={() => setIsResizingBrush(false)}
                                   onTouchStart={() => setIsResizingBrush(true)}
                                   onTouchEnd={() => setIsResizingBrush(false)}
-                                  className={`h-1.5 bg-white/20 rounded-lg appearance-none cursor-pointer outline-none [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white hover:[&::-webkit-slider-thumb]:bg-white ${activeTool === 'brush' ? 'w-[165px]' : 'w-[344px]'}`}
+                                  className={`h-1.5 bg-white/20 rounded-lg appearance-none cursor-pointer outline-none [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white hover:[&::-webkit-slider-thumb]:bg-white ${activeTool === 'brush' ? 'w-[190px]' : 'w-[344px]'}`}
                               />
                         </div>
                     ) : (
                         <div className="flex-1 flex items-center justify-end gap-1">
                             <button onClick={(e) => toggle('menuOpen', e)} className="flex items-center gap-2 px-3 py-1.5 hover:bg-white/10 rounded text-white transition border border-transparent hover:border-glass-border mr-auto">
                                 <Map size={16} className="text-neon-green"/>
-                                <span className="font-rajdhani font-bold uppercase text-sm truncate max-w-[120px]">
+                                <span className="font-rajdhani font-bold uppercase text-sm truncate min-w-[110px] max-w-[110px]">
                                     {activeScene?.name ? (activeScene.name.length > 15 ? activeScene.name.substring(0, 15) + '...' : activeScene.name) : "Sem Cena"}
                                 </span>
                                 <ChevronDown size={14} className="text-text-muted"/>
