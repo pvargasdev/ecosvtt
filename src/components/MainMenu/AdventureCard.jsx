@@ -54,7 +54,7 @@ const AdventureCard = ({ adventure, onPlay, onEdit, onDuplicate, onDelete, onExp
                     <img 
                         src={coverUrl} 
                         alt={advName} 
-                        className="w-full h-full object-cover opacity-60 group-hover:opacity-100 group-hover:scale-105 transition-all duration-700"
+                        className="w-full h-full object-cover opacity-70 group-hover:opacity-100 group-hover:scale-105 transition-all duration-700"
                     />
                 ) : (
                     <div className={`w-full h-full bg-gradient-to-br ${getPlaceholderGradient(advId)} flex items-center justify-center`}>
@@ -63,8 +63,6 @@ const AdventureCard = ({ adventure, onPlay, onEdit, onDuplicate, onDelete, onExp
                         </span>
                     </div>
                 )}
-                
-                <div className="absolute -inset-px bg-gradient-to-t from-[#09090b] via-transparent to-transparent opacity-80 pointer-events-none" />
             </div>
 
             <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity z-20">
