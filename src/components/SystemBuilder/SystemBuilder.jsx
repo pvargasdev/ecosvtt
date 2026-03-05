@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { 
     DndContext, 
     DragOverlay, 
-    closestCenter, 
+    pointerWithin, // Importante para detectar colisão baseada no cursor
     KeyboardSensor, 
     PointerSensor, 
     useSensor, 
@@ -16,89 +16,107 @@ import {
     sortableKeyboardCoordinates, 
     verticalListSortingStrategy, 
     useSortable,
-    rectSortingStrategy
+    defaultAnimateLayoutChanges
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { 
-    Plus, Trash2, Save, X, Layout, GripVertical, 
-    Square, Edit, Info, ArrowLeft, Minus, GripHorizontal
+    Plus, Trash2, Save, X, Layout, 
+    Square, ArrowLeft, Minus, Layers, GripHorizontal, Palette, Copy
 } from 'lucide-react';
 import * as GenericSystem from '../../systems/generic_system';
 import { useGame } from '../../context/GameContext';
 
-const SidebarItem = ({ type, config }) => {
-    const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
-        id: `sidebar_new_${type}`,
-        data: { 
-            type: type, 
-            label: config.label,
-            isSidebar: true 
-        }
-    });
+const REGISTRY = GenericSystem.WIDGET_REGISTRY || {};
 
+// Tipos que aceitam cor
+const COLOR_SUPPORTED_TYPES = ['attributes', 'resources', 'headers', 'separators', 'toggles', 'longTexts'];
+
+// --- COMPONENTES AUXILIARES ---
+
+const WidgetPreview = ({ type, label, color }) => {
+    const Comp = REGISTRY[type]?.comp;
+    if (Comp) return <Comp data={{ label, color }} readOnly={true} value={0} />;
     return (
-        <div ref={setNodeRef} {...listeners} {...attributes} 
-             className={`w-full flex items-center gap-3 p-2.5 rounded-lg border border-transparent bg-black/40 transition-all text-xs text-gray-400 group cursor-grab active:cursor-grabbing 
-             ${isDragging ? 'opacity-50 ring-2 ring-[#d084ff]' : 'hover:border-white/10 hover:bg-white/5 hover:text-white'}`}>
-            <Plus size={14} className="text-[#d084ff] opacity-50 group-hover:opacity-100"/>
-            {config.label}
+        <div className="p-3 bg-[#1a1a20] text-white rounded-lg border border-white/10 shadow-xl flex items-center justify-between" 
+             style={{ borderColor: color }}>
+            <span className="text-xs font-bold uppercase tracking-wider">{label || type}</span>
+            {color && <div className="w-3 h-3 rounded-full" style={{ backgroundColor: color }}/>}
         </div>
     );
 };
 
-const SortableItem = ({ id, data, onClick, isSelected }) => {
-    const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
-    
-    const style = {
-        transform: CSS.Transform.toString(transform),
-        transition,
-        opacity: isDragging ? 0.3 : 1,
-        height: '100%',
-        flex: 1        
-    };
-
-    if (!data) return null;
-
-    const WidgetComp = GenericSystem.WIDGET_REGISTRY[data.type]?.comp;
+const SidebarItem = ({ type, config }) => {
+    const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
+        id: `sidebar_${type}`,
+        data: { type, label: config.label, isSidebar: true }
+    });
 
     return (
-        <div ref={setNodeRef} style={style} {...attributes} className="group relative mb-2 flex-1 h-full flex flex-col">
-            <div 
-                className={`relative rounded-xl border transition-all overflow-hidden h-full flex flex-col flex-1
-                ${isSelected ? 'border-[#d084ff] ring-1 ring-[#d084ff] z-10 bg-[#0a0a0c]' : 'border-transparent hover:border-white/20 bg-[#0a0a0c]'}
-                `}
-                onClick={(e) => { e.stopPropagation(); onClick(); }}
-            >
-                <div {...listeners} className="absolute inset-0 bg-[#d084ff]/5 opacity-0 group-hover:opacity-100 transition-opacity z-20 cursor-grab active:cursor-grabbing pointer-events-none" />
-                
-                <div className="absolute top-2 right-2 z-30 opacity-0 group-hover:opacity-100 transition-opacity">
-                     <div className="p-1 bg-black/80 rounded border border-white/10 text-gray-400 shadow-sm backdrop-blur-md">
-                        <GripVertical size={12} />
-                     </div>
-                </div>
+        <div ref={setNodeRef} {...listeners} {...attributes}
+             className={`w-full flex items-center gap-3 p-3 rounded-lg border border-transparent bg-white/5 hover:bg-white/10 cursor-grab active:cursor-grabbing transition-all select-none group mb-2
+             ${isDragging ? 'opacity-40 ring-1 ring-[#d084ff]' : ''}`}>
+            <div className="p-1.5 bg-black/50 rounded-md group-hover:bg-[#d084ff]/20 transition-colors">
+                 <Plus size={12} className="text-gray-500 group-hover:text-[#d084ff]"/>
+            </div>
+            <span className="text-xs text-gray-300 font-medium group-hover:text-white">{config.label}</span>
+        </div>
+    );
+};
 
-                <div className="pointer-events-none p-0.5 h-full flex-1 flex flex-col">
-                    {WidgetComp ? 
-                        <div className="flex-1 h-full">
-                            <WidgetComp data={data} readOnly={true} value={data.defaultValue} /> 
-                        </div>
-                    : <div className="p-4 text-xs text-red-500">Widget Inválido</div>}
+const SortableWidget = ({ id, data, isSelected, onSelect }) => {
+    const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ 
+        id,
+        data: { type: 'widget', ...data }
+    });
+    
+    const style = {
+        transform: CSS.Translate.toString(transform),
+        transition,
+        opacity: isDragging ? 0.3 : 1, 
+    };
+
+    const WidgetComp = REGISTRY[data.type]?.comp;
+
+    return (
+        <div ref={setNodeRef} style={style} {...attributes} {...listeners}
+             onClick={(e) => {
+                 if (!isDragging) {
+                    e.stopPropagation();
+                    onSelect();
+                 }
+             }}
+             className={`relative mb-3 touch-none select-none cursor-grab active:cursor-grabbing group h-full
+             ${isSelected ? 'z-10' : 'z-0'}`}>
+            
+            <div className={`
+                relative rounded-xl border transition-all duration-200 overflow-hidden bg-[#0e0e12] flex flex-col min-h-[60px] pointer-events-none h-full
+                ${isSelected 
+                    ? 'border-[#d084ff] shadow-[0_0_0_1px_#d084ff] bg-[#1a1a20]' 
+                    : 'border-white/5 group-hover:border-white/20 group-hover:bg-[#15151a]'}
+            `}>
+                <div className="p-1 flex-1 flex flex-col justify-center">
+                    {WidgetComp ? <WidgetComp data={data} readOnly={true} value={data.defaultValue} /> : <div className="p-2 text-xs text-red-500">Erro</div>}
                 </div>
             </div>
         </div>
     );
 };
 
-const ColumnContainer = ({ id, items, children }) => {
-    const { setNodeRef, isOver } = useSortable({ id, data: { type: 'container' } });
-    
+const SortableColumn = ({ id, items, children }) => {
+    const { setNodeRef, isOver } = useSortable({ 
+        id, 
+        data: { type: 'container' },
+        animateLayoutChanges: (args) => defaultAnimateLayoutChanges({...args, wasDragging: true})
+    });
+
     return (
         <div ref={setNodeRef} 
-             className={`flex-1 min-h-[60px] rounded-xl p-2 transition-all flex flex-col gap-2 min-w-0 h-full
-             ${isOver ? 'bg-[#d084ff]/10 border border-[#d084ff] shadow-[inset_0_0_20px_rgba(208,132,255,0.05)]' : 'border border-dashed border-white/5 hover:border-white/10'}
-             `}>
-            {items.length === 0 && !isOver && (
-                <div className="h-full flex items-center justify-center text-[9px] text-gray-700 uppercase tracking-widest pointer-events-none opacity-30">
+             className={`flex-1 min-h-[120px] rounded-xl p-2 flex flex-col gap-0 transition-all duration-300
+             ${isOver ? 'bg-[#d084ff]/5 border-2 border-[#d084ff]/30' : 'border border-dashed border-white/5 bg-black/20 hover:border-white/10'}`}>
+            {items.length === 0 && (
+                <div className="flex-1 flex flex-col items-center justify-center text-white/10 select-none pointer-events-none gap-2">
+                    <Square size={24} strokeWidth={1} />
+                    <span className="text-[9px] uppercase tracking-widest">Solte Aqui</span>
                 </div>
             )}
             {children}
@@ -106,66 +124,54 @@ const ColumnContainer = ({ id, items, children }) => {
     );
 };
 
-const SortableRow = ({ row, rowId, itemsDef, onDelete, onSelectItem, selectedItemId, onChangeColumns }) => {
-    const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: rowId, data: { type: 'row' } });
+const SortableRow = ({ row, rowId, itemsDef, onDelete, onSelectWidget, selectedWidgetId, onChangeColumns }) => {
+    const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ 
+        id: rowId, 
+        data: { type: 'row' } 
+    });
     
     const style = {
-        transform: CSS.Transform.toString(transform),
+        transform: CSS.Translate.toString(transform),
         transition,
+        zIndex: isDragging ? 99 : 'auto',
         opacity: isDragging ? 0.5 : 1,
-        position: 'relative',
-        zIndex: isDragging ? 999 : 'auto'
+        position: 'relative'
     };
 
     return (
-        <div ref={setNodeRef} style={style} className="group/row relative mb-2 transition-all">
-            
-            <div className="absolute -top-3 left-1/2 -translate-x-1/2 z-50 opacity-0 group-hover/row:opacity-100 transition-all duration-200 translate-y-2 group-hover/row:translate-y-0 pointer-events-none group-hover/row:pointer-events-auto">
-                <div className="flex items-center gap-1 p-1 bg-[#121216] border border-white/20 rounded-full shadow-2xl">
-                    
-                    <button {...listeners} {...attributes} className="p-1.5 text-gray-400 hover:text-white cursor-grab active:cursor-grabbing hover:bg-white/10 rounded-full transition-colors" title="Arrastar Linha">
+        <div ref={setNodeRef} style={style} className="group/row relative mb-6 transition-all">
+            <div className="absolute -top-3 right-0 z-40 flex items-center gap-1 opacity-0 group-hover/row:opacity-100 transition-all duration-200 translate-y-2 group-hover/row:translate-y-0">
+                <div className="flex bg-[#1a1a20] border border-white/10 rounded-lg shadow-xl overflow-hidden backdrop-blur-md">
+                     <div {...listeners} {...attributes} className="p-1.5 hover:bg-white/10 cursor-grab active:cursor-grabbing text-gray-400 hover:text-white border-r border-white/5" title="Mover Linha">
                         <GripHorizontal size={14} />
-                    </button>
-
-                    <div className="w-px h-3 bg-white/10 mx-0.5" />
-
-                    <button onClick={() => onChangeColumns(rowId, -1)} className="p-1.5 text-gray-500 hover:text-red-400 hover:bg-white/10 rounded-full transition-colors" title="- Coluna">
-                        <Minus size={12} />
-                    </button>
-                    <span className="text-[10px] font-mono font-bold text-gray-300 w-4 text-center">{row.columns.length}</span>
-                    <button onClick={() => onChangeColumns(rowId, 1)} className="p-1.5 text-gray-500 hover:text-[#d084ff] hover:bg-white/10 rounded-full transition-colors" title="+ Coluna">
-                        <Plus size={12} />
-                    </button>
-
-                    <div className="w-px h-3 bg-white/10 mx-0.5" />
-
-                    <button onClick={() => onDelete(rowId)} className="p-1.5 text-gray-500 hover:text-red-500 hover:bg-red-900/20 rounded-full transition-colors" title="Excluir Linha">
-                        <Trash2 size={12} />
-                    </button>
+                    </div>
+                    <button onClick={() => onChangeColumns(rowId, -1)} className="p-1.5 hover:bg-red-500/20 text-gray-400 hover:text-red-400 border-r border-white/5"><Minus size={14} /></button>
+                    <button onClick={() => onChangeColumns(rowId, 1)} className="p-1.5 hover:bg-emerald-500/20 text-gray-400 hover:text-emerald-400 border-r border-white/5"><Plus size={14} /></button>
+                    <button onClick={() => onDelete(rowId)} className="p-1.5 hover:bg-red-500/20 text-gray-400 hover:text-red-400"><Trash2 size={14} /></button>
                 </div>
             </div>
 
-            <div className={`rounded-xl p-1 transition-colors ${isDragging ? 'ring-1 ring-[#d084ff] border-[#d084ff] bg-black' : 'border border-transparent'}`}>
-                <div className="flex gap-4 min-h-[50px]">
+            <div className="p-1 border border-transparent rounded-xl hover:border-white/5 transition-colors">
+                <div className="flex gap-4 items-stretch">
                     {row.columns.map((colItems, colIndex) => {
                         const containerId = `${rowId}-col-${colIndex}`;
                         return (
-                            <SortableContext key={containerId} id={containerId} items={colItems} strategy={rectSortingStrategy}>
-                                <ColumnContainer id={containerId} items={colItems}>
+                            <SortableContext key={containerId} id={containerId} items={colItems} strategy={verticalListSortingStrategy}>
+                                <SortableColumn id={containerId} items={colItems}>
                                     {colItems.map(itemId => {
                                         const itemData = itemsDef[itemId];
                                         if (!itemData) return null;
                                         return (
-                                            <SortableItem 
+                                            <SortableWidget 
                                                 key={itemId} 
                                                 id={itemId} 
                                                 data={itemData} 
-                                                onClick={() => onSelectItem(itemId, itemData.type)}
-                                                isSelected={selectedItemId === itemId}
+                                                isSelected={selectedWidgetId === itemId}
+                                                onSelect={() => onSelectWidget(itemId)}
                                             />
                                         )
                                     })}
-                                </ColumnContainer>
+                                </SortableColumn>
                             </SortableContext>
                         );
                     })}
@@ -175,8 +181,7 @@ const SortableRow = ({ row, rowId, itemsDef, onDelete, onSelectItem, selectedIte
     );
 };
 
-
-export const SystemBuilder = ({ systemToEdit, onSave, onCancel, usageCount = 0 }) => {
+export const SystemBuilder = ({ systemToEdit, onSave, onCancel }) => {
     const { setIsSystemBuilderOpen } = useGame();
 
     useEffect(() => {
@@ -184,94 +189,38 @@ export const SystemBuilder = ({ systemToEdit, onSave, onCancel, usageCount = 0 }
         return () => setIsSystemBuilderOpen(false);
     }, [setIsSystemBuilderOpen]);
 
-    const [blueprint, setBlueprint] = useState(() => {
-        const b = systemToEdit || {};
-        let initialLayout = b.layout || [];
-        let initialItems = b.items || {};
-
-        if (initialLayout.length === 0) {
-            initialLayout = [];
-        }
-
-        return {
-            name: b.name || "Novo Sistema",
-            id: b.id,
-            layout: initialLayout, 
-            items: initialItems,
-            notes: b.notes !== false
-        };
-    });
+    const [blueprint, setBlueprint] = useState(() => ({
+        name: systemToEdit?.name || "Novo Sistema",
+        id: systemToEdit?.id,
+        layout: systemToEdit?.layout || [], 
+        items: systemToEdit?.items || {}
+    }));
 
     const [selectedId, setSelectedId] = useState(null);
     const [activeDragId, setActiveDragId] = useState(null);
     const [activeDragData, setActiveDragData] = useState(null);
-    
-    const generateId = () => `node_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
+    const [dragStartSnapshot, setDragStartSnapshot] = useState(null);
+
+    const sensors = useSensors(
+        useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+        useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+    );
+
+    const generateId = () => `n_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
 
     const addRow = () => {
-        const newRow = {
-            id: generateId(),
-            type: 'row', 
-            columns: [[]] 
-        };
         setBlueprint(prev => ({
             ...prev,
-            layout: [...prev.layout, newRow]
+            layout: [...prev.layout, { id: generateId(), type: 'row', columns: [[]] }]
         }));
-    };
-
-    const handleColumnChange = (rowId, delta) => {
-        setBlueprint(prev => {
-            const rowIndex = prev.layout.findIndex(r => r.id === rowId);
-            if (rowIndex === -1) return prev;
-
-            const row = prev.layout[rowIndex];
-            const currentCount = row.columns.length;
-            const newCount = currentCount + delta;
-
-            if (newCount < 1 || newCount > 6) return prev; 
-
-            const newColumns = [...row.columns];
-
-            if (delta > 0) {
-                newColumns.push([]);
-            } else {
-                const itemsToSave = newColumns.pop();
-                if (itemsToSave && itemsToSave.length > 0) {
-                    const prevColIndex = newColumns.length - 1;
-                    newColumns[prevColIndex] = [...newColumns[prevColIndex], ...itemsToSave];
-                }
-            }
-
-            const newLayout = [...prev.layout];
-            newLayout[rowIndex] = { ...row, columns: newColumns };
-            return { ...prev, layout: newLayout };
-        });
-    };
-
-    const createNewItemDef = (type) => {
-        const newItemId = `${type}_${Date.now()}`;
-        const defaultLabel = GenericSystem.WIDGET_REGISTRY[type]?.label || "Novo Item";
-        
-        const newItemDef = {
-            id: newItemId,
-            type,
-            label: defaultLabel,
-            defaultValue: type === 'toggles' ? false : 0,
-            color: (type === 'attributes' || type === 'resources') ? '#d084ff' : undefined,
-            options: type === 'skills' ? ['Opção 1'] : undefined
-        };
-        return { newItemId, newItemDef };
     };
 
     const deleteRow = (rowId) => {
         setBlueprint(prev => {
             const row = prev.layout.find(r => r.id === rowId);
             if (!row) return prev;
-            
             const newItems = { ...prev.items };
-            row.columns.flat().forEach(itemId => delete newItems[itemId]);
-
+            row.columns.flat().forEach(id => delete newItems[id]);
             return {
                 ...prev,
                 layout: prev.layout.filter(r => r.id !== rowId),
@@ -280,337 +229,395 @@ export const SystemBuilder = ({ systemToEdit, onSave, onCancel, usageCount = 0 }
         });
     };
 
-    const sensors = useSensors(
-        useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
-        useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
-    );
+    const handleColumnChange = (rowId, delta) => {
+        setBlueprint(prev => {
+            const rowIndex = prev.layout.findIndex(r => r.id === rowId);
+            if (rowIndex === -1) return prev;
+            const row = prev.layout[rowIndex];
+            const newCount = row.columns.length + delta;
+            
+            if (newCount < 1 || newCount > 6) return prev;
+            const newColumns = [...row.columns];
+            if (delta > 0) newColumns.push([]);
+            else {
+                const removed = newColumns.pop();
+                if (removed?.length && newColumns.length > 0) {
+                    newColumns[newColumns.length - 1] = [...newColumns[newColumns.length - 1], ...removed];
+                }
+            }
+            const newLayout = [...prev.layout];
+            newLayout[rowIndex] = { ...row, columns: newColumns };
+            return { ...prev, layout: newLayout };
+        });
+    };
+
+    const duplicateWidget = (id) => {
+        const item = blueprint.items[id];
+        if (!item) return;
+        const newId = `${item.type}_${Date.now()}`;
+        const newItem = { ...item, id: newId, label: `${item.label} (Cópia)` };
+        
+        const newLayout = blueprint.layout.map(row => ({
+            ...row,
+            columns: row.columns.map(col => {
+                const idx = col.indexOf(id);
+                if (idx >= 0) {
+                    const newCol = [...col];
+                    newCol.splice(idx + 1, 0, newId);
+                    return newCol;
+                }
+                return col;
+            })
+        }));
+
+        setBlueprint(prev => ({
+            ...prev,
+            layout: newLayout,
+            items: { ...prev.items, [newId]: newItem }
+        }));
+        setSelectedId(newId);
+    };
+
+    // --- CORE DRAG LOGIC ---
 
     const findContainer = (id) => {
-        if (blueprint.layout.find(r => r.id === id)) return 'root';
+        if (!id) return null;
+        if (blueprint.layout.some(r => r.id === id)) return 'root';
+        if (id.includes('-col-')) return id;
+
         for (const row of blueprint.layout) {
             for (let i = 0; i < row.columns.length; i++) {
-                const colId = `${row.id}-col-${i}`;
-                if (id === colId) return colId;
-                if (row.columns[i].includes(id)) return colId;
+                if (row.columns[i].includes(id)) {
+                    return `${row.id}-col-${i}`;
+                }
             }
         }
         return null;
     };
 
-    const handleDragStart = (event) => {
-        setActiveDragId(event.active.id);
-        setActiveDragData(event.active.data.current);
-    };
-
-    const handleDragOver = (event) => {
-        const { active, over } = event;
-        if (!over) return;
-        if (active.data.current?.isSidebar) return;
-        if (active.data.current?.type === 'row') return;
-
-        const activeId = active.id;
-        const overId = over.id;
-        const activeContainer = findContainer(activeId);
-        const overContainer = findContainer(overId);
-
-        if (!activeContainer || !overContainer || activeContainer === 'root' || overContainer === 'root') return;
-
-        if (activeContainer !== overContainer) {
-            setBlueprint(prev => {
-                const newLayout = [...prev.layout];
-                const [oldRowId, , oldColIdx] = activeContainer.split('-');
-                const oldRowIndex = newLayout.findIndex(r => r.id === oldRowId);
-                const oldCols = [...newLayout[oldRowIndex].columns];
-                
-                oldCols[parseInt(oldColIdx)] = oldCols[parseInt(oldColIdx)].filter(id => id !== activeId);
-                newLayout[oldRowIndex] = { ...newLayout[oldRowIndex], columns: oldCols };
-
-                const [newRowId, , newColIdx] = overContainer.split('-');
-                const newRowIndex = newLayout.findIndex(r => r.id === newRowId);
-                const newCols = [...newLayout[newRowIndex].columns];
-                const overItems = newCols[parseInt(newColIdx)];
-                
-                let newIndex = overItems.length;
-                if (overItems.includes(overId)) {
-                    newIndex = overItems.indexOf(overId);
-                }
-
-                const newColItems = [...overItems];
-                newColItems.splice(newIndex, 0, activeId);
-                newCols[parseInt(newColIdx)] = newColItems;
-                
-                newLayout[newRowIndex] = { ...newLayout[newRowIndex], columns: newCols };
-
-                return { ...prev, layout: newLayout };
-            });
+    const onDragStart = ({ active }) => {
+        setActiveDragId(active.id);
+        setActiveDragData(active.data.current);
+        if (!active.data.current?.isSidebar) {
+            setDragStartSnapshot(JSON.parse(JSON.stringify(blueprint)));
         }
     };
 
-    const handleDragEnd = (event) => {
-        const { active, over } = event;
-        setActiveDragId(null);
-        setActiveDragData(null);
+    const onDragOver = ({ active, over }) => {
+        const overId = over?.id;
+        if (!overId || active.data.current?.type === 'row' || active.data.current?.isSidebar) return;
 
-        if (!over) return;
+        const activeContainer = findContainer(active.id);
+        const overContainer = findContainer(overId);
 
+        if (!activeContainer || !overContainer || activeContainer === overContainer) {
+            // CRÍTICO: Se a coluna for a mesma, NÃO FAÇA NADA AQUI. 
+            // Deixe o onDragEnd lidar com o reorder (ArrayMove).
+            // Isso evita o bug do item sumir.
+            return;
+        }
+
+        setBlueprint((prev) => {
+            const activeItems = prev.layout
+                .flatMap(r => r.columns.map((c, i) => ({ id: `${r.id}-col-${i}`, items: c })))
+                .find(c => c.id === activeContainer)?.items || [];
+            
+            const overItems = prev.layout
+                .flatMap(r => r.columns.map((c, i) => ({ id: `${r.id}-col-${i}`, items: c })))
+                .find(c => c.id === overContainer)?.items || [];
+
+            const overIndex = overItems.indexOf(overId);
+            let newIndex;
+            
+            if (overId in prev.items) {
+                // Sobre um item existente
+                const isBelow = over && active.rect.current.translated && active.rect.current.translated.top > over.rect.top + over.rect.height;
+                const modifier = isBelow ? 1 : 0;
+                newIndex = overIndex >= 0 ? overIndex + modifier : overItems.length + 1;
+            } else {
+                // Sobre a coluna vazia
+                newIndex = overItems.length + 1;
+            }
+
+            const newLayout = prev.layout.map(row => ({
+                ...row,
+                columns: row.columns.map((col, colIdx) => {
+                    const colId = `${row.id}-col-${colIdx}`;
+                    
+                    if (colId === activeContainer) {
+                        return col.filter(id => id !== active.id);
+                    }
+                    
+                    if (colId === overContainer) {
+                        const newCol = [...col];
+                        // Remove duplicata se já existir (segurança)
+                        const existingIdx = newCol.indexOf(active.id);
+                        if (existingIdx !== -1) newCol.splice(existingIdx, 1);
+                        
+                        // Insere na nova posição
+                        newCol.splice(newIndex, 0, active.id);
+                        return newCol;
+                    }
+                    return col;
+                })
+            }));
+
+            return { ...prev, layout: newLayout };
+        });
+    };
+
+    const onDragEnd = ({ active, over }) => {
+        // Rollback se drop inválido
+        if (!over) {
+            if (dragStartSnapshot && !active.data.current?.isSidebar) {
+                setBlueprint(dragStartSnapshot);
+            }
+            setActiveDragId(null);
+            setActiveDragData(null);
+            setDragStartSnapshot(null);
+            return;
+        }
+
+        // Sidebar Drop (Criação)
         if (active.data.current?.isSidebar) {
             const overContainer = findContainer(over.id);
             if (overContainer && overContainer !== 'root') {
-                const { newItemId, newItemDef } = createNewItemDef(active.data.current.type);
-                setBlueprint(prev => {
-                    const newLayout = [...prev.layout];
-                    const [rowId, , colIdx] = overContainer.split('-');
-                    const rowIndex = newLayout.findIndex(r => r.id === rowId);
-                    
-                    if (rowIndex === -1) return prev;
+                const newItemId = `${active.data.current.type}_${Date.now()}`;
+                const newItemDef = {
+                    id: newItemId,
+                    type: active.data.current.type,
+                    label: active.data.current.label,
+                    defaultValue: active.data.current.type === 'toggles' ? false : 0,
+                    color: '#d084ff' 
+                };
 
-                    const newCols = [...newLayout[rowIndex].columns];
-                    const targetColIndex = parseInt(colIdx);
-                    const overItems = newCols[targetColIndex];
-                    
-                    let insertIndex = overItems.length;
-                    if (over.id !== overContainer) {
-                        const idx = overItems.indexOf(over.id);
-                        if (idx !== -1) insertIndex = idx;
+                setBlueprint(prev => {
+                    const newLayout = prev.layout.map(row => ({
+                        ...row,
+                        columns: row.columns.map((col, idx) => {
+                            if (`${row.id}-col-${idx}` === overContainer) {
+                                const index = col.indexOf(over.id);
+                                const newCol = [...col];
+                                if (index >= 0) newCol.splice(index, 0, newItemId);
+                                else newCol.push(newItemId);
+                                return newCol;
+                            }
+                            return col;
+                        })
+                    }));
+                    return { ...prev, layout: newLayout, items: { ...prev.items, [newItemId]: newItemDef } };
+                });
+                setSelectedId(newItemId);
+            }
+        } 
+        
+        // Reordenação na MESMA coluna
+        else {
+            const activeContainer = findContainer(active.id);
+            const overContainer = findContainer(over.id);
+
+            if (activeContainer && overContainer && activeContainer === overContainer) {
+                const [rId, , cIdx] = activeContainer.split('-');
+                setBlueprint(prev => {
+                    const rIdx = prev.layout.findIndex(r => r.id === rId);
+                    const col = prev.layout[rIdx].columns[parseInt(cIdx)];
+                    const oldIdx = col.indexOf(active.id);
+                    const newIdx = col.indexOf(over.id);
+                    if (oldIdx !== newIdx) {
+                        const newLayout = [...prev.layout];
+                        const newCols = [...newLayout[rIdx].columns];
+                        newCols[parseInt(cIdx)] = arrayMove(col, oldIdx, newIdx);
+                        newLayout[rIdx] = { ...newLayout[rIdx], columns: newCols };
+                        return { ...prev, layout: newLayout };
                     }
-
-                    const newColItems = [...overItems];
-                    newColItems.splice(insertIndex, 0, newItemId);
-                    newCols[targetColIndex] = newColItems;
-                    newLayout[rowIndex] = { ...newLayout[rowIndex], columns: newCols };
-
-                    return {
-                        ...prev,
-                        layout: newLayout,
-                        items: { ...prev.items, [newItemId]: newItemDef }
-                    };
+                    return prev;
                 });
             }
-            return;
         }
-
-        if (active.data.current?.type === 'row' && over.data.current?.type === 'row') {
-            if (active.id !== over.id) {
-                setBlueprint(prev => {
-                    const oldIndex = prev.layout.findIndex(r => r.id === active.id);
-                    const newIndex = prev.layout.findIndex(r => r.id === over.id);
-                    return { ...prev, layout: arrayMove(prev.layout, oldIndex, newIndex) };
-                });
-            }
-            return;
-        }
-
-        const activeContainer = findContainer(active.id);
-        const overContainer = findContainer(over.id);
-
-        if (activeContainer && overContainer && activeContainer === overContainer) {
-            const [rowId, , colIdx] = activeContainer.split('-');
-            const colIndex = parseInt(colIdx);
-            
-            setBlueprint(prev => {
-                const rowIndex = prev.layout.findIndex(r => r.id === rowId);
-                const row = prev.layout[rowIndex];
-                const oldIndex = row.columns[colIndex].indexOf(active.id);
-                const newIndex = row.columns[colIndex].indexOf(over.id);
-
-                if (oldIndex !== newIndex) {
-                    const newLayout = [...prev.layout];
-                    const newCols = [...row.columns];
-                    newCols[colIndex] = arrayMove(newCols[colIndex], oldIndex, newIndex);
-                    newLayout[rowIndex] = { ...row, columns: newCols };
-                    return { ...prev, layout: newLayout };
-                }
-                return prev;
-            });
-        }
+        
+        setActiveDragId(null);
+        setActiveDragData(null);
+        setDragStartSnapshot(null);
     };
 
-    const updateActiveItem = (updates) => {
-        if (!selectedId) return;
-        setBlueprint(prev => ({
-            ...prev,
-            items: { ...prev.items, [selectedId]: { ...prev.items[selectedId], ...updates } }
-        }));
-    };
-
-    const activeItemDef = blueprint.items[selectedId];
-    const saveMode = usageCount > 0 ? 'clone' : 'overwrite';
+    const activeItem = blueprint.items[selectedId];
 
     return (
-        <div className="flex flex-col h-full bg-[#050505] text-white w-full font-inter select-none">
-             <div className="flex justify-between items-center p-4 border-b border-white/5 bg-[#0a0a0c]/80 backdrop-blur-md sticky top-0 z-20">
+        <div className="flex flex-col h-screen w-full bg-[#050505] text-white font-inter overflow-hidden fixed inset-0 z-50">
+            {/* Header */}
+            <div className="flex justify-between items-center p-4 border-b border-white/5 bg-[#0a0a0c] z-20 shrink-0">
                 <div className="flex items-center gap-4">
-                    <div className="p-2.5 bg-gradient-to-br from-[#d084ff]/10 to-transparent rounded-xl border border-[#d084ff]/30 shadow-[0_0_15px_rgba(208,132,255,0.1)]">
-                        <Layout className="text-[#d084ff]" size={20} />
+                    <div className="p-2 bg-[#d084ff]/10 rounded-lg border border-[#d084ff]/20">
+                        <Layout className="text-[#d084ff]" size={18} />
                     </div>
-                    <div>
-                        <div className="flex items-center gap-2 mb-0.5">
-                            <h2 className="text-[9px] font-bold text-gray-500 uppercase tracking-widest">System Builder</h2>
-                            <div className="w-1 h-1 bg-gray-600 rounded-full"></div>
-                            <span className="text-[9px] text-gray-600 font-mono">v2.0</span>
-                        </div>
-                        <input className="bg-transparent border-b border-transparent hover:border-white/20 focus:border-[#d084ff] text-lg font-rajdhani font-bold text-white p-0 focus:ring-0 w-80 placeholder-white/20 transition-all outline-none"
-                            value={blueprint.name} onChange={e => setBlueprint({...blueprint, name: e.target.value})} placeholder="Nome do Sistema..." />
+                    <div className="flex flex-col">
+                        <input className="bg-transparent text-lg font-bold text-white outline-none w-64 placeholder-white/20"
+                            value={blueprint.name} onChange={e => setBlueprint({...blueprint, name: e.target.value})} 
+                            placeholder="Nome do Sistema" />
+                        <span className="text-[10px] text-gray-500 font-mono uppercase">System Builder v2.1</span>
                     </div>
                 </div>
-                <button onClick={onCancel} className="p-2 hover:bg-white/5 rounded-full text-gray-500 hover:text-white transition-colors"><X size={20}/></button>
+                <button onClick={onCancel} className="p-2 hover:bg-white/10 rounded-full text-gray-400 hover:text-white transition-colors"><X size={20}/></button>
             </div>
 
             <DndContext 
                 sensors={sensors} 
-                collisionDetection={closestCenter} 
-                onDragStart={handleDragStart} 
-                onDragOver={handleDragOver} 
-                onDragEnd={handleDragEnd}
+                collisionDetection={pointerWithin}
+                onDragStart={onDragStart} 
+                onDragOver={onDragOver} 
+                onDragEnd={onDragEnd}
+                dropAnimation={{ sideEffects: defaultDropAnimationSideEffects({ styles: { active: { opacity: '0.4' } } }) }}
             >
                 <div className="flex flex-1 overflow-hidden">
-                    <div className="w-[280px] bg-[#0a0a0c] border-r border-white/5 flex flex-col p-4 gap-6 shrink-0 overflow-y-auto">
-                        {!activeItemDef ? (
-                            <div className="animate-in slide-in-from-left-2 duration-300">
-                                <div className="text-[9px] font-bold text-gray-500 uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
-                                    <Square size={10} className="text-[#d084ff]" /> Estrutura
-                                </div>
-                                <button onClick={addRow} className="w-full flex flex-col items-center justify-center gap-2 p-5 bg-gradient-to-br from-white/5 to-transparent hover:from-white/10 hover:to-white/5 border border-dashed border-white/10 hover:border-[#d084ff]/50 rounded-xl transition-all group mb-8 shadow-sm">
-                                    <div className="p-2 bg-black/40 rounded-full group-hover:bg-[#d084ff]/20 transition-colors">
-                                        <Plus size={16} className="text-gray-400 group-hover:text-[#d084ff]"/>
+                    {/* Sidebar */}
+                    <div className="w-[280px] bg-[#08080a] border-r border-white/5 flex flex-col p-4 overflow-y-auto shrink-0 z-10 custom-scrollbar">
+                        {!activeItem ? (
+                            <div className="space-y-8 animate-in slide-in-from-left-4 fade-in duration-300">
+                                <div>
+                                    <div className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-3 flex items-center gap-2">
+                                        <Layers size={12} className="text-[#d084ff]"/> Estrutura
                                     </div>
-                                    <span className="text-[10px] uppercase font-bold text-gray-500 group-hover:text-white">Adicionar Linha</span>
-                                </button>
-
-                                <div className="text-[9px] font-bold text-gray-500 uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
-                                    <Square size={10} className="text-[#d084ff]" /> Widgets
+                                    <button onClick={addRow} className="w-full flex items-center gap-3 p-3 rounded-lg border border-dashed border-white/10 hover:border-[#d084ff] hover:bg-[#d084ff]/5 transition-all text-xs text-gray-400 hover:text-white group">
+                                        <Plus size={14} className="group-hover:scale-110 transition-transform"/> Nova Linha
+                                    </button>
                                 </div>
-                                <div className="space-y-2">
-                                    {Object.entries(GenericSystem.WIDGET_REGISTRY).map(([type, config]) => (
-                                        <SidebarItem key={type} type={type} config={config} />
-                                    ))}
+                                <div>
+                                    <div className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-3 flex items-center gap-2">
+                                        <Square size={12} className="text-[#d084ff]"/> Widgets
+                                    </div>
+                                    <div className="flex flex-col gap-1">
+                                        {Object.entries(REGISTRY).map(([type, config]) => (
+                                            <SidebarItem key={type} type={type} config={config} />
+                                        ))}
+                                    </div>
                                 </div>
                             </div>
                         ) : (
-                            <div className="animate-in slide-in-from-right-2 duration-300 flex flex-col h-full">
-                                <div className="flex justify-between items-center pb-4 border-b border-white/5 mb-4">
-                                    <h3 className="text-xs font-bold uppercase tracking-widest text-[#d084ff]">Editar Widget</h3>
-                                    <button onClick={() => setSelectedId(null)} className="text-[10px] text-gray-500 hover:text-white flex items-center gap-1 bg-white/5 px-2 py-1 rounded hover:bg-white/10 transition-colors"><ArrowLeft size={10}/> Voltar</button>
-                                </div>
-
-                                <div className="space-y-5">
-                                    <div>
-                                        <label className="text-[9px] text-gray-400 block mb-1.5 font-bold uppercase tracking-wider">Rótulo</label>
-                                        <input className="w-full bg-black/30 border border-white/10 rounded-lg p-2.5 text-xs text-white outline-none focus:border-[#d084ff] transition-all focus:shadow-[0_0_10px_rgba(208,132,255,0.1)]" 
-                                            value={activeItemDef.label || ''} onChange={e => updateActiveItem({ label: e.target.value })} />
+                            <div className="flex flex-col h-full animate-in slide-in-from-right-4 fade-in duration-300">
+                                <button onClick={() => setSelectedId(null)} className="mb-6 flex items-center gap-2 text-xs text-gray-500 hover:text-white transition-colors">
+                                    <ArrowLeft size={12}/> Voltar
+                                </button>
+                                
+                                <div className="space-y-6">
+                                    <div className="border-b border-white/5 pb-4">
+                                        <h3 className="text-sm font-bold text-white mb-1">Editar Propriedades</h3>
+                                        <p className="text-[10px] text-gray-500 font-mono">Tipo: {activeItem.type}</p>
                                     </div>
-                                    {activeItemDef.color !== undefined && (
-                                        <div>
-                                            <label className="text-[9px] text-gray-400 block mb-1.5 font-bold uppercase tracking-wider">Cor de Acento</label>
-                                            <div className="flex gap-2 items-center bg-black/30 p-2 rounded-lg border border-white/10">
-                                                <input type="color" className="h-6 w-8 bg-transparent border-none cursor-pointer rounded" 
-                                                    value={activeItemDef.color} onChange={e => updateActiveItem({ color: e.target.value })} />
-                                                <span className="text-[10px] text-gray-400 font-mono uppercase">{activeItemDef.color}</span>
-                                            </div>
-                                        </div>
-                                    )}
-                                    {activeItemDef.type === 'skills' && (
-                                        <div>
-                                            <label className="text-[9px] text-gray-400 block mb-2 font-bold uppercase tracking-wider">Opções da Lista</label>
-                                            <textarea className="w-full h-40 bg-black/30 border border-white/10 rounded-lg p-3 text-xs text-white outline-none focus:border-[#d084ff] font-mono leading-relaxed"
-                                                value={(activeItemDef.options || []).join('\n')}
-                                                onChange={e => updateActiveItem({ options: e.target.value.split('\n') })}
-                                                placeholder="Uma opção por linha..."
-                                            />
-                                        </div>
-                                    )}
-                                </div>
 
-                                <div className="mt-auto pt-4 border-t border-white/5">
-                                    <button onClick={() => {
-                                        const newItems = { ...blueprint.items };
-                                        delete newItems[selectedId];
-                                        const newLayout = blueprint.layout.map(row => ({
-                                            ...row,
-                                            columns: row.columns.map(col => col.filter(id => id !== selectedId))
-                                        }));
-                                        setBlueprint(prev => ({ ...prev, layout: newLayout, items: newItems }));
-                                        setSelectedId(null);
-                                    }} className="w-full py-3 bg-red-500/5 border border-red-500/20 text-red-400 rounded-lg hover:bg-red-500/10 hover:border-red-500/40 hover:text-red-300 transition-all text-xs font-bold uppercase flex items-center justify-center gap-2">
-                                        <Trash2 size={14} /> Excluir Widget
-                                    </button>
+                                    <div className="space-y-4">
+                                        <div>
+                                            <label className="text-[10px] uppercase font-bold text-gray-500 mb-1 block">Rótulo</label>
+                                            <input className="w-full bg-[#15151a] border border-white/10 rounded-lg p-2.5 text-xs text-white focus:border-[#d084ff] outline-none transition-colors"
+                                                value={activeItem.label} onChange={e => setBlueprint(prev => ({ ...prev, items: { ...prev.items, [selectedId]: { ...activeItem, label: e.target.value } } }))} />
+                                        </div>
+
+                                        {/* COR CONDICIONAL */}
+                                        {COLOR_SUPPORTED_TYPES.includes(activeItem.type) && (
+                                            <div className="bg-[#15151a] border border-white/10 rounded-lg p-3 flex items-center justify-between">
+                                                <label className="text-[10px] uppercase font-bold text-gray-500 flex items-center gap-2">
+                                                    <Palette size={12} /> Cor
+                                                </label>
+                                                <div className="flex items-center gap-3">
+                                                    <span className="text-[10px] font-mono text-gray-400">{activeItem.color || '#d084ff'}</span>
+                                                    <input type="color" className="bg-transparent w-6 h-6 rounded cursor-pointer border-none p-0 overflow-hidden"
+                                                        value={activeItem.color || '#d084ff'}
+                                                        onChange={e => setBlueprint(prev => ({ ...prev, items: { ...prev.items, [selectedId]: { ...activeItem, color: e.target.value } } }))}
+                                                    />
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {activeItem.type === 'skills' && (
+                                            <div>
+                                                <label className="text-[10px] uppercase font-bold text-gray-500 mb-1 block">Opções</label>
+                                                <textarea className="w-full h-32 bg-[#15151a] border border-white/10 rounded-lg p-2 text-xs text-white focus:border-[#d084ff] outline-none resize-none font-mono"
+                                                    value={(activeItem.options || []).join('\n')}
+                                                    onChange={e => setBlueprint(prev => ({ ...prev, items: { ...prev.items, [selectedId]: { ...activeItem, options: e.target.value.split('\n') } } }))}
+                                                />
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    <div className="mt-auto space-y-2 border-t border-white/5 pt-6">
+                                        <button onClick={() => duplicateWidget(selectedId)} 
+                                            className="w-full py-2.5 bg-white/5 hover:bg-white/10 text-gray-300 hover:text-white text-xs font-bold uppercase rounded-lg transition-colors flex items-center justify-center gap-2">
+                                            <Copy size={14}/> Duplicar
+                                        </button>
+                                        <button onClick={() => {
+                                            const newItems = { ...blueprint.items };
+                                            delete newItems[selectedId];
+                                            const newLayout = blueprint.layout.map(r => ({ ...r, columns: r.columns.map(c => c.filter(id => id !== selectedId)) }));
+                                            setBlueprint({ ...blueprint, layout: newLayout, items: newItems });
+                                            setSelectedId(null);
+                                        }} className="w-full py-2.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 text-xs font-bold uppercase rounded-lg transition-colors flex items-center justify-center gap-2">
+                                            <Trash2 size={14}/> Remover
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
                         )}
                     </div>
 
-                    <div className="flex-1 relative overflow-y-auto custom-scrollbar bg-gradient-to-br from-[#050505] to-[#0a0a0c]">
-                        <div className="absolute inset-0 opacity-[0.03] pointer-events-none" 
-                             style={{ backgroundImage: 'radial-gradient(#ffffff 1px, transparent 1px)', backgroundSize: '20px 20px' }}>
-                        </div>
+                    {/* Canvas */}
+                    <div className="flex-1 overflow-y-auto bg-[#050505] p-8 pb-40 relative">
+                         <div className="absolute inset-0 pointer-events-none opacity-[0.03]" 
+                             style={{ backgroundImage: 'radial-gradient(circle at 1px 1px, white 1px, transparent 0)', backgroundSize: '24px 24px' }} />
 
-                        <div className="min-h-full p-10 flex flex-col items-center relative z-10 pb-60">
-                            <div className="w-full max-w-5xl">
+                         <SortableContext items={blueprint.layout.map(r => r.id)} strategy={verticalListSortingStrategy}>
+                            <div className="max-w-5xl mx-auto space-y-4">
                                 {blueprint.layout.length === 0 && (
-                                    <div className="border border-dashed border-white/5 rounded-2xl h-64 flex flex-col items-center justify-center text-gray-600 gap-4 mb-8 bg-white/[0.01]">
-                                        <div className="p-4 bg-black/50 rounded-full border border-white/5">
-                                            <Layout size={32} className="opacity-40"/>
-                                        </div>
-                                        <p className="text-sm font-medium">O canvas está vazio.</p>
-                                        <p className="text-xs opacity-50">Adicione uma linha para começar a construir.</p>
+                                    <div className="h-64 border-2 border-dashed border-white/10 rounded-2xl flex flex-col items-center justify-center text-gray-600 gap-4">
+                                        <div className="p-4 bg-white/5 rounded-full"><Layout size={32} className="opacity-50"/></div>
+                                        <p className="text-sm">Comece adicionando uma <span className="text-[#d084ff] font-bold">Nova Linha</span></p>
                                     </div>
                                 )}
-                                <SortableContext items={blueprint.layout.map(r => r.id)} strategy={verticalListSortingStrategy}>
-                                    {blueprint.layout.map(row => (
-                                        <SortableRow 
-                                            key={row.id} 
-                                            rowId={row.id} 
-                                            row={row} 
-                                            itemsDef={blueprint.items} 
-                                            onDelete={deleteRow}
-                                            onSelectItem={(id) => setSelectedId(id)}
-                                            selectedItemId={selectedId}
-                                            onChangeColumns={handleColumnChange}
-                                        />
-                                    ))}
-                                </SortableContext>
+                                {blueprint.layout.map(row => (
+                                    <SortableRow 
+                                        key={row.id} 
+                                        rowId={row.id} 
+                                        row={row} 
+                                        itemsDef={blueprint.items} 
+                                        onDelete={deleteRow}
+                                        onSelectWidget={setSelectedId}
+                                        selectedWidgetId={selectedId}
+                                        onChangeColumns={handleColumnChange}
+                                    />
+                                ))}
                             </div>
-                        </div>
+                        </SortableContext>
                     </div>
                 </div>
 
-                <DragOverlay dropAnimation={{ sideEffects: defaultDropAnimationSideEffects({ styles: { active: { opacity: '0.4' } } }) }}>
+                <DragOverlay zIndex={9999}>
                     {activeDragId ? (
                         activeDragData?.isSidebar ? (
-                            <div className="px-4 py-3 bg-[#0a0a0c] border border-[#d084ff] text-white text-xs font-bold rounded-lg shadow-[0_0_20px_rgba(208,132,255,0.3)] flex items-center gap-3 backdrop-blur-xl">
-                                <Plus size={16} className="text-[#d084ff]"/> {activeDragData.label}
+                            <div className="w-[280px] cursor-grabbing opacity-90 rotate-2 scale-105">
+                                <WidgetPreview type={activeDragData.type} label={activeDragData.label} />
+                            </div>
+                        ) : activeDragData?.type === 'row' ? (
+                            <div className="w-[600px] h-24 bg-[#1a1a20] border border-[#d084ff] rounded-xl flex items-center justify-center shadow-2xl opacity-90">
+                                <span className="text-[#d084ff] font-bold uppercase tracking-widest flex items-center gap-2">
+                                    <GripHorizontal /> Reordenando Linha
+                                </span>
                             </div>
                         ) : (
-                            blueprint.items[activeDragId] ? (
-                                <div className="w-64 opacity-90 rotate-2 scale-105">
-                                    <div className="bg-[#0a0a0c] rounded-xl border border-[#d084ff] shadow-2xl overflow-hidden">
-                                        {(() => {
-                                            const Comp = GenericSystem.WIDGET_REGISTRY[blueprint.items[activeDragId].type]?.comp;
-                                            return Comp ? <Comp data={blueprint.items[activeDragId]} readOnly={true} value={blueprint.items[activeDragId].defaultValue} /> : null;
-                                        })()}
-                                    </div>
-                                </div>
-                            ) : null
+                            <div className="w-full cursor-grabbing opacity-90 rotate-1 scale-105">
+                                <WidgetPreview 
+                                    type={blueprint.items[activeDragId]?.type} 
+                                    label={blueprint.items[activeDragId]?.label} 
+                                    color={blueprint.items[activeDragId]?.color}
+                                />
+                            </div>
                         )
                     ) : null}
                 </DragOverlay>
             </DndContext>
 
-             <div className="p-4 border-t border-white/5 bg-[#0a0a0c]/90 backdrop-blur-md flex justify-between items-center gap-4 z-20">
-                <div className="flex items-center gap-3 text-xs text-gray-500 px-4">
-                    <Info size={14} className={saveMode === 'clone' ? "text-amber-500" : "text-gray-600"}/>
-                    {saveMode === 'clone' ? (
-                        <span><strong className="text-amber-500">Modo Seguro:</strong> Criaremos uma nova versão (v2) para proteger {usageCount} fichas.</span>
-                    ) : (
-                        <span>Todas as alterações são salvas automaticamente.</span>
-                    )}
-                </div>
-                <div className="flex gap-3">
-                    <button onClick={onCancel} className="px-6 py-2 text-xs font-bold text-gray-500 hover:text-white transition-colors uppercase tracking-widest hover:bg-white/5 rounded-lg">Cancelar</button>
-                    <button onClick={() => onSave(blueprint)} className="px-6 py-2 bg-[#d084ff] hover:bg-white text-black font-bold text-xs rounded-lg shadow-[0_0_15px_rgba(208,132,255,0.2)] hover:shadow-[0_0_25px_rgba(208,132,255,0.4)] transition-all flex items-center gap-2 uppercase tracking-widest transform hover:-translate-y-0.5">
-                        <Save size={14}/> Salvar Sistema
-                    </button>
-                </div>
+            <div className="p-4 border-t border-white/5 bg-[#0a0a0c] flex justify-end gap-3 z-20 shrink-0">
+                <button onClick={onCancel} className="px-5 py-2 text-xs font-bold text-gray-400 hover:text-white rounded-lg transition-colors">CANCELAR</button>
+                <button onClick={() => onSave(blueprint)} className="px-6 py-2 bg-[#d084ff] hover:bg-white text-black font-bold text-xs rounded-lg flex items-center gap-2 shadow-[0_0_20px_rgba(208,132,255,0.2)] transition-all transform hover:-translate-y-0.5">
+                    <Save size={14}/> SALVAR SISTEMA
+                </button>
             </div>
         </div>
     );
