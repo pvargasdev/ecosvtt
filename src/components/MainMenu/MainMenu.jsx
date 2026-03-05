@@ -3,7 +3,7 @@ import { useGame } from '../../context/GameContext';
 import { Plus, Search, Monitor, Import, Loader2, X, AlertTriangle, Maximize, LogOut, Check } from 'lucide-react';
 import AdventureCard from './AdventureCard';
 import EditAdventureModal from './EditAdventureModal';
-import Logo from '../../assets/logosemautor.png'; 
+import Logo from '../../assets/logo2.png'; 
 
 const APP_VERSION = "v1.1.0"; 
 const NEON_COLOR = "text-neon-green"; 
