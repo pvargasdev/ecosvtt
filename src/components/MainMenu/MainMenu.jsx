@@ -114,9 +114,11 @@ const MainMenu = () => {
         );
     }
 
-    const filteredAdventures = adventures.filter(adv => 
-        adv && adv.name && adv.name.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    const filteredAdventures = adventures.filter(adv => {
+        if (!adv || !adv.name) return false;
+        const normalize = (str) => str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+        return normalize(adv.name).includes(normalize(searchTerm));
+    });
 
     const handleCreate = () => {
         const name = newAdvName.trim() || "Nova Aventura";
