@@ -753,16 +753,6 @@ const Board = ({ showUI }) => {
   };
 
   if (!activeAdventureId || !activeAdventure) {
-      if (isGMWindow) {
-          return (
-            <div data-ecos-ui="true" className="w-full h-full bg-[#15151a] flex flex-col items-center justify-center text-white p-6">
-                <Monitor size={64} className="text-neon-green mb-4 opacity-50 animate-pulse"/>
-                <h1 className="text-2xl font-rajdhani font-bold text-neon-green tracking-widest mb-2">TELA DO MESTRE</h1>
-                <p className="text-text-muted">Aguardando seleção de aventura na tela principal...</p>
-            </div>
-          );
-      }
-      
       return <MainMenu />;
   }
 

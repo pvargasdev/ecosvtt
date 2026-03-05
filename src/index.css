@@ -7,7 +7,7 @@
 @layer base {
   body {
     @apply bg-ecos-bg text-text-main font-inter overflow-hidden;
-    background-image: radial-gradient(circle at top left, #1a1a2e, #000);
+    background-image: radial-gradient(circle at top left, #161616, #000);
   }
   
   h1, h2, h3, h4, h5, h6 {

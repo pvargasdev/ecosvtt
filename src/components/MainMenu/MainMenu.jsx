@@ -67,23 +67,25 @@ const MainMenu = () => {
     if (isGMWindow) {
         return (
             <div className="w-full h-full bg-[#09090b] flex flex-col items-center justify-center text-white overflow-hidden relative font-inter select-none">
-                <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_#1f1f23_0%,_#000000_100%)] opacity-100 pointer-events-none" />
+                <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_#1f1f23_0%,_#000000_100%)] opacity-100 pointer-events-none" />
                 
-                <div className="relative z-10 flex flex-col items-center animate-in fade-in zoom-in-95 duration-700">
-                    <div className="relative mb-6">
-                        <div className="absolute inset-0 bg-neon-green blur-3xl opacity-20 rounded-full animate-pulse"></div>
-                        <Monitor size={80} className="text-neon-green relative z-10 drop-shadow-[0_0_15px_rgba(57,255,20,0.5)]"/>
+                <div className="relative z-10 flex flex-col items-center animate-in fade-in zoom-in-95 duration-500">
+                    <div className="w-32 h-32 rounded-3xl border border-white/5 bg-white/[0.02] flex items-center justify-center mb-8 shadow-2xl relative group">
+                        <Monitor size={48} className="text-gray-200 opacity-80 group-hover:opacity-100 transition-opacity" strokeWidth={1} />
+                        
+                        <div className="absolute top-5 right-5 w-1.5 h-1.5 rounded-full bg-neon-green shadow-[0_0_8px_#39ff14] animate-pulse" />
                     </div>
                     
-                    <h1 className="text-4xl font-rajdhani font-bold text-white tracking-[0.2em] mb-2 flex items-center gap-3">
-                        TELA DO <span style={{ color: NEON_COLOR }}>MESTRE</span>
+                    <h1 className="text-3xl font-rajdhani font-bold text-white tracking-[0.3em] uppercase mb-4 opacity-90">
+                        Tela do Mestre
                     </h1>
                     
-                    <div className="h-px w-32 bg-gradient-to-r from-transparent via-white/20 to-transparent my-4"></div>
-                    
-                    <p className="text-gray-500 font-mono text-xs uppercase tracking-widest animate-pulse">
-                        Aguardando seleção na tela principal...
-                    </p>
+                    <div className="flex items-center gap-3 px-5 py-2 rounded-full border border-white/5 bg-white/[0.02]">
+                        <div className="w-1 h-1 rounded-full bg-gray-500" />
+                        <p className="text-gray-500 text-[10px] font-bold uppercase tracking-widest">
+                            Aguardando Seleção de Aventura
+                        </p>
+                    </div>
                 </div>
             </div>
         );
