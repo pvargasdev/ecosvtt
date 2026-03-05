@@ -6,6 +6,19 @@ export default {
   ],
   theme: {
     extend: {
+      transitionTimingFunction: {
+          'out-expo': 'cubic-bezier(0.19, 1, 0.22, 1)',
+        },
+        keyframes: {
+          'loading-bar': {
+            '0%': { width: '0%', left: '0%' },
+            '50%': { width: '100%', left: '0%' },
+            '100%': { width: '0%', left: '100%' },
+          }
+        },
+        animation: {
+          'loading-bar': 'loading-bar 1.5s infinite ease-in-out',
+        },
       colors: {
         'ecos-bg': '#0f0f13',
         'glass': 'rgba(255, 255, 255, 0.05)',

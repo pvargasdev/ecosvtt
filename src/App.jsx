@@ -1,15 +1,13 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import CharacterSidebar from './components/Character/CharacterSidebar';
 import Board from './components/VTT/Board';
 import { useGame } from './context/GameContext';
-
-const ENABLE_MODULE_CHARACTERS = false;
+import SplashScreen from './components/MainMenu/SplashScreen';
 
 function App() {
-  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [showSplash, setShowSplash] = useState(true);
   const [showUI, setShowUI] = useState(true);
   
-  const { isGMWindow, isSystemBuilderOpen } = useGame(); 
+  const { isGMWindow } = useGame(); 
 
   const toggleFullscreen = useCallback(() => {
     if (!document.fullscreenElement) {
@@ -27,38 +25,14 @@ function App() {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [toggleFullscreen]);
-  
-  const getSidebarWidth = () => {
-    if (!ENABLE_MODULE_CHARACTERS) return '0px';
-    if (isCollapsed) return '60px';
-    return isSystemBuilderOpen ? '800px' : '400px';
-  };
 
-  const getSidebarMargin = () => {
-    if (!ENABLE_MODULE_CHARACTERS) return '0px';
-    if (showUI) return '0px';
-    return isCollapsed ? '-60px' : (isSystemBuilderOpen ? '-800px' : '-400px');
-  };
+  if (showSplash && !isGMWindow) {
+    return <SplashScreen onComplete={() => setShowSplash(false)} />;
+  }
 
   return (
-    <div className="flex h-screen w-screen bg-black overflow-hidden font-inter select-none">
-      
-      {ENABLE_MODULE_CHARACTERS && (
-        <div 
-          className={`
-            transition-all duration-300 ease-in-out relative z-20 shadow-2xl shrink-0 bg-ecos-bg h-full
-            ${showUI ? 'translate-x-0' : '-translate-x-full w-0 opacity-0'} 
-          `}
-          style={{ 
-            width: getSidebarWidth(),
-            marginRight: getSidebarMargin()
-          }}
-        >
-          <CharacterSidebar isCollapsed={isCollapsed} setIsCollapsed={setIsCollapsed} />
-        </div>
-      )}
-
-      <div className="flex-1 h-full relative z-10 bg-gray-900">
+    <div className="flex h-screen w-screen bg-black overflow-hidden font-inter select-none text-white">
+      <div className="flex-1 h-full relative z-10 bg-[#0a0a0c]">
         <Board showUI={showUI} />
       </div>
     </div>

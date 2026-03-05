@@ -5,6 +5,8 @@ import { imageDB } from '../../context/db';
 import SoundboardWindow from '../Soundboard/SoundboardWindow';
 import DiceWindow from '../DiceRoller/DiceWindow';
 
+const NEON_COLOR = "text-neon-green"; 
+
 let currentDraggingId = null;
 
 const WindowWrapper = ({ children, className, containerRef }) => (
@@ -331,50 +333,40 @@ const LibraryThumb = React.memo(({ token, onRename, onDelete, moveItem }) => {
 
 const InternalAlert = ({ message, clearAlert }) => {
     const [isVisible, setIsVisible] = useState(false);
-
     useEffect(() => {
         if (message) {
             const timer = setTimeout(() => setIsVisible(true), 10);
             return () => clearTimeout(timer);
         }
     }, [message]);
-
-    const handleClose = useCallback(() => {
-        setIsVisible(false);
-    }, []);
-
+    const handleClose = useCallback(() => { setIsVisible(false); }, []);
     useEffect(() => {
         if (message && isVisible) {
             const timer = setTimeout(handleClose, 5000); 
             return () => clearTimeout(timer);
         }
     }, [message, isVisible, handleClose]);
-
     if (!message) return null;
-
     return (
-        <div className="absolute bottom-4 left-0 w-full flex justify-center z-[100] pointer-events-none">
+        <div className="absolute bottom-12 left-0 w-full flex justify-center z-[100] pointer-events-none">
             <div 
-                data-ecos-ui="true"
                 className={`
-                    pointer-events-auto flex items-center gap-3 p-3 
-                    bg-red-900/90 border border-red-700 rounded-lg shadow-xl backdrop-blur-sm 
+                    pointer-events-auto flex items-center gap-3 p-3 px-4
+                    bg-[#18181b] border border-neon-green/30 rounded shadow-2xl 
                     text-sm text-white cursor-default
-                    transition-opacity duration-300 ease-in-out
-                    ${isVisible ? 'opacity-100' : 'opacity-0'}
+                    transition-all duration-300 ease-in-out
+                    ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}
                 `}
+                style={{ borderColor: `${NEON_COLOR}40` }}
                 onTransitionEnd={() => { if (!isVisible) { clearAlert(); } }}
             >
-                <AlertTriangle size={18} className="text-yellow-400 shrink-0"/>
-                <span className='font-semibold'>{message}</span>
-                <button onClick={handleClose} className="text-red-300 hover:text-white shrink-0">
-                    <X size={16}/>
-                </button>
+                <AlertTriangle size={16} className="text-neon-green shrink-0"/>
+                <span className='font-medium tracking-wide text-xs uppercase'>{message}</span>
+                <button onClick={handleClose} className="text-gray-500 hover:text-white shrink-0 ml-4"><X size={14}/></button>
             </div>
         </div>
     );
 };
-
 
 const AssetDock = ({ isOpen, onClose }) => {
     const { 
