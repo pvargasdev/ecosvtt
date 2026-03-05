@@ -58,6 +58,7 @@ const Board = ({ showUI }) => {
   
   const [view, setView] = useState({ x: 0, y: 0, scale: 1 });
   const [sliderValue, setSliderValue] = useState(100);
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
 
   const [isCreatingAdventure, setIsCreatingAdventure] = useState(false);
   const [selectedIds, setSelectedIds] = useState(new Set()); 
@@ -175,6 +176,14 @@ const Board = ({ showUI }) => {
   }, [selectedIds.size, selectedFogIds.size, selectedPinIds.size]);
 
   useEffect(() => {
+      if (!activeAdventureId) {
+          setTransitionOpacity(1); 
+          setDisplayScene(null);   
+          setIsInitialLoad(true);
+      }
+  }, [activeAdventureId]);
+
+  useEffect(() => {
       if (!displayScene || isGMWindow) return;
       const saveTimer = setTimeout(() => {
           updateScene(displayScene.id, { savedView: view });
@@ -190,7 +199,10 @@ const Board = ({ showUI }) => {
           } else {
               forceSetView({ x: 0, y: 0, scale: 1 });
           }
-          setTimeout(() => setTransitionOpacity(0), 100); 
+          setTimeout(() => {
+              setTransitionOpacity(0);
+              setTimeout(() => setIsInitialLoad(false), FADE_DURATION);
+          }, 100); 
           return;
       }
 
@@ -854,7 +866,7 @@ const Board = ({ showUI }) => {
         </div>
         
         <div 
-            className="absolute inset-0 bg-black pointer-events-none z-40"
+            className={`absolute inset-0 bg-black pointer-events-none ${isInitialLoad ? 'z-[60]' : 'z-[40]'}`}
             style={{ 
                 opacity: transitionOpacity, 
                 transition: `opacity ${FADE_DURATION}ms ease-in-out` 

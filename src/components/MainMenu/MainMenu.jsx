@@ -7,6 +7,7 @@ import Logo from '../../assets/logo2.png';
 
 const APP_VERSION = "v1.1.0"; 
 const NEON_COLOR = "text-neon-green"; 
+const TRANSITION_DURATION = 600;
 
 const InternalAlert = ({ message, clearAlert }) => {
     const [isVisible, setIsVisible] = useState(false);
@@ -62,7 +63,16 @@ const MainMenu = () => {
     const [editingAdventure, setEditingAdventure] = useState(null);
     const [alertMessage, setAlertMessage] = useState(null);
     
+    const [isExiting, setIsExiting] = useState(false);
+    
     const importRef = useRef(null);
+
+    const handleEnterAdventure = (advId) => {
+        setIsExiting(true);
+        setTimeout(() => {
+            setActiveAdventureId(advId);
+        }, TRANSITION_DURATION);
+    };
 
     const toggleFullscreen = () => {
         if (!document.fullscreenElement) {
@@ -82,20 +92,17 @@ const MainMenu = () => {
 
     if (isGMWindow) {
         return (
-            <div className="w-full h-full bg-[#09090b] flex flex-col items-center justify-center text-white overflow-hidden relative font-inter select-none">
+            <div className="w-full h-full bg-[#09090b] flex flex-col items-center justify-center text-white overflow-hidden relative font-inter select-none animate-in fade-in duration-1000">
                 <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_#1f1f23_0%,_#000000_100%)] opacity-100 pointer-events-none" />
                 
                 <div className="relative z-10 flex flex-col items-center animate-in fade-in zoom-in-95 duration-500">
                     <div className="w-32 h-32 rounded-3xl border border-white/5 bg-white/[0.02] flex items-center justify-center mb-8 shadow-2xl relative group">
                         <Monitor size={48} className="text-gray-200 opacity-80 group-hover:opacity-100 transition-opacity" strokeWidth={1} />
-                        
                         <div className="absolute top-5 right-5 w-1.5 h-1.5 rounded-full bg-neon-green shadow-[0_0_8px_#39ff14] animate-pulse" />
                     </div>
-                    
                     <h1 className="text-3xl font-rajdhani font-bold text-white tracking-[0.3em] uppercase mb-4 opacity-90">
                         Tela do Mestre
                     </h1>
-                    
                     <div className="flex items-center gap-3 px-5 py-2 rounded-full border border-white/5 bg-white/[0.02]">
                         <div className="w-1 h-1 rounded-full bg-gray-500" />
                         <p className="text-gray-500 text-[10px] font-bold uppercase tracking-widest">
@@ -104,10 +111,13 @@ const MainMenu = () => {
                     </div>
                 </div>
 
-
-                <div className="absolute bottom-8 right-8 z-20">
-                    <button onClick={toggleFullscreen} className="p-3 rounded-xl bg-white/5 border border-white/10 text-gray-500 hover:text-white hover:bg-white/10 transition-all hover:scale-105 shadow-lg" title="Tela Cheia (F11)">
-                        <Maximize size={18}/>
+                <div className="absolute bottom-6 right-8 z-20">
+                    <button 
+                        onClick={toggleFullscreen} 
+                        className="p-2 rounded text-gray-600 hover:text-white hover:bg-white/5 transition flex items-center gap-2" 
+                        title="Tela Cheia (F11)"
+                    >
+                        <Maximize size={14}/>
                     </button>
                 </div>
             </div>
@@ -137,10 +147,18 @@ const MainMenu = () => {
     };
 
     return (
-        <div className="w-full h-full bg-[#09090b] text-white overflow-hidden flex flex-col relative z-50 font-inter">
+        <div className="w-full h-full bg-[#09090b] text-white overflow-hidden flex flex-col relative z-50 font-inter animate-in fade-in duration-700 ease-out">
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_#1f1f23_0%,_#000000_100%)] opacity-100 pointer-events-none" />
             
             <InternalAlert message={alertMessage} clearAlert={() => setAlertMessage(null)} />
+
+            <div 
+                className={`fixed inset-0 bg-black z-[9999] pointer-events-none transition-opacity ease-in-out`}
+                style={{ 
+                    transitionDuration: `${TRANSITION_DURATION}ms`,
+                    opacity: isExiting ? 1 : 0 
+                }}
+            />
 
             <div className="relative z-10 px-8 py-8 flex items-center justify-between shrink-0">
                 <div className="flex items-center gap-6">
@@ -164,7 +182,7 @@ const MainMenu = () => {
                     {window.electron && (
                         <button 
                             onClick={() => window.electron.openGMWindow()} 
-                            className={`h-9 px-3 rounded flex items-center gap-2 text-xs font-bold transition-all border border-transparent ${isGMWindowOpen ? 'bg-white/5 text-neon-green border-neon-green/20 shadow-[0_0_10px_rgba(57,255,20,0.1)]' : 'text-gray-500 hover:text-white hover:bg-white/5'}`}
+                            className={`h-9 px-3 rounded flex items-center gap-2 text-xs font-bold transition-all border border-transparent ${isGMWindowOpen ? 'bg-white/5 text-neon-green' : 'text-gray-500 hover:text-white hover:bg-white/5'}`}
                             title={isGMWindowOpen ? "Janela do Mestre Aberta" : "Abrir Janela do Mestre"}
                         >
                             <Monitor size={16} />
@@ -196,7 +214,7 @@ const MainMenu = () => {
                 {isCreating && (
                     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
                         <div className="bg-[#121214] border border-white/10 p-8 rounded-2xl shadow-2xl w-full max-w-md" onClick={e => e.stopPropagation()}>
-                            <h2 className="text-xl font-rajdhani font-bold text-white mb-6 uppercase tracking-wider">Criar Nova Aventura</h2>
+                            <h2 className="text-xl font-rajdhani font-bold text-white mb-6 uppercase tracking-wider">Criar Nova Campanha</h2>
                             <input 
                                 autoFocus
                                 className="w-full bg-black/40 border-b border-white/20 py-2 px-3 text-white outline-none focus:border-neon-green transition-colors mb-8 text-lg font-rajdhani font-bold placeholder-white/10"
@@ -244,7 +262,7 @@ const MainMenu = () => {
                         <AdventureCard 
                             key={adv.id}
                             adventure={adv}
-                            onPlay={() => setActiveAdventureId(adv.id)}
+                            onPlay={() => handleEnterAdventure(adv.id)}
                             onEdit={() => setEditingAdventure(adv)}
                             onDuplicate={() => duplicateAdventure(adv.id)}
                             onDelete={() => setConfirmDelete(adv.id)}
