@@ -3,7 +3,7 @@
 ![Tech Stack](https://img.shields.io/badge/stack-React_|_Electron_|_Tailwind-blue)
 ![License](https://img.shields.io/badge/license-GPLv3-red)
 
-![ECOS VTT banner2](https://github.com/user-attachments/assets/422b5f00-cea9-41a6-a232-5278e1003a69)
+![banner](https://github.com/user-attachments/assets/aef2735f-65d1-4889-bef5-379251b112d2)
 
 ---
 
@@ -15,7 +15,8 @@
 
 Diferente das plataformas baseadas em navegador, o EcosVTT roda **100% localmente**. Isso significa que você tem total liberdade: **sem limites de upload** para seus mapas e músicas, e **sem travamentos** causados por instabilidade de servidores externos. É a ferramenta ideal para mestres que buscam performance máxima, imersão total e custo zero.
 
-<img width="1916" height="1076" alt="Captura de tela 2026-02-12 102052" src="https://github.com/user-attachments/assets/f9a31de8-b065-41a2-aedd-c8ba17a97778" />
+<img width="1919" height="607" alt="image" src="https://github.com/user-attachments/assets/3ab68069-7dc8-4dc6-9632-99bffd55c4a4" />
+<img width="1916" height="1075" alt="VTT" src="https://github.com/user-attachments/assets/7056e17f-4517-434c-af8a-2a312ab44f08" />
 
 ---
 
@@ -24,7 +25,6 @@ Diferente das plataformas baseadas em navegador, o EcosVTT roda **100% localment
 
 ### 🚀 Funcionalidades Principais
 
-* **Gerenciador de Personagens Universal:** Crie e personalize fichas para **qualquer sistema de RPG**.
 * **Sistema de Pins (Pontos de Interesse):** Marque locais estratégicos diretamente sobre o mapa.
 * **Portabilidade de Aventuras (Import/Export):** Exporte suas aventuras completas — incluindo cenas, mapas, wikis, tokens, músicas — em um único arquivo `.zip`. Isso facilita a criação de backups seguros e permite compartilhar aventuras prontas com outras pessoas.
 * **Tabuleiro Infinito:** Movimente-se livremente pelo mapa com zoom e pan suaves.
@@ -46,7 +46,7 @@ Diferente das plataformas baseadas em navegador, o EcosVTT roda **100% localment
 Este projeto é uma aplicação **Electron + React** focada em **Offline-first** e **Performance**.
 
 #### 1. Sincronização de Estado Multi-Janela
-O núcleo da aplicação reside no `GameContext`. A sincronização entre a janela do Mestre e a janela dos Jogadores é feita sem necessidade de backend.
+O núcleo da aplicação reside no `GameContext`. A sincronização multi-janela é feita sem necessidade de backend.
 * Utilização de **IPC** e `BroadcastChannel` para transmitir atualizações de estado (movimento de tokens, revelação de fog of war, áudio) em tempo real.
 * Arquitetura de eventos para manter a consistência visual entre as telas.
 
@@ -65,6 +65,7 @@ O componente `Board` implementa uma estratégia mista:
 src/
 ├── components/
 │   ├── DiceRoller/      # Lógica dos dados
+│   ├── Main Menu/       # Menu principal e splash screen
 │   ├── Pins/            # Sistema de marcadores
 │   ├── Soundboard/      # Mixer de áudio e SFX Grid
 │   └── VTT/             # Core do tabuleiro (Board, Tokens, Layers)
@@ -74,6 +75,8 @@ src/
 └── App.jsx              # Roteamento e layouts
 ```
 </details>
+
+D20 Vectors by Vecteezy
 
 ---
 
