@@ -214,7 +214,7 @@ const MainMenu = () => {
                 {isCreating && (
                     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
                         <div className="bg-[#121214] border border-white/10 p-8 rounded-2xl shadow-2xl w-full max-w-md" onClick={e => e.stopPropagation()}>
-                            <h2 className="text-xl font-rajdhani font-bold text-white mb-6 uppercase tracking-wider">Criar Nova Campanha</h2>
+                            <h2 className="text-xl font-rajdhani font-bold text-white mb-6 uppercase tracking-wider">Criar Nova Aventura</h2>
                             <input 
                                 autoFocus
                                 className="w-full bg-black/40 border-b border-white/20 py-2 px-3 text-white outline-none focus:border-neon-green transition-colors mb-8 text-lg font-rajdhani font-bold placeholder-white/10"
