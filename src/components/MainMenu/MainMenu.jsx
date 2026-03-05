@@ -64,6 +64,22 @@ const MainMenu = () => {
     
     const importRef = useRef(null);
 
+    const toggleFullscreen = () => {
+        if (!document.fullscreenElement) {
+            document.documentElement.requestFullscreen().catch(() => {});
+        } else {
+            document.exitFullscreen();
+        }
+    };
+
+    const handleQuit = () => {
+        if (window.electron && window.electron.quit) {
+            window.electron.quit();
+        } else {
+            window.close();
+        }
+    };
+
     if (isGMWindow) {
         return (
             <div className="w-full h-full bg-[#09090b] flex flex-col items-center justify-center text-white overflow-hidden relative font-inter select-none">
@@ -87,6 +103,13 @@ const MainMenu = () => {
                         </p>
                     </div>
                 </div>
+
+
+                <div className="absolute bottom-8 right-8 z-20">
+                    <button onClick={toggleFullscreen} className="p-3 rounded-xl bg-white/5 border border-white/10 text-gray-500 hover:text-white hover:bg-white/10 transition-all hover:scale-105 shadow-lg" title="Tela Cheia (F11)">
+                        <Maximize size={18}/>
+                    </button>
+                </div>
             </div>
         );
     }
@@ -109,22 +132,6 @@ const MainMenu = () => {
         try { if(importAdventure) await importAdventure(file); } 
         catch (e) { setAlertMessage("Erro ao importar aventura."); } 
         finally { setImporting(false); e.target.value = null; }
-    };
-
-    const toggleFullscreen = () => {
-        if (!document.fullscreenElement) {
-            document.documentElement.requestFullscreen().catch(() => {});
-        } else {
-            document.exitFullscreen();
-        }
-    };
-
-    const handleQuit = () => {
-        if (window.electron && window.electron.quit) {
-            window.electron.quit();
-        } else {
-            window.close();
-        }
     };
 
     return (
@@ -185,12 +192,12 @@ const MainMenu = () => {
             <div className="flex-1 overflow-y-auto px-8 pb-4 relative z-10 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
                 
                 {isCreating && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setIsCreating(false)}>
+                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
                         <div className="bg-[#121214] border border-white/10 p-8 rounded-2xl shadow-2xl w-full max-w-md" onClick={e => e.stopPropagation()}>
-                            <h2 className="text-xl font-rajdhani font-bold text-white mb-6 uppercase tracking-wider">Criar Nova Campanha</h2>
+                            <h2 className="text-xl font-rajdhani font-bold text-white mb-6 uppercase tracking-wider">Criar Nova Aventura</h2>
                             <input 
                                 autoFocus
-                                className="w-full bg-black/40 border-b border-white/20 py-2 text-white outline-none focus:border-neon-green transition-colors mb-8 text-lg font-rajdhani font-bold placeholder-white/10"
+                                className="w-full bg-black/40 border-b border-white/20 py-2 px-3 text-white outline-none focus:border-neon-green transition-colors mb-8 text-lg font-rajdhani font-bold placeholder-white/10"
                                 placeholder="Nome da aventura..."
                                 value={newAdvName}
                                 onChange={e => setNewAdvName(e.target.value)}
@@ -204,23 +211,14 @@ const MainMenu = () => {
                     </div>
                 )}
 
-                {editingAdventure && (
-                    <EditAdventureModal 
-                        adventure={editingAdventure}
-                        onClose={() => setEditingAdventure(null)}
-                        onSave={updateAdventure}
-                        onAlert={setAlertMessage}
-                    />
-                )}
-
                 {confirmDelete && (
-                     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setConfirmDelete(null)}>
-                        <div className="bg-[#121214] border border-red-900/30 p-8 rounded-2xl shadow-2xl w-full max-w-md text-center" onClick={e => e.stopPropagation()}>
-                            <h3 className="text-xl font-bold text-white mb-3">Excluir Aventura?</h3>
-                            <p className="text-gray-400 text-sm mb-8 leading-relaxed">Esta ação é irreversível e apagará todos os mapas, tokens e anotações desta campanha.</p>
-                            <div className="flex gap-4">
-                                <button onClick={() => setConfirmDelete(null)} className="flex-1 py-3 rounded text-gray-500 hover:text-white transition font-bold text-xs uppercase tracking-wider hover:bg-white/5">Cancelar</button>
-                                <button onClick={() => { deleteAdventure(confirmDelete); setConfirmDelete(null); }} className="flex-1 py-3 bg-red-600 rounded text-white font-bold hover:bg-red-500 transition text-xs uppercase tracking-widest shadow-lg shadow-red-900/20">Confirmar Exclusão</button>
+                     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm pointer-events-auto animate-in fade-in duration-200" onMouseDown={(e) => { e.stopPropagation(); setConfirmDelete(null); }}>
+                        <div className="bg-ecos-bg border border-glass-border p-6 rounded-xl shadow-2xl max-w-sm w-full mx-4" onMouseDown={(e) => e.stopPropagation()}>
+                            <h3 className="text-xl font-bold text-white mb-2">Excluir Aventura?</h3>
+                            <p className="text-text-muted mb-6">Esta ação é irreversível e apagará todos os dados desta aventura.</p>
+                            <div className="flex gap-3">
+                                <button onClick={() => setConfirmDelete(null)} className="flex-1 py-2 bg-glass rounded text-white hover:bg-white/10 transition-colors">Cancelar</button>
+                                <button onClick={() => { deleteAdventure(confirmDelete); setConfirmDelete(null); }} className="flex-1 py-2 bg-red-600 rounded text-white font-bold hover:bg-red-500 transition-colors">Confirmar</button>
                             </div>
                         </div>
                     </div>
@@ -271,6 +269,15 @@ const MainMenu = () => {
                     </button>
                  </div>
             </div>
+
+            {editingAdventure && (
+                <EditAdventureModal 
+                    adventure={editingAdventure}
+                    onClose={() => setEditingAdventure(null)}
+                    onSave={updateAdventure}
+                    onAlert={setAlertMessage}
+                />
+            )}
         </div>
     );
 };

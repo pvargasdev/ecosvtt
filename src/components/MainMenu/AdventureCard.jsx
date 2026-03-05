@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { MoreVertical, Trash2, Copy, Edit2, Image as ImageIcon, Clock, Download } from 'lucide-react';
+import { MoreVertical, Trash2, Copy, Edit2, Image as ImageIcon, Clock, Upload } from 'lucide-react';
 import { imageDB } from '../../context/db';
+
+const NEON_COLOR = "#39ff14";
 
 const AdventureCard = ({ adventure, onPlay, onEdit, onDuplicate, onDelete, onExport }) => {
     const [coverUrl, setCoverUrl] = useState(null);
@@ -62,7 +64,7 @@ const AdventureCard = ({ adventure, onPlay, onEdit, onDuplicate, onDelete, onExp
                     </div>
                 )}
                 
-                <div className="absolute inset-0 bg-gradient-to-t from-[#09090b] via-transparent to-transparent opacity-80" />
+                <div className="absolute -inset-px bg-gradient-to-t from-[#09090b] via-transparent to-transparent opacity-80 pointer-events-none" />
             </div>
 
             <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity z-20">
@@ -82,7 +84,7 @@ const AdventureCard = ({ adventure, onPlay, onEdit, onDuplicate, onDelete, onExp
                             <Copy size={14}/> Duplicar
                         </button>
                         <button onClick={(e) => { e.stopPropagation(); onExport(); setShowMenu(false); }} className="w-full text-left px-4 py-2.5 text-xs text-gray-300 hover:bg-white/5 hover:text-white flex items-center gap-3 transition-colors">
-                            <Download size={14}/> Exportar (.zip)
+                            <Upload size={14}/> Exportar (.zip)
                         </button>
                         <div className="h-px bg-white/5 my-1.5"></div>
                         <button onClick={(e) => { e.stopPropagation(); onDelete(); setShowMenu(false); }} className="w-full text-left px-4 py-2.5 text-xs text-red-400 hover:bg-red-500/10 flex items-center gap-3 transition-colors">

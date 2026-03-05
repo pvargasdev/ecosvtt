@@ -83,15 +83,8 @@ const EditAdventureModal = ({ adventure, onClose, onSave, onAlert }) => {
     };
 
     return (
-        <div className="absolute inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-md p-4 animate-in fade-in duration-200" onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-md p-4 animate-in fade-in duration-200" onClick={e => e.stopPropagation()}>
             <div className="bg-[#0f0f12] border border-white/10 rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col md:flex-row relative" onClick={e => e.stopPropagation()}>
-                
-                <button 
-                    onClick={onClose} 
-                    className="absolute top-4 right-4 z-50 p-2 rounded-full bg-black/50 text-gray-400 hover:text-white hover:bg-white/10 transition-colors"
-                >
-                    <X size={20} />
-                </button>
 
                 <div className="w-full md:w-72 bg-black/40 border-b md:border-b-0 md:border-r border-white/5 p-6 flex flex-col items-center justify-center">
                     <div 
@@ -142,16 +135,16 @@ const EditAdventureModal = ({ adventure, onClose, onSave, onAlert }) => {
                 <div className="flex-1 p-8 flex flex-col justify-between">
                     <div>
                         <h2 className="text-2xl font-rajdhani font-bold text-white uppercase tracking-wider mb-1">Editar Aventura</h2>
-                        <p className="text-xs text-gray-500 font-medium mb-8">Personalize os detalhes da sua campanha.</p>
+                        <p className="text-xs text-gray-500 font-medium mb-8">Personalize os detalhes da sua aventura.</p>
 
                         <div className="space-y-6">
                             <div className="space-y-2">
-                                <label className="text-[10px] font-bold uppercase tracking-widest text-neon-green">Nome da Campanha</label>
+                                <label className="text-[10px] font-bold uppercase tracking-widest text-neon-green">Nome da Aventura</label>
                                 <input 
                                     type="text"
                                     autoFocus
                                     className="w-full bg-transparent border-b border-white/10 py-2 text-xl font-rajdhani font-bold text-white outline-none transition-colors placeholder-white/10 focus:border-neon-green"
-                                    placeholder="Ex: A Maldição de Strahd"
+                                    placeholder="Nome da Aventura"
                                     value={name}
                                     onChange={e => setName(e.target.value)}
                                 />
@@ -165,7 +158,7 @@ const EditAdventureModal = ({ adventure, onClose, onSave, onAlert }) => {
                         </button>
                         <button 
                             onClick={handleSave} 
-                            className="flex-1 px-6 py-3 rounded text-black font-bold transition-all shadow-lg hover:shadow-xl flex items-center justify-center gap-2 text-xs uppercase tracking-widest hover:scale-[1.02] active:scale-95 bg-neon-green shadow-neon-green/20"
+                            className="flex-1 px-6 py-3 rounded text-black font-bold transition-all shadow-lg hover:shadow-xl flex items-center justify-center gap-2 text-xs uppercase tracking-widest hover:bg-white active:scale-95 bg-neon-green"
                         >
                             <Save size={14} /> Salvar
                         </button>
