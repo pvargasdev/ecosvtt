@@ -1,15 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { MoreVertical, Trash2, Copy, Edit2, Image as ImageIcon, Clock, Upload } from 'lucide-react';
 import { imageDB } from '../../context/db';
+import { useTranslation, getCurrentLanguage } from '../../i18n';
 
 const NEON_COLOR = "#39ff14";
 
 const AdventureCard = ({ adventure, onPlay, onEdit, onDuplicate, onDelete, onExport }) => {
     const [coverUrl, setCoverUrl] = useState(null);
     const [showMenu, setShowMenu] = useState(false);
+    const t = useTranslation();
 
     const advId = adventure?.id || "unknown";
-    const advName = adventure?.name || "Sem Nome";
+    const advName = adventure?.name || t('common.untitled');
 
     useEffect(() => {
         if (!adventure?.coverImageId) return;
@@ -76,17 +78,17 @@ const AdventureCard = ({ adventure, onPlay, onEdit, onDuplicate, onDelete, onExp
                 {showMenu && (
                     <div className="absolute right-0 top-10 w-48 bg-[#18181b] border border-white/10 rounded-lg shadow-2xl py-1.5 z-30 animate-in fade-in zoom-in-95 duration-100">
                         <button onClick={(e) => { e.stopPropagation(); onEdit(); setShowMenu(false); }} className="w-full text-left px-4 py-2.5 text-xs text-gray-300 hover:bg-white/5 hover:text-white flex items-center gap-3 transition-colors">
-                            <Edit2 size={14}/> Configurações
+                            <Edit2 size={14}/> {t('adventureCard.settings')}
                         </button>
                         <button onClick={(e) => { e.stopPropagation(); onDuplicate(); setShowMenu(false); }} className="w-full text-left px-4 py-2.5 text-xs text-gray-300 hover:bg-white/5 hover:text-white flex items-center gap-3 transition-colors">
-                            <Copy size={14}/> Duplicar
+                            <Copy size={14}/> {t('common.duplicate')}
                         </button>
                         <button onClick={(e) => { e.stopPropagation(); onExport(); setShowMenu(false); }} className="w-full text-left px-4 py-2.5 text-xs text-gray-300 hover:bg-white/5 hover:text-white flex items-center gap-3 transition-colors">
-                            <Upload size={14}/> Exportar (.zip)
+                            <Upload size={14}/> {t('adventureCard.export')}
                         </button>
                         <div className="h-px bg-white/5 my-1.5"></div>
                         <button onClick={(e) => { e.stopPropagation(); onDelete(); setShowMenu(false); }} className="w-full text-left px-4 py-2.5 text-xs text-red-400 hover:bg-red-500/10 flex items-center gap-3 transition-colors">
-                            <Trash2 size={14}/> Excluir
+                            <Trash2 size={14}/> {t('common.delete')}
                         </button>
                     </div>
                 )}
@@ -99,11 +101,11 @@ const AdventureCard = ({ adventure, onPlay, onEdit, onDuplicate, onDelete, onExp
                 
                 <div className="flex items-center justify-between text-[11px] text-gray-600 font-bold uppercase tracking-wider group-hover:text-gray-400 transition-colors">
                     <span className="flex items-center gap-1.5">
-                        <ImageIcon size={12} /> {adventure?.scenes?.length || 0} Cenas
+                        <ImageIcon size={12} /> {t('adventureCard.sceneCount', { count: adventure?.scenes?.length || 0 })}
                     </span>
                     {adventure?.updatedAt && (
-                        <span className="flex items-center gap-1.5" title="Última modificação">
-                            <Clock size={12} /> {new Date(adventure.updatedAt).toLocaleDateString()}
+                        <span className="flex items-center gap-1.5" title={t('adventureCard.lastModified')}>
+                            <Clock size={12} /> {new Date(adventure.updatedAt).toLocaleDateString(getCurrentLanguage())}
                         </span>
                     )}
                 </div>

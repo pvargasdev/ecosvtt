@@ -10,6 +10,7 @@ import PinModal from './Pins/PinModal';
 import ContextMenu from './Pins/ContextMenu';
 import AudioController from '../../components/AudioController';
 import MainMenu from '../../components/MainMenu/MainMenu';
+import { useTranslation } from '../../i18n';
 
 const MIN_SCALE = 0.1;
 const MAX_SCALE = 5.0;
@@ -53,6 +54,7 @@ const Board = ({ showUI }) => {
     addPin, updatePin, deletePin, deleteMultiplePins,
     brushSize, brushColor, updateSceneDrawing
   } = useGame();
+  const t = useTranslation();
 
   const containerRef = useRef(null);
   const importInputRef = useRef(null);
@@ -684,7 +686,7 @@ const Board = ({ showUI }) => {
     if (activeTool === 'brush' || activeTool === 'eraser') {
         if (e.button !== 0) return;
         if (!mapParams.url) {
-            setAlertMessage("É necessário configurar uma imagem de fundo para desenhar!");
+            setAlertMessage(t('board.drawNeedsBackground'));
             return;
         }
         const canvas = canvasRef.current;
@@ -917,7 +919,7 @@ const Board = ({ showUI }) => {
     >
         <AudioController /> 
 
-        {isGMWindow && <div className="absolute top-4 left-4 z-50 bg-neon-green/20 border border-neon-green px-3 py-1 rounded text-neon-green font-bold font-rajdhani text-sm pointer-events-none select-none">VISÃO DO MESTRE</div>}
+        {isGMWindow && <div className="absolute top-4 left-4 z-50 bg-neon-green/20 border border-neon-green px-3 py-1 rounded text-neon-green font-bold font-rajdhani text-sm pointer-events-none select-none uppercase">{t('board.gmView')}</div>}
 
         <div className="absolute top-0 left-0 w-full h-full origin-top-left" style={{ transform: `translate(${view.x}px, ${view.y}px) scale(${view.scale})` }}>
             

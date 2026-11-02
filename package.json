@@ -11,6 +11,7 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
+    "i18n:check": "node scripts/i18n-check.mjs",
     "preview": "vite preview",
     "electron:dev": "concurrently \"npm run dev\" \"npm run electron:start\"",
     "electron:start": "wait-on tcp:5173 && electron .",

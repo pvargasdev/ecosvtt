@@ -1,8 +1,10 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useGame } from '../../context/GameContext';
-import { Plus, Search, Monitor, Import, Loader2, X, AlertTriangle, Maximize, LogOut, Check } from 'lucide-react';
+import { Plus, Search, Monitor, Import, Loader2, X, AlertTriangle, Maximize, LogOut, Check, Settings } from 'lucide-react';
 import AdventureCard from './AdventureCard';
 import EditAdventureModal from './EditAdventureModal';
+import SettingsModal from './SettingsModal';
+import { useTranslation } from '../../i18n';
 import Logo from '../../assets/logo2.png'; 
 
 const APP_VERSION = "v1.1.0"; 
@@ -54,6 +56,7 @@ const MainMenu = () => {
         importAdventure, exportAdventure, 
         isGMWindow, isGMWindowOpen 
     } = useGame() || {}; 
+    const t = useTranslation();
 
     const [searchTerm, setSearchTerm] = useState("");
     const [isCreating, setIsCreating] = useState(false);
@@ -64,6 +67,7 @@ const MainMenu = () => {
     const [alertMessage, setAlertMessage] = useState(null);
     
     const [isExiting, setIsExiting] = useState(false);
+    const [isSettingsOpen, setIsSettingsOpen] = useState(false);
     
     const importRef = useRef(null);
 
@@ -101,12 +105,12 @@ const MainMenu = () => {
                         <div className="absolute top-5 right-5 w-1.5 h-1.5 rounded-full bg-neon-green shadow-[0_0_8px_#39ff14] animate-pulse" />
                     </div>
                     <h1 className="text-3xl font-rajdhani font-bold text-white tracking-[0.3em] uppercase mb-4 opacity-90">
-                        Tela do Mestre
+                        {t('mainMenu.gmScreenTitle')}
                     </h1>
                     <div className="flex items-center gap-3 px-5 py-2 rounded-full border border-white/5 bg-white/[0.02]">
                         <div className="w-1 h-1 rounded-full bg-gray-500" />
                         <p className="text-gray-500 text-[10px] font-bold uppercase tracking-widest">
-                            Aguardando Seleção de Aventura
+                            {t('mainMenu.gmWaiting')}
                         </p>
                     </div>
                 </div>
@@ -115,7 +119,7 @@ const MainMenu = () => {
                     <button 
                         onClick={toggleFullscreen} 
                         className="p-2 rounded text-gray-600 hover:text-white hover:bg-white/5 transition flex items-center gap-2" 
-                        title="Tela Cheia (F11)"
+                        title={t('mainMenu.fullscreen')}
                     >
                         <Maximize size={14}/>
                     </button>
@@ -131,7 +135,7 @@ const MainMenu = () => {
     });
 
     const handleCreate = () => {
-        const name = newAdvName.trim() || "Nova Aventura";
+        const name = newAdvName.trim() || t('mainMenu.defaultAdventureName');
         if (createAdventure) createAdventure(name);
         setNewAdvName("");
         setIsCreating(false);
@@ -142,7 +146,7 @@ const MainMenu = () => {
         if (!file) return;
         setImporting(true);
         try { if(importAdventure) await importAdventure(file); } 
-        catch (e) { setAlertMessage("Erro ao importar aventura."); } 
+        catch (e) { setAlertMessage(t('mainMenu.importError')); } 
         finally { setImporting(false); e.target.value = null; }
     };
 
@@ -170,7 +174,7 @@ const MainMenu = () => {
                         <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-500 group-hover:text-white transition-colors"/>
                         <input 
                             type="text" 
-                            placeholder="Buscar..." 
+                            placeholder={t('common.searchPlaceholder')} 
                             className="bg-transparent border border-white/5 rounded-full h-9 pl-10 pr-4 text-xs text-white outline-none w-56 transition-all focus:w-72 focus:bg-white/5 hover:border-white/10 placeholder-gray-600 focus:border-neon-green"
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
@@ -183,10 +187,10 @@ const MainMenu = () => {
                         <button 
                             onClick={() => window.electron.openGMWindow()} 
                             className={`h-9 px-3 rounded flex items-center gap-2 text-xs font-bold transition-all border border-transparent ${isGMWindowOpen ? 'bg-white/5 text-neon-green' : 'text-gray-500 hover:text-white hover:bg-white/5'}`}
-                            title={isGMWindowOpen ? "Janela do Mestre Aberta" : "Abrir Janela do Mestre"}
+                            title={isGMWindowOpen ? t('mainMenu.gmWindowOpen') : t('mainMenu.openGmWindow')}
                         >
                             <Monitor size={16} />
-                            <span className="hidden xl:inline">TELA DO MESTRE</span>
+                            <span className="hidden xl:inline uppercase">{t('mainMenu.gmScreenButton')}</span>
                         </button>
                     )}
 
@@ -195,7 +199,7 @@ const MainMenu = () => {
                         className="flex items-center gap-2 h-9 px-4 rounded text-xs font-bold text-gray-500 hover:text-white hover:bg-white/5 transition-all"
                     >
                         {importing ? <Loader2 size={14} className="animate-spin text-neon-green"/> : <Import size={14}/>}
-                        <span>IMPORTAR</span>
+                        <span className="uppercase">{t('mainMenu.import')}</span>
                     </button>
                     <input ref={importRef} type="file" className="hidden" accept=".zip" onChange={handleImport} />
 
@@ -204,7 +208,7 @@ const MainMenu = () => {
                         className="flex items-center gap-2 h-9 px-5 bg-neon-green text-black rounded text-xs font-bold hover:bg-white active:scale-95 transition-all shadow-[0_0_15px_rgba(57,255,20,0.1)]"
                     >
                         <Plus size={16} strokeWidth={3} />
-                        <span>NOVA AVENTURA</span>
+                        <span className="uppercase">{t('mainMenu.newAdventure')}</span>
                     </button>
                 </div>
             </div>
@@ -214,18 +218,18 @@ const MainMenu = () => {
                 {isCreating && (
                     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
                         <div className="bg-[#121214] border border-white/10 p-8 rounded-2xl shadow-2xl w-full max-w-md" onClick={e => e.stopPropagation()}>
-                            <h2 className="text-xl font-rajdhani font-bold text-white mb-6 uppercase tracking-wider">Criar Nova Campanha</h2>
+                            <h2 className="text-xl font-rajdhani font-bold text-white mb-6 uppercase tracking-wider">{t('mainMenu.createTitle')}</h2>
                             <input 
                                 autoFocus
                                 className="w-full bg-black/40 border-b border-white/20 py-2 px-3 text-white outline-none focus:border-neon-green transition-colors mb-8 text-lg font-rajdhani font-bold placeholder-white/10"
-                                placeholder="Nome da aventura..."
+                                placeholder={t('mainMenu.adventureNamePlaceholder')}
                                 value={newAdvName}
                                 onChange={e => setNewAdvName(e.target.value)}
                                 onKeyDown={e => { if (e.key === 'Enter') handleCreate(); if (e.key === 'Escape') setIsCreating(false); }}
                             />
                             <div className="flex gap-4">
-                                <button onClick={() => setIsCreating(false)} className="flex-1 py-3 rounded text-gray-500 hover:text-white transition font-bold text-xs uppercase tracking-wider hover:bg-white/5">Cancelar</button>
-                                <button onClick={handleCreate} className="flex-1 py-3 bg-neon-green rounded text-black font-bold hover:bg-white transition text-xs uppercase tracking-widest shadow-lg">Criar</button>
+                                <button onClick={() => setIsCreating(false)} className="flex-1 py-3 rounded text-gray-500 hover:text-white transition font-bold text-xs uppercase tracking-wider hover:bg-white/5">{t('common.cancel')}</button>
+                                <button onClick={handleCreate} className="flex-1 py-3 bg-neon-green rounded text-black font-bold hover:bg-white transition text-xs uppercase tracking-widest shadow-lg">{t('common.create')}</button>
                             </div>
                         </div>
                     </div>
@@ -234,11 +238,11 @@ const MainMenu = () => {
                 {confirmDelete && (
                      <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm pointer-events-auto animate-in fade-in duration-200" onMouseDown={(e) => { e.stopPropagation(); setConfirmDelete(null); }}>
                         <div className="bg-ecos-bg border border-glass-border p-6 rounded-xl shadow-2xl max-w-sm w-full mx-4" onMouseDown={(e) => e.stopPropagation()}>
-                            <h3 className="text-xl font-bold text-white mb-2">Excluir Aventura?</h3>
-                            <p className="text-text-muted mb-6">Esta ação é irreversível e apagará todos os dados desta aventura.</p>
+                            <h3 className="text-xl font-bold text-white mb-2">{t('mainMenu.deleteTitle')}</h3>
+                            <p className="text-text-muted mb-6">{t('mainMenu.deleteMessage')}</p>
                             <div className="flex gap-3">
-                                <button onClick={() => setConfirmDelete(null)} className="flex-1 py-2 bg-glass rounded text-white hover:bg-white/10 transition-colors">Cancelar</button>
-                                <button onClick={() => { deleteAdventure(confirmDelete); setConfirmDelete(null); }} className="flex-1 py-2 bg-red-600 rounded text-white font-bold hover:bg-red-500 transition-colors">Confirmar</button>
+                                <button onClick={() => setConfirmDelete(null)} className="flex-1 py-2 bg-glass rounded text-white hover:bg-white/10 transition-colors">{t('common.cancel')}</button>
+                                <button onClick={() => { deleteAdventure(confirmDelete); setConfirmDelete(null); }} className="flex-1 py-2 bg-red-600 rounded text-white font-bold hover:bg-red-500 transition-colors">{t('common.confirm')}</button>
                             </div>
                         </div>
                     </div>
@@ -254,7 +258,7 @@ const MainMenu = () => {
                             <Plus size={28} className="text-gray-600 group-hover:text-black transition-colors duration-300" strokeWidth={2.5} />
                         </div>
                         <span className="font-rajdhani font-bold text-gray-600 group-hover:text-white transition-colors duration-300 tracking-[0.2em] uppercase text-xs">
-                            Nova Aventura
+                            {t('mainMenu.newAdventure')}
                         </span>
                     </div>
 
@@ -280,15 +284,21 @@ const MainMenu = () => {
                  </div>
 
                  <div className="flex items-center gap-4">
-                    <button onClick={toggleFullscreen} className="p-2 rounded text-gray-600 hover:text-white hover:bg-white/5 transition flex items-center gap-2" title="Tela Cheia (F11)">
+                    <button onClick={() => setIsSettingsOpen(true)} className="p-2 rounded text-gray-600 hover:text-white hover:bg-white/5 transition flex items-center gap-2" title={t('settings.title')}>
+                        <Settings size={14}/>
+                    </button>
+
+                    <button onClick={toggleFullscreen} className="p-2 rounded text-gray-600 hover:text-white hover:bg-white/5 transition flex items-center gap-2" title={t('mainMenu.fullscreen')}>
                         <Maximize size={14}/>
                     </button>
                     
-                    <button onClick={handleQuit} className="p-2 rounded text-gray-600 hover:text-red-500 hover:bg-red-500/10 transition flex items-center gap-2" title="Sair do Programa">
+                    <button onClick={handleQuit} className="p-2 rounded text-gray-600 hover:text-red-500 hover:bg-red-500/10 transition flex items-center gap-2" title={t('mainMenu.quit')}>
                         <LogOut size={14}/>
                     </button>
                  </div>
             </div>
+
+            {isSettingsOpen && <SettingsModal onClose={() => setIsSettingsOpen(false)} />}
 
             {editingAdventure && (
                 <EditAdventureModal 

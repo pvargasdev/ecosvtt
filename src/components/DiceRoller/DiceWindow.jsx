@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { X, Trash2, Dices, RotateCcw } from 'lucide-react';
 import { Die, DieSelector } from './DiceComponents';
+import { useTranslation } from '../../i18n';
 
 const DiceStyles = () => (
     <style>{`
@@ -29,6 +30,7 @@ const rollDie = (type) => {
 
 const DiceWindow = ({ onClose, WindowWrapperComponent }) => {
   const [pool, setPool] = useState([]); 
+  const t = useTranslation();
   const [isRolling, setIsRolling] = useState(false);
   const [total, setTotal] = useState(0);
   const [showResult, setShowResult] = useState(false);
@@ -111,7 +113,7 @@ const DiceWindow = ({ onClose, WindowWrapperComponent }) => {
       
       <div className="p-3 py-3 border-b border-glass-border flex justify-between items-center bg-white/5 rounded-t-xl shrink-0 z-20">
         <h3 className="font-rajdhani font-bold text-white flex items-center gap-2">
-            <Dices size={18} className="text-neon-purple"/> Rolagem de Dados
+            <Dices size={18} className="text-neon-purple"/> {t('dice.title')}
         </h3>
         
         <div className="flex items-center gap-3">
@@ -122,7 +124,7 @@ const DiceWindow = ({ onClose, WindowWrapperComponent }) => {
                     ${showResult ? 'opacity-100 scale-100' : 'opacity-0 scale-75 pointer-events-none hidden'}
                 `}
             >
-                <span className="text-[10px] font-bold text-neon-purple uppercase tracking-wider">Total</span>
+                <span className="text-[10px] font-bold text-neon-purple uppercase tracking-wider">{t('dice.total')}</span>
                 <span className="text-[10px] font-bold text-white uppercase tracking-wider">{total}</span>
             </div>
         </div>
@@ -134,7 +136,7 @@ const DiceWindow = ({ onClose, WindowWrapperComponent }) => {
              {pool.length === 0 && (
                 <div className="absolute inset-0 flex flex-col items-center justify-center text-white/10 pointer-events-none select-none">
                     <Dices size={48} strokeWidth={1} className="mb-2 opacity-50"/>
-                    <span className="text-xs font-rajdhani uppercase tracking-widest">Mesa Vazia</span>
+                    <span className="text-xs font-rajdhani uppercase tracking-widest">{t('dice.emptyTable')}</span>
                 </div>
             )}
             
@@ -174,7 +176,7 @@ const DiceWindow = ({ onClose, WindowWrapperComponent }) => {
                 onClick={handleClear}
                 disabled={isRolling || pool.length === 0}
                 className="px-3.5 py-2 bg-white/5 border border-glass-border rounded hover:bg-red-500/20 hover:border-red-500/50 hover:text-red-500 text-text-muted transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                title="Limpar Mesa"
+                title={t('dice.clearTable')}
             >
                 <Trash2 size={18} />
             </button>
@@ -192,9 +194,9 @@ const DiceWindow = ({ onClose, WindowWrapperComponent }) => {
                 `}
             >
                 {isRolling ? (
-                    <><RotateCcw className="animate-spin" size={18}/> ROLANDO...</>
+                    <><RotateCcw className="animate-spin" size={18}/> {t('dice.rolling')}</>
                 ) : (
-                    "ROLAR"
+                    t('dice.roll')
                 )}
             </button>
         </div>

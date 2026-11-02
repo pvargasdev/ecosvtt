@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
+import { useTranslation, getCurrentLanguage } from '../../i18n';
 import { useGame } from '../../context/GameContext';
 import { 
     AudioLines, Upload, Search, X, Check, Music, 
@@ -17,13 +18,14 @@ const formatBytes = (bytes, decimals = 2) => {
 };
 
 const formatDate = (timestamp) => {
-    return new Date(timestamp).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit' });
+    return new Date(timestamp).toLocaleDateString(getCurrentLanguage(), { day: '2-digit', month: '2-digit', year: '2-digit' });
 };
 
 const AudioLibraryModal = ({ isOpen, onClose, onSelect, acceptMultiple = false, category = 'music' }) => {
     const { deleteGlobalAudio, refreshAudioSystem } = useGame();
     
     const [libraryFiles, setLibraryFiles] = useState([]);
+    const t = useTranslation();
     const [isLoading, setIsLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState("");
     
@@ -196,8 +198,8 @@ const AudioLibraryModal = ({ isOpen, onClose, onSelect, acceptMultiple = false, 
         font-bold flex items-center justify-center gap-2 text-xs uppercase tracking-wider
     `;
     const HeaderIcon = category === 'music' ? Music : Volume2;
-    const headerTitle = category === 'music' ? 'Biblioteca Musical' : 'Biblioteca SFX';
-    const headerSubtitle = category === 'music' ? 'FAIXAS DE ÁUDIO' : 'EFEITOS SONOROS';
+    const headerTitle = category === 'music' ? t('audioLibrary.musicTitle') : t('audioLibrary.sfxTitle');
+    const headerSubtitle = category === 'music' ? t('audioLibrary.musicSubtitle') : t('audioLibrary.sfxSubtitle');
 
     const vttRoot = document.getElementById('vtt-ui-root') || document.body;
 
@@ -238,7 +240,7 @@ const AudioLibraryModal = ({ isOpen, onClose, onSelect, acceptMultiple = false, 
                             </div>
                             <input 
                                 className="w-full bg-transparent border-none outline-none text-sm text-white placeholder-text-muted/50 font-medium py-2 pl-9 pr-8 truncate"
-                                placeholder={category === 'music' ? 'Buscar música...' : 'Buscar efeito...'}
+                                placeholder={category === 'music' ? t('audioLibrary.searchMusic') : t('audioLibrary.searchSfx')}
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
                             />
@@ -258,10 +260,10 @@ const AudioLibraryModal = ({ isOpen, onClose, onSelect, acceptMultiple = false, 
                             onClick={() => fileInputRef.current.click()}
                             disabled={isLoading}
                             className={`px-3 py-2 rounded-lg shadow-lg ${buttonStyle} ${isLoading ? 'opacity-50 cursor-wait' : 'active:scale-95'}`}
-                            title="Fazer Upload"
+                            title={t('audioLibrary.uploadTitle')}
                         >
                             {isLoading ? <Loader2 size={14} className="animate-spin"/> : <Upload size={14} strokeWidth={3}/>} 
-                            <span className="hidden sm:inline ml-1">Upload</span>
+                            <span className="hidden sm:inline ml-1">{t('audioLibrary.upload')}</span>
                         </button>
                         <input ref={fileInputRef} type="file" multiple={acceptMultiple} accept="audio/*" className="hidden" onChange={handleFileUpload} />
                         
@@ -280,14 +282,14 @@ const AudioLibraryModal = ({ isOpen, onClose, onSelect, acceptMultiple = false, 
                     {isLoading ? (
                         <div className="flex flex-col items-center justify-center h-full text-text-muted gap-4 animate-pulse">
                             <div className="w-10 h-10 rounded-full bg-white/10"></div>
-                            <span>Carregando...</span>
+                            <span>{t('common.loading')}</span>
                         </div>
                     ) : filteredFiles.length === 0 ? (
                         <div className="flex flex-col items-center justify-center h-full text-text-muted opacity-40 gap-4">
                             <AudioLines size={64} strokeWidth={0.5}/>
                             <div className="text-center">
-                                <p className="font-bold">Lista Vazia</p>
-                                <p className="text-xs mt-1">Nenhum arquivo encontrado.</p>
+                                <p className="font-bold">{t('audioLibrary.emptyList')}</p>
+                                <p className="text-xs mt-1">{t('audioLibrary.noFiles')}</p>
                             </div>
                         </div>
                     ) : (
@@ -300,19 +302,19 @@ const AudioLibraryModal = ({ isOpen, onClose, onSelect, acceptMultiple = false, 
                                             className="px-6 py-2 min-h-[44px] rounded-lg bg-red-900/30 border border-red-500/50 flex justify-between items-center fade-in duration-200"
                                             onClick={(e) => e.stopPropagation()}
                                         >
-                                            <span className="text-white text-sm font-bold pl-1">Excluir arquivo?</span>
+                                            <span className="text-white text-sm font-bold pl-1">{t('audioLibrary.deleteFileQuestion')}</span>
                                             <div className="flex gap-1 shrink-0">
                                                 <button 
                                                     onClick={() => setDeletingId(null)} 
                                                     className="p-1.5 rounded bg-black/40 hover:bg-white/20 text-text-muted hover:text-white transition"
-                                                    title="Cancelar"
+                                                    title={t('common.cancel')}
                                                 >
                                                     <ArrowLeft size={14} />
                                                 </button>
                                                 <button 
                                                     onClick={() => handleDelete(file.id)} 
                                                     className="p-1.5 rounded bg-red-600 hover:bg-red-500 text-white transition"
-                                                    title="Confirmar Exclusão"
+                                                    title={t('common.confirmDelete')}
                                                 >
                                                     <Trash2 size={14} />
                                                 </button>
@@ -337,7 +339,7 @@ const AudioLibraryModal = ({ isOpen, onClose, onSelect, acceptMultiple = false, 
                                         `}
                                     >
                                         {isNew && (
-                                            <div className="absolute left-2 top-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-neon-green shadow-[0_0_8px_rgba(74,222,128,0.8)] animate-pulse" title="Recém adicionado"></div>
+                                            <div className="absolute left-2 top-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-neon-green shadow-[0_0_8px_rgba(74,222,128,0.8)] animate-pulse" title={t('audioLibrary.recentlyAdded')}></div>
                                         )}
 
                                         <div className="min-w-0 pr-4 pl-2">
@@ -363,7 +365,7 @@ const AudioLibraryModal = ({ isOpen, onClose, onSelect, acceptMultiple = false, 
                                                 <button 
                                                     onClick={() => setDeletingId(file.id)} 
                                                     className="p-1.5 text-text-muted hover:text-red-500 hover:bg-red-500/10 rounded-full transition opacity-0 group-hover:opacity-100"
-                                                    title="Excluir arquivo"
+                                                    title={t('audioLibrary.deleteFile')}
                                                 >
                                                     <Trash2 size={14} />
                                                 </button>
@@ -379,13 +381,13 @@ const AudioLibraryModal = ({ isOpen, onClose, onSelect, acceptMultiple = false, 
                 {acceptMultiple && selectedIds.size > 0 && (
                     <div className="shrink-0 p-4 border-t border-glass-border bg-[#0c0c0e]/95 backdrop-blur flex items-center justify-center gap-6 animate-in slide-in-from-bottom-2 duration-200 z-20 shadow-[0_-5px_20px_rgba(0,0,0,0.3)]">
                         <span className="text-sm text-text-muted">
-                            <strong className="text-white">{selectedIds.size}</strong> item(s) selecionado(s)
+                            {t('audioLibrary.selectedCount', { count: selectedIds.size })}
                         </span>
                         <button 
                             onClick={handleConfirmSelection}
                             className={`px-6 py-2 rounded-full shadow-lg hover:brightness-110 ${buttonStyle}`}
                         >
-                            Adicionar na Aventura <Check size={14} strokeWidth={3}/>
+                            {t('audioLibrary.addToAdventure')} <Check size={14} strokeWidth={3}/>
                         </button>
                     </div>
                 )}

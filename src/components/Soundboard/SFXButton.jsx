@@ -2,11 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { useGame } from '../../context/GameContext';
 import { Volume2, Trash2, Edit2, Zap, Check, X, AlertTriangle } from 'lucide-react';
 import * as Icons from 'lucide-react';
+import { useTranslation } from '../../i18n';
 
 const SFXButton = ({ data }) => {
     const { triggerSfxRemote, updateSfx, removeSfx, availableFiles } = useGame();
     
     const [isPlaying, setIsPlaying] = useState(false);
+    const t = useTranslation();
     const [mode, setMode] = useState('idle');
     const [editName, setEditName] = useState(data.name);
     const [editVolume, setEditVolume] = useState(data.volume || 1);
@@ -56,7 +58,7 @@ const SFXButton = ({ data }) => {
                     value={editName}
                     onChange={(e) => setEditName(e.target.value)}
                     autoFocus
-                    placeholder="Nome"
+                    placeholder={t('soundboard.name')}
                 />
                 <div className="flex items-center gap-1 flex-1">
                     <Volume2 size={12} className="text-text-muted shrink-0"/>
@@ -78,7 +80,7 @@ const SFXButton = ({ data }) => {
     if (mode === 'deleting') {
         return (
             <div className="aspect-square rounded-xl border-2 border-red-500 bg-red-900/40 flex flex-col items-center justify-center p-2 relative animate-in fade-in cursor-default" onMouseDown={e => e.stopPropagation()}>
-                <span className="text-xs font-bold text-white mb-2 text-center leading-tight">Excluir SFX?</span>
+                <span className="text-xs font-bold text-white mb-2 text-center leading-tight">{t('soundboard.deleteSfxQuestion')}</span>
                 <div className="flex gap-2 w-full">
                     <button onMouseDown={() => setMode('idle')} className="flex-1 py-1.5 bg-black/40 hover:bg-black/60 rounded text-white flex justify-center"><X size={14}/></button>
                     <button onMouseDown={handleDelete} className="flex-1 py-1.5 bg-red-600 hover:bg-red-500 rounded text-white flex justify-center shadow-lg"><Check size={14}/></button>
@@ -120,7 +122,7 @@ const SFXButton = ({ data }) => {
                 )}
                 
                 <span className={`z-10 text-[10px] font-bold uppercase tracking-wider text-center px-1 truncate w-full shadow-black drop-shadow-md ${isMissing ? 'text-red-400' : isPlaying ? 'text-pink-400' : 'text-white'}`}>
-                    {isMissing ? data.name : (isPlaying ? 'TOCANDO...' : data.name)}
+                    {isMissing ? data.name : (isPlaying ? t('soundboard.playing') : data.name)}
                 </span>
             </div>
 
@@ -129,14 +131,14 @@ const SFXButton = ({ data }) => {
                     <button 
                         onMouseDown={(e) => { e.stopPropagation(); setEditName(data.name); setEditVolume(data.volume || 1); setMode('editing'); }} 
                         className="p-1.5 bg-black/60 backdrop-blur-sm rounded text-white hover:text-pink-400 hover:bg-black/90 transition shadow-lg"
-                        title="Editar"
+                        title={t('common.edit')}
                     >
                         <Edit2 size={10} />
                     </button>
                     <button 
                         onMouseDown={(e) => { e.stopPropagation(); setMode('deleting'); }} 
                         className="p-1.5 bg-black/60 backdrop-blur-sm rounded text-white hover:text-red-500 hover:bg-black/90 transition shadow-lg"
-                        title="Excluir"
+                        title={t('common.delete')}
                     >
                         <Trash2 size={10} />
                     </button>

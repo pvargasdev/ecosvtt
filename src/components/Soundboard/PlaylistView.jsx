@@ -1,12 +1,14 @@
 import React, { useState, useRef } from 'react';
 import { useGame } from '../../context/GameContext';
 import { Music, Trash2, Plus, Loader2, Search, X, ArrowLeft, Link2Off, Folder, FolderPlus, CornerLeftUp, Check, Edit2 } from 'lucide-react';
+import { useTranslation } from '../../i18n';
 import AudioLibraryModal from './AudioLibraryModal';
 
 const TrackItem = ({ track, isCurrent, isPlaying, isDeleting, onDeleteClick, onPlayClick, onCancelDelete, onConfirmDelete, playlistId, isMissing, onEnterFolder, onMove, onRename }) => {
     const [isDragOver, setIsDragOver] = useState(false);
     const [isRenaming, setIsRenaming] = useState(false);
     const [renameVal, setRenameVal] = useState(track.title);
+    const t = useTranslation();
     
     const isFolder = track.type === 'folder';
 
@@ -74,14 +76,14 @@ const TrackItem = ({ track, isCurrent, isPlaying, isDeleting, onDeleteClick, onP
                     <button 
                         onClick={(e)=>{e.stopPropagation(); onCancelDelete(e);}} 
                         className="p-1.5 rounded bg-black/40 hover:bg-white/20 text-text-muted hover:text-white flex items-center transition-colors"
-                        title="Cancelar"
+                        title={t('common.cancel')}
                     >
                         <ArrowLeft size={14}/>
                     </button>
                     <button 
                         onClick={(e)=>{e.stopPropagation(); onConfirmDelete(e);}} 
                         className="p-1.5 rounded bg-red-600 hover:bg-red-500 text-white flex items-center transition-colors shadow-lg shadow-red-900/20"
-                        title="Confirmar"
+                        title={t('common.confirm')}
                     >
                         <Check size={14}/>
                     </button>
@@ -108,14 +110,14 @@ const TrackItem = ({ track, isCurrent, isPlaying, isDeleting, onDeleteClick, onP
                     <button 
                         onClick={(e) => { e.stopPropagation(); setIsRenaming(false); setRenameVal(track.title); }} 
                         className="p-1.5 rounded bg-black/40 hover:bg-white/20 text-text-muted hover:text-white flex items-center transition-colors"
-                        title="Cancelar"
+                        title={t('common.cancel')}
                     >
                         <ArrowLeft size={14}/>
                     </button>
                     <button 
                         onClick={(e) => { e.stopPropagation(); handleRenameSubmit(); }} 
                         className="p-1.5 rounded bg-pink-500 hover:bg-white text-black flex items-center transition-colors"
-                        title="Salvar"
+                        title={t('common.save')}
                     >
                         <Check size={14}/>
                     </button>
@@ -181,7 +183,7 @@ const TrackItem = ({ track, isCurrent, isPlaying, isDeleting, onDeleteClick, onP
                     <button 
                         onClick={(e) => { e.stopPropagation(); setIsRenaming(true); }}
                         className="p-1.5 text-text-muted hover:text-pink-400 hover:bg-white/10 rounded-md transition-colors"
-                        title="Renomear Pasta"
+                        title={t('soundboard.renameFolder')}
                     >
                         <Edit2 size={14} />
                     </button>
@@ -190,7 +192,7 @@ const TrackItem = ({ track, isCurrent, isPlaying, isDeleting, onDeleteClick, onP
                 <button 
                     onClick={(e) => { e.stopPropagation(); onDeleteClick(e); }}
                     className="p-1.5 text-text-muted hover:text-red-500 hover:bg-white/10 rounded-md transition-colors"
-                    title={isFolder ? "Excluir Pasta" : "Excluir Faixa"}
+                    title={isFolder ? t('soundboard.deleteFolder') : t('soundboard.deleteTrack')}
                 >
                     <Trash2 size={14} />
                 </button>
@@ -202,13 +204,14 @@ const TrackItem = ({ track, isCurrent, isPlaying, isDeleting, onDeleteClick, onP
 const PlaylistView = ({ currentFolderId, setCurrentFolderId }) => {
     const { soundboard, addTrackToPlaylist, addTrackFolder, moveTrackItem, playTrack, removeTrack, availableFiles, renameTrackItem } = useGame();
     const [isLibraryOpen, setIsLibraryOpen] = useState(false);
+    const t = useTranslation();
     const [isUploading, setIsUploading] = useState(false);
     const [deletingId, setDeletingId] = useState(null); 
     const [searchQuery, setSearchQuery] = useState(""); 
     
     const [isBreadcrumbActive, setIsBreadcrumbActive] = useState(false);
     
-    const activePlaylist = soundboard.playlists[0] || { id: 'default', name: 'Geral', tracks: [] };
+    const activePlaylist = soundboard.playlists[0] || { id: 'default', name: t('soundboard.generalPlaylist'), tracks: [] };
     const playlistId = activePlaylist.id;
 
     const getAudioDuration = (file) => {
@@ -240,7 +243,7 @@ const PlaylistView = ({ currentFolderId, setCurrentFolderId }) => {
     };
 
     const handleCreateFolder = () => {
-        addTrackFolder(playlistId, "Nova Pasta", currentFolderId);
+        addTrackFolder(playlistId, t('common.newFolder'), currentFolderId);
     };
 
     const handleDropOnBreadcrumb = (e) => {
@@ -282,7 +285,7 @@ const PlaylistView = ({ currentFolderId, setCurrentFolderId }) => {
     });
 
     const currentFolderName = currentFolderId 
-        ? activePlaylist.tracks.find(t => t.id === currentFolderId)?.title || "Pasta"
+        ? activePlaylist.tracks.find(track => track.id === currentFolderId)?.title || t('common.folder')
         : "";
 
     const showBreadcrumb = currentFolderId !== null && !searchQuery;
@@ -297,7 +300,7 @@ const PlaylistView = ({ currentFolderId, setCurrentFolderId }) => {
                                 <Music size={20} className="text-white/50" />
                             </div>
                             <div>
-                                <h3 className="font-rajdhani font-bold text-lg text-white leading-none">Trilha Sonora</h3>
+                                <h3 className="font-rajdhani font-bold text-lg text-white leading-none">{t('soundboard.soundtrack')}</h3>
                                 <p className="text-[10px] text-text-muted mt-0.5">{activePlaylist.tracks.length} itens</p>
                             </div>
                         </div>
@@ -306,7 +309,7 @@ const PlaylistView = ({ currentFolderId, setCurrentFolderId }) => {
                             <button 
                                 onClick={(e) => { e.stopPropagation(); handleCreateFolder(); }}
                                 className="px-2 py-1.5 bg-white/5 text-pink-300 border border-white/10 rounded hover:bg-white/10 hover:text-white transition flex items-center gap-2 text-xs font-bold"
-                                title="Nova Pasta"
+                                title={t('common.newFolder')}
                             >
                                 <FolderPlus size={14} />
                             </button>
@@ -328,7 +331,7 @@ const PlaylistView = ({ currentFolderId, setCurrentFolderId }) => {
                             </div>
                             <input 
                                 type="text"
-                                placeholder="Pesquisar faixa..."
+                                placeholder={t('soundboard.searchTrack')}
                                 className="block w-full pl-9 pr-8 py-1.5 bg-black/40 border border-white/10 rounded-lg text-xs text-white placeholder-text-muted focus:border-pink-400/50 focus:bg-black/60 focus:ring-1 focus:ring-pink-400/20 outline-none transition-all"
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
@@ -362,7 +365,7 @@ const PlaylistView = ({ currentFolderId, setCurrentFolderId }) => {
                     <div className={`absolute inset-0 flex items-center justify-center bg-black/80 backdrop-blur-[1px] z-30 transition-opacity duration-200 pointer-events-none ${isBreadcrumbActive ? 'opacity-100' : 'opacity-0'}`}>
                         <div className="flex items-center gap-2 text-pink-400 font-bold animate-pulse">
                             <CornerLeftUp size={18} strokeWidth={3} />
-                            <span className="uppercase tracking-widest text-[10px]">Mover para pasta acima</span>
+                            <span className="uppercase tracking-widest text-[10px]">{t('common.moveToParentFolder')}</span>
                         </div>
                     </div>
 
@@ -372,12 +375,12 @@ const PlaylistView = ({ currentFolderId, setCurrentFolderId }) => {
                             setCurrentFolderId(curr?.parentId || null);
                         }}
                         className="p-1.5 bg-white/10 rounded hover:bg-white/20 text-white flex items-center gap-1 transition-colors shrink-0 z-10"
-                        title="Voltar"
+                        title={t('common.back')}
                     >
                         <CornerLeftUp size={14}/>
                     </button>
                     <div className="flex-1 min-w-0 z-10">
-                        <div className="text-[10px] text-pink-500 uppercase font-bold leading-none mb-0.5">Pasta Atual</div>
+                        <div className="text-[10px] text-pink-500 uppercase font-bold leading-none mb-0.5">{t('common.currentFolder')}</div>
                         <div className="font-mono text-white truncate leading-none font-bold">{currentFolderName}</div>
                     </div>
                 </div>
@@ -386,11 +389,11 @@ const PlaylistView = ({ currentFolderId, setCurrentFolderId }) => {
                     {activePlaylist.tracks.length === 0 && !searchQuery ? (
                         <div className="flex flex-col items-center justify-center h-40 text-text-muted opacity-50">
                             <Music size={48} className="mb-2 stroke-1"/>
-                            <p className="text-sm">Nenhuma música adicionada.</p>
+                            <p className="text-sm">{t('soundboard.noMusic')}</p>
                         </div>
                     ) : displayTracks.length === 0 ? (
                         <div className="flex flex-col items-center justify-center h-20 text-text-muted opacity-50">
-                            <p className="text-xs">{searchQuery ? `Nada encontrado para "${searchQuery}"` : "Pasta vazia."}</p>
+                            <p className="text-xs">{searchQuery ? t('soundboard.nothingFound', { query: searchQuery }) : t('soundboard.emptyFolder')}</p>
                         </div>
                     ) : (
                         <div className="flex flex-col">

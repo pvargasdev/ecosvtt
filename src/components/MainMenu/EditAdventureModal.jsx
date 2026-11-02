@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { X, Image as ImageIcon, Save, Loader2, Trash2, UploadCloud } from 'lucide-react';
 import { imageDB } from '../../context/db';
+import { useTranslation } from '../../i18n';
 
 const EditAdventureModal = ({ adventure, onClose, onSave, onAlert }) => {
     const [name, setName] = useState(adventure.name);
@@ -9,6 +10,7 @@ const EditAdventureModal = ({ adventure, onClose, onSave, onAlert }) => {
     const [loadingImage, setLoadingImage] = useState(false);
     const [isDragOver, setIsDragOver] = useState(false);
     const fileInputRef = useRef(null);
+    const t = useTranslation();
 
     useEffect(() => {
         let objectUrl = null;
@@ -40,10 +42,10 @@ const EditAdventureModal = ({ adventure, onClose, onSave, onAlert }) => {
             if (newImageId) {
                 setCoverImageId(newImageId);
             } else {
-                onAlert && onAlert("Não foi possível salvar a imagem.");
+                onAlert && onAlert(t('editAdventure.saveImageError'));
             }
         } catch (error) {
-            onAlert && onAlert("Erro ao processar imagem.");
+            onAlert && onAlert(t('editAdventure.processImageError'));
         } finally {
             setLoadingImage(false);
         }
@@ -72,7 +74,7 @@ const EditAdventureModal = ({ adventure, onClose, onSave, onAlert }) => {
 
     const handleSave = () => {
         if (!name.trim()) {
-            onAlert && onAlert("O nome da aventura é obrigatório.");
+            onAlert && onAlert(t('editAdventure.nameRequired'));
             return;
         }
         onSave(adventure.id, {
@@ -102,15 +104,15 @@ const EditAdventureModal = ({ adventure, onClose, onSave, onAlert }) => {
                     >
                         {coverUrl ? (
                             <>
-                                <img src={coverUrl} alt="Capa" className="w-full h-full object-cover" />
+                                <img src={coverUrl} alt={t('editAdventure.cover')} className="w-full h-full object-cover" />
                                 <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-2">
                                     <ImageIcon size={24} className="text-white"/>
-                                    <span className="text-[10px] uppercase font-bold text-white tracking-widest">Trocar Imagem</span>
+                                    <span className="text-[10px] uppercase font-bold text-white tracking-widest">{t('common.changeImage')}</span>
                                 </div>
                                 <button 
                                     onClick={removeCover}
                                     className="absolute top-2 right-2 p-1.5 bg-red-600 text-white rounded-full hover:bg-red-500 shadow-lg z-20 pointer-events-auto"
-                                    title="Remover Capa"
+                                    title={t('editAdventure.removeCover')}
                                 >
                                     <Trash2 size={12} />
                                 </button>
@@ -118,8 +120,8 @@ const EditAdventureModal = ({ adventure, onClose, onSave, onAlert }) => {
                         ) : (
                             <div className="text-center p-4">
                                 <UploadCloud size={32} className={`mx-auto mb-2 transition-colors ${isDragOver ? 'text-white' : 'text-gray-600 group-hover:text-gray-400'}`}/>
-                                <p className="text-xs text-gray-400 font-bold uppercase tracking-wider">Capa da Aventura</p>
-                                <p className="text-[10px] text-gray-600 mt-1">Clique ou arraste</p>
+                                <p className="text-xs text-gray-400 font-bold uppercase tracking-wider">{t('editAdventure.adventureCover')}</p>
+                                <p className="text-[10px] text-gray-600 mt-1">{t('editAdventure.clickOrDrag')}</p>
                             </div>
                         )}
 
@@ -134,17 +136,17 @@ const EditAdventureModal = ({ adventure, onClose, onSave, onAlert }) => {
 
                 <div className="flex-1 p-8 flex flex-col justify-between">
                     <div>
-                        <h2 className="text-2xl font-rajdhani font-bold text-white uppercase tracking-wider mb-1">Editar Aventura</h2>
-                        <p className="text-xs text-gray-500 font-medium mb-8">Personalize os detalhes da sua aventura.</p>
+                        <h2 className="text-2xl font-rajdhani font-bold text-white uppercase tracking-wider mb-1">{t('editAdventure.title')}</h2>
+                        <p className="text-xs text-gray-500 font-medium mb-8">{t('editAdventure.subtitle')}</p>
 
                         <div className="space-y-6">
                             <div className="space-y-2">
-                                <label className="text-[10px] font-bold uppercase tracking-widest text-neon-green">Nome da Aventura</label>
+                                <label className="text-[10px] font-bold uppercase tracking-widest text-neon-green">{t('editAdventure.nameLabel')}</label>
                                 <input 
                                     type="text"
                                     autoFocus
                                     className="w-full bg-transparent border-b border-white/10 py-2 text-xl font-rajdhani font-bold text-white outline-none transition-colors placeholder-white/10 focus:border-neon-green"
-                                    placeholder="Nome da Aventura"
+                                    placeholder={t('editAdventure.nameLabel')}
                                     value={name}
                                     onChange={e => setName(e.target.value)}
                                 />
@@ -154,13 +156,13 @@ const EditAdventureModal = ({ adventure, onClose, onSave, onAlert }) => {
 
                     <div className="flex gap-3 pt-6">
                         <button onClick={onClose} className="px-6 py-3 rounded text-xs font-bold text-gray-500 hover:text-white hover:bg-white/5 transition-colors uppercase tracking-wider">
-                            Cancelar
+                            {t('common.cancel')}
                         </button>
                         <button 
                             onClick={handleSave} 
                             className="flex-1 px-6 py-3 rounded text-black font-bold transition-all shadow-lg hover:shadow-xl flex items-center justify-center gap-2 text-xs uppercase tracking-widest hover:bg-white active:scale-95 bg-neon-green"
                         >
-                            <Save size={14} /> Salvar
+                            <Save size={14} /> {t('common.save')}
                         </button>
                     </div>
                 </div>

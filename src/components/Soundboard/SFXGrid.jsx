@@ -1,12 +1,14 @@
 import React, { useState } from 'react';
 import { useGame } from '../../context/GameContext';
 import { Plus, Upload } from 'lucide-react';
+import { useTranslation } from '../../i18n';
 import SFXButton from './SFXButton';
 import AudioLibraryModal from './AudioLibraryModal';
 
 const SFXGrid = () => {
     const { soundboard, addSfx } = useGame();
     const [isDragging, setIsDragging] = useState(false);
+    const t = useTranslation();
     const [isLibraryOpen, setIsLibraryOpen] = useState(false);
 
     const handleAddSFX = (items) => {
@@ -35,7 +37,7 @@ const SFXGrid = () => {
                 {isDragging && (
                     <div className="absolute inset-0 z-50 bg-purple-400/10 border-2 border-dashed border-purple-400 flex flex-col items-center justify-center backdrop-blur-sm animate-in fade-in pointer-events-none">
                         <Upload size={48} className="text-purple-400 mb-2 animate-bounce"/>
-                        <h3 className="text-purple-400 font-bold text-xl font-rajdhani">SOLTE PARA ADICIONAR SFX</h3>
+                        <h3 className="text-purple-400 font-bold text-xl font-rajdhani uppercase">{t('soundboard.dropToAddSfx')}</h3>
                     </div>
                 )}
 
@@ -46,7 +48,7 @@ const SFXGrid = () => {
                             className="aspect-square rounded-xl border-2 border-dashed border-white/10 flex flex-col items-center justify-center cursor-pointer hover:bg-white/5 hover:border-white/30 transition-all text-text-muted hover:text-white group"
                         >
                             <Plus size={24} className="mb-1 group-hover:scale-110 transition-transform"/>
-                            <span className="text-[10px] font-bold uppercase">Adicionar</span>
+                            <span className="text-[10px] font-bold uppercase">{t('soundboard.add')}</span>
                         </div>
 
                         {soundboard.sfxGrid.map(sfx => (
@@ -56,7 +58,7 @@ const SFXGrid = () => {
                     
                     {soundboard.sfxGrid.length === 0 && !isDragging && (
                         <div className="text-center text-text-muted text-xs mt-8 opacity-50">
-                            Clique em Adicionar ou arraste arquivos de áudio para cá.
+                            {t('soundboard.sfxEmptyHint')}
                         </div>
                     )}
                 </div>

@@ -1,3 +1,4 @@
+import { translate } from '../i18n';
 const DB_NAME = 'EcosVTT_AudioAssets';
 const DB_VERSION = 1;
 const STORE_NAME = 'tracks';
@@ -32,7 +33,7 @@ const blobToArrayBuffer = (blob) => {
 export const audioDB = {
     saveAudio: async (fileOrBlob, category = 'music', forcedId = null) => {
         const id = forcedId || crypto.randomUUID();
-        const fileName = fileOrBlob.name || "Audio Sem Nome";
+        const fileName = fileOrBlob.name || translate('audioLibrary.untitledAudio');
         const fileSize = fileOrBlob.size || 0;
         const fileType = fileOrBlob.type || "audio/unknown";
 
@@ -88,7 +89,7 @@ export const audioDB = {
                     const results = request.result || [];
                     const metadata = results.map(item => ({
                         id: item.id,
-                        name: item.name || "Sem Nome",
+                        name: item.name || translate('common.untitled'),
                         date: item.date,
                         size: item.size,
                         category: item.category || 'music'

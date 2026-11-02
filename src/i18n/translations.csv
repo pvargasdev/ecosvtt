@@ -1,0 +1,183 @@
+key,pt-BR,en
+_meta.languageName,Português (Brasil),English
+common.cancel,Cancelar,Cancel
+common.confirm,Confirmar,Confirm
+common.create,Criar,Create
+common.save,Salvar,Save
+common.delete,Excluir,Delete
+common.duplicate,Duplicar,Duplicate
+common.rename,Renomear,Rename
+common.edit,Editar,Edit
+common.close,Fechar,Close
+common.back,Voltar,Back
+common.untitled,Sem Nome,Untitled
+common.searchPlaceholder,Buscar...,Search...
+common.changeImage,Trocar Imagem,Change Image
+common.chooseImage,Escolher Imagem,Choose Image
+common.folder,Pasta,Folder
+common.newFolder,Nova Pasta,New Folder
+common.createFolder,Criar Pasta,Create Folder
+common.currentFolder,Pasta Atual,Current Folder
+common.moveToParentFolder,Mover para pasta acima,Move to parent folder
+common.loading,Carregando...,Loading...
+common.confirmDelete,Confirmar Exclusão,Confirm Deletion
+common.copySuffix,{name} (Cópia),{name} (Copy)
+settings.title,Configurações,Settings
+settings.language,Idioma,Language
+settings.languageSystem,Idioma do sistema,System language
+mainMenu.gmScreenTitle,Tela do Mestre,GM Screen
+mainMenu.gmWaiting,Aguardando Seleção de Aventura,Waiting for Adventure Selection
+mainMenu.fullscreen,Tela Cheia (F11),Fullscreen (F11)
+mainMenu.defaultAdventureName,Nova Aventura,New Adventure
+mainMenu.importError,Erro ao importar aventura.,Failed to import adventure.
+mainMenu.gmWindowOpen,Janela do Mestre Aberta,GM Window Open
+mainMenu.openGmWindow,Abrir Janela do Mestre,Open GM Window
+mainMenu.gmScreenButton,Tela do Mestre,GM Screen
+mainMenu.import,Importar,Import
+mainMenu.newAdventure,Nova Aventura,New Adventure
+mainMenu.createTitle,Criar Nova Campanha,Create New Campaign
+mainMenu.adventureNamePlaceholder,Nome da aventura...,Adventure name...
+mainMenu.deleteTitle,Excluir Aventura?,Delete Adventure?
+mainMenu.deleteMessage,Esta ação é irreversível e apagará todos os dados desta aventura.,This action cannot be undone and will erase all data from this adventure.
+mainMenu.quit,Sair do Programa,Quit
+adventureCard.settings,Configurações,Settings
+adventureCard.export,Exportar (.zip),Export (.zip)
+adventureCard.sceneCount,{count} Cenas,{count} Scenes
+adventureCard.sceneCount_one,{count} Cena,{count} Scene
+adventureCard.lastModified,Última modificação,Last modified
+editAdventure.saveImageError,Não foi possível salvar a imagem.,Could not save the image.
+editAdventure.processImageError,Erro ao processar imagem.,Failed to process image.
+editAdventure.nameRequired,O nome da aventura é obrigatório.,Adventure name is required.
+editAdventure.cover,Capa,Cover
+editAdventure.removeCover,Remover Capa,Remove Cover
+editAdventure.adventureCover,Capa da Aventura,Adventure Cover
+editAdventure.clickOrDrag,Clique ou arraste,Click or drag
+editAdventure.title,Editar Aventura,Edit Adventure
+editAdventure.subtitle,Personalize os detalhes da sua aventura.,Customize your adventure's details.
+editAdventure.nameLabel,Nome da Aventura,Adventure Name
+common.confirmation,Confirmação,Confirmation
+library.title,Biblioteca de Tokens,Token Library
+scenes.title,Cenas & Mapas,Scenes & Maps
+scenes.newScene,Nova Cena,New Scene
+scenes.createScene,Criar Cena,Create Scene
+scenes.root,Raiz,Root
+scenes.goUp,Subir Nível,Go Up
+scenes.dropToMoveUp,Soltar para Mover Acima,Drop to Move Up
+scenes.empty,Vazio,Empty
+scenes.namePlaceholder,Nome...,Name...
+scenes.deleteFolderQuestion,Excluir Pasta?,Delete Folder?
+scenes.deleteSceneQuestion,Excluir Cena?,Delete Scene?
+scenes.defaultFirstScene,Cena 1,Scene 1
+mapConfig.title,Imagem de Fundo,Background Image
+mapConfig.scale,Escala (%),Scale (%)
+mapConfig.reset,Resetar,Reset
+mapConfig.resetTitle,Resetar para 100%,Reset to 100%
+mapConfig.optimizedNotice,Imagem original ({width}×{height}px) otimizada para melhor desempenho. O tamanho no mapa foi mantido.,Original image ({width}×{height}px) optimized for better performance. Its size on the map was preserved.
+help.title,Comandos,Controls
+help.keys.dragEmpty,Arrastar no vazio,Drag on empty space
+help.keys.middleClickSpace,Botão do meio / Espaço,Middle click / Space
+help.keys.scroll,Scroll,Scroll
+help.keys.touchpadTwoFingers,Touchpad: 2 dedos,Touchpad: 2 fingers
+help.keys.touchpadPinch,Touchpad: pinça,Touchpad: pinch
+help.keys.doubleClick,Clique duplo,Double click
+help.keys.ctrlClick,Ctrl + Clique,Ctrl + Click
+help.panView,Mover a tela,Pan view
+help.zoom,Zoom In / Zoom Out,Zoom in / out
+help.keyboardZoom,Zoom pelo teclado,Keyboard zoom
+help.fullscreen,Tela Cheia,Fullscreen
+help.hideUi,Esconder UI,Hide UI
+help.fitView,Ajustar Tela,Fit view
+help.pin,Criar/Editar Pin,Create/Edit Pin
+help.multiSelect,Seleção Múltipla,Multi-select
+help.copyPaste,Copiar e Colar Tokens,Copy and Paste Tokens
+help.mirror,Espelhar Token,Mirror Token
+help.rotate,Rotacionar Token,Rotate Token
+help.resize,Aumentar/Diminuir Token,Enlarge/Shrink Token
+help.deleteSelection,Excluir Seleção,Delete Selection
+colors.white,Branco,White
+colors.black,Preto,Black
+colors.red,Vermelho,Red
+colors.blue,Azul,Blue
+colors.green,Verde,Green
+colors.yellow,Amarelo,Yellow
+toolbar.select,Modo Seleção,Select Mode
+toolbar.fogOfWar,Fog of War,Fog of War
+toolbar.brush,Pincel,Brush
+toolbar.eraser,Borracha,Eraser
+toolbar.size,Tamanho,Size
+toolbar.noScene,Sem Cena,No Scene
+toolbar.hidePins,Ocultar Pins,Hide Pins
+toolbar.showPins,Mostrar Pins,Show Pins
+toolbar.background,Configurar Fundo,Background Settings
+toolbar.library,Biblioteca,Library
+toolbar.soundboard,Soundboard,Soundboard
+toolbar.dice,Dados,Dice
+toolbar.help,Ajuda,Help
+toolbar.leave,Sair,Leave
+toolbar.leaveAdventureQuestion,Sair da aventura?,Leave the adventure?
+board.gmView,Visão do Mestre,GM View
+board.drawNeedsBackground,É necessário configurar uma imagem de fundo para desenhar!,You need to set a background image to draw!
+pins.addPin,Adicionar Pin,Add Pin
+pins.goToScene,Ir para Cena,Go to Scene
+pins.newPin,Novo Pin,New Pin
+pins.editPin,Editar Pin,Edit Pin
+pins.titleLabel,Título,Title
+pins.description,Descrição (Hover),Description (Hover)
+pins.sceneLink,Link para Cena (Opcional),Link to Scene (Optional)
+pins.none,-- Nenhum --,-- None --
+pins.icon,Ícone,Icon
+pins.color,Cor,Color
+pins.saveChanges,Salvar Alterações,Save Changes
+pins.createPin,Criar Pin,Create Pin
+dice.clickToRemove,Clique para remover,Click to remove
+dice.title,Rolagem de Dados,Dice Roller
+dice.total,Total,Total
+dice.emptyTable,Mesa Vazia,Empty Table
+dice.clearTable,Limpar Mesa,Clear Table
+dice.rolling,ROLANDO...,ROLLING...
+dice.roll,ROLAR,ROLL
+soundboard.defaultPlaylist,Padrão,Default
+soundboard.generalPlaylist,Geral,General
+soundboard.musicTab,MÚSICA,MUSIC
+soundboard.sfxTab,EFEITOS (SFX),EFFECTS (SFX)
+soundboard.selecting,Selecionando...,Selecting...
+soundboard.pause,Pausar,Pause
+soundboard.play,Tocar,Play
+soundboard.dropToAddSfx,Solte para adicionar SFX,Drop to add SFX
+soundboard.add,Adicionar,Add
+soundboard.sfxEmptyHint,Clique em Adicionar ou arraste arquivos de áudio para cá.,Click Add or drag audio files here.
+soundboard.name,Nome,Name
+soundboard.deleteSfxQuestion,Excluir SFX?,Delete SFX?
+soundboard.playing,TOCANDO...,PLAYING...
+soundboard.renameFolder,Renomear Pasta,Rename Folder
+soundboard.deleteFolder,Excluir Pasta,Delete Folder
+soundboard.deleteTrack,Excluir Faixa,Delete Track
+soundboard.soundtrack,Trilha Sonora,Soundtrack
+soundboard.searchTrack,Pesquisar faixa...,Search track...
+soundboard.noMusic,Nenhuma música adicionada.,No music added.
+soundboard.nothingFound,"Nada encontrado para ""{query}""","Nothing found for ""{query}"""
+soundboard.emptyFolder,Pasta vazia.,Empty folder.
+audioLibrary.musicTitle,Biblioteca Musical,Music Library
+audioLibrary.sfxTitle,Biblioteca SFX,SFX Library
+audioLibrary.musicSubtitle,FAIXAS DE ÁUDIO,AUDIO TRACKS
+audioLibrary.sfxSubtitle,EFEITOS SONOROS,SOUND EFFECTS
+audioLibrary.searchMusic,Buscar música...,Search music...
+audioLibrary.searchSfx,Buscar efeito...,Search effect...
+audioLibrary.uploadTitle,Fazer Upload,Upload
+audioLibrary.upload,Upload,Upload
+audioLibrary.emptyList,Lista Vazia,Empty List
+audioLibrary.noFiles,Nenhum arquivo encontrado.,No files found.
+audioLibrary.deleteFileQuestion,Excluir arquivo?,Delete file?
+audioLibrary.recentlyAdded,Recém adicionado,Recently added
+audioLibrary.deleteFile,Excluir arquivo,Delete file
+audioLibrary.selectedCount,{count} itens selecionados,{count} items selected
+audioLibrary.selectedCount_one,{count} item selecionado,{count} item selected
+audioLibrary.addToAdventure,Adicionar na Aventura,Add to Adventure
+audioLibrary.untitledAudio,Áudio Sem Nome,Untitled Audio
+import.invalidFile,Arquivo inválido,Invalid file
+import.invalidGroupFile,Arquivo de grupo inválido,Invalid group file
+import.importedAudio,Importado {id},Imported {id}
+import.importedTrack,Faixa Importada,Imported Track
+import.adventureError,Erro ao importar aventura: {message},Failed to import adventure: {message}
+import.groupError,Erro ao importar grupo.,Failed to import group.
+characters.newCharacter,Novo Personagem,New Character

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useGame } from '../../context/GameContext';
 import { Play, Pause, Volume2, VolumeX, Disc, Music } from 'lucide-react';
+import { useTranslation } from '../../i18n';
 
 const formatTime = (seconds) => {
     if (!seconds || isNaN(seconds)) return "0:00";
@@ -13,6 +14,7 @@ const PlayerBar = () => {
     const { soundboard, playTrack, setMusicVolume } = useGame();
     const { activeTrack } = soundboard;
     const [progress, setProgress] = useState(0);
+    const t = useTranslation();
     const [localVolume, setLocalVolume] = useState((soundboard.masterVolume.music || 0.5) * 100);
     const [isMuted, setIsMuted] = useState(false);
 
@@ -66,7 +68,7 @@ const PlayerBar = () => {
                 
                 <div className="flex flex-col min-w-0">
                     <div className="text-sm font-bold text-white truncate font-rajdhani tracking-wide">
-                        {activeTrack.title || "Selecionando..."}
+                        {activeTrack.title || t('soundboard.selecting')}
                     </div>
                     <div className="text-[10px] text-pink-400 font-mono tracking-wider flex items-center gap-1 opacity-80">
                         <Music size={8} />
@@ -107,7 +109,7 @@ const PlayerBar = () => {
                             : 'bg-white text-black hover:bg-white hover:shadow-[0_0_15px_rgba(256,256,256,0.5)]'
                         }
                     `}
-                    title={activeTrack.isPlaying ? "Pausar" : "Tocar"}
+                    title={activeTrack.isPlaying ? t('soundboard.pause') : t('soundboard.play')}
                 >
                     {activeTrack.isPlaying ? (
                         <Pause size={20} fill="currentColor" />

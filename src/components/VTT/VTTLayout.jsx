@@ -4,6 +4,7 @@ import { Settings, Image as ImageIcon, Box, ArrowLeft, Map, Plus, Trash2, X, Che
 import { imageDB } from '../../context/db';
 import SoundboardWindow from '../Soundboard/SoundboardWindow';
 import DiceWindow from '../DiceRoller/DiceWindow';
+import { useTranslation } from '../../i18n';
 
 const NEON_COLOR = "text-neon-green"; 
 
@@ -121,6 +122,7 @@ const LibraryThumb = React.memo(({ token, onRename, onDelete, moveItem }) => {
     const [src, setSrc] = useState(null);
     const [isRenaming, setIsRenaming] = useState(false);
     const [renameVal, setRenameVal] = useState(token.name || "");
+    const t = useTranslation();
     const [isConfirmingDelete, setIsConfirmingDelete] = useState(false); 
     
     const [isDragOver, setIsDragOver] = useState(false);
@@ -233,7 +235,7 @@ const LibraryThumb = React.memo(({ token, onRename, onDelete, moveItem }) => {
                     <button 
                         onClick={(e) => { e.stopPropagation(); onDelete(token.id); }} 
                         className="p-1 bg-red-600 rounded text-white hover:bg-red-500 transition shadow-lg shadow-red-900/50"
-                        title="Confirmar Exclusão"
+                        title={t('common.confirmDelete')}
                     >
                         <Check size={10} strokeWidth={3}/>
                     </button>
@@ -379,6 +381,7 @@ const AssetDock = ({ isOpen, onClose }) => {
     const [isBreadcrumbActive, setIsBreadcrumbActive] = useState(false);
     
     const tokenInputRef = useRef(null);
+    const t = useTranslation();
     const libraryRef = useRef(null);
 
     useEffect(() => { if (!isOpen) setCurrentFolderId(null); }, [isOpen]);
@@ -436,7 +439,7 @@ const AssetDock = ({ isOpen, onClose }) => {
     });
 
     const currentFolderName = currentFolderId 
-        ? activeAdventure?.tokenLibrary?.find(t => t.id === currentFolderId)?.name || "Pasta"
+        ? activeAdventure?.tokenLibrary?.find(item => item.id === currentFolderId)?.name || t('common.folder')
         : "";
 
     const showBreadcrumb = currentFolderId !== null;
@@ -445,10 +448,10 @@ const AssetDock = ({ isOpen, onClose }) => {
         <WindowWrapper containerRef={libraryRef} className="absolute top-16 right-4 w-[300px] bg-black/90 border border-glass-border backdrop-blur-sm rounded-xl flex flex-col max-h-[60vh] z-40 shadow-2xl animate-in fade-in">
             <div className="p-3 border-b border-glass-border flex justify-between items-center bg-white/5 rounded-t-xl shrink-0 z-20 relative">
                 <h3 className="font-rajdhani font-bold text-white flex items-center gap-2">
-                    Biblioteca de Tokens
+                    {t('library.title')}
                 </h3>
                 <div className="flex gap-1">
-                    <button onClick={() => addFolder("Pasta", currentFolderId)} className="p-1 hover:bg-white/10 rounded text-text-muted hover:text-white" title="Criar Pasta"><FolderPlus size={16}/></button>
+                    <button onClick={() => addFolder(t('common.folder'), currentFolderId)} className="p-1 hover:bg-white/10 rounded text-text-muted hover:text-white" title={t('common.createFolder')}><FolderPlus size={16}/></button>
                 </div>
             </div>
 
@@ -469,7 +472,7 @@ const AssetDock = ({ isOpen, onClose }) => {
                 <div className={`absolute inset-0 flex items-center justify-center bg-black/80 backdrop-blur-sm z-30 transition-opacity duration-200 pointer-events-none ${isBreadcrumbActive ? 'opacity-100' : 'opacity-0'}`}>
                     <div className="flex items-center gap-2 text-neon-green font-bold animate-pulse">
                         <CornerLeftUp size={20} strokeWidth={3} />
-                        <span className="uppercase tracking-widest text-[10px]">Mover para pasta acima</span>
+                        <span className="uppercase tracking-widest text-[10px]">{t('common.moveToParentFolder')}</span>
                     </div>
                 </div>
 
@@ -479,12 +482,12 @@ const AssetDock = ({ isOpen, onClose }) => {
                             setCurrentFolderId(curr?.parentId || null);
                     }}
                     className="p-1.5 bg-white/10 rounded hover:bg-white/20 text-white flex items-center gap-1 transition-colors shrink-0 z-10"
-                    title="Voltar"
+                    title={t('common.back')}
                 >
                     <CornerLeftUp size={14}/>
                 </button>
                 <div className="flex-1 min-w-0 z-10">
-                    <div className="text-[10px] text-text-muted uppercase font-bold leading-none mb-0.5">Pasta Atual</div>
+                    <div className="text-[10px] text-text-muted uppercase font-bold leading-none mb-0.5">{t('common.currentFolder')}</div>
                     <div className="font-mono text-white truncate leading-none">{currentFolderName}</div>
                 </div>
             </div>
@@ -514,6 +517,7 @@ const AssetDock = ({ isOpen, onClose }) => {
 const SceneItem = ({ item, isActive, onSelect, onRename, onDelete, onDuplicate, onMove, onEnterFolder, activeSceneId }) => {
     const [isRenaming, setIsRenaming] = useState(false);
     const [renameVal, setRenameVal] = useState(item.name);
+    const t = useTranslation();
     const [isDeleting, setIsDeleting] = useState(false);
     const [isDragOver, setIsDragOver] = useState(false);
 
@@ -557,7 +561,7 @@ const SceneItem = ({ item, isActive, onSelect, onRename, onDelete, onDuplicate, 
     if (isDeleting) {
         return (
             <div className="h-12 px-2 mb-1 rounded bg-red-900/30 border border-red-500/50 flex justify-between items-center animate-in fade-in select-none">
-                <span className="text-white text-xs font-bold pl-1 truncate">Excluir {isFolder ? 'Pasta' : 'Cena'}?</span>
+                <span className="text-white text-xs font-bold pl-1 truncate">{isFolder ? t('scenes.deleteFolderQuestion') : t('scenes.deleteSceneQuestion')}</span>
                 <div className="flex gap-1 shrink-0 items-center">
                     <button onClick={(e)=>{e.stopPropagation(); setIsDeleting(false);}} className="p-1 rounded bg-black/40 hover:bg-white/20 text-text-muted hover:text-white flex items-center"><ArrowLeft size={14}/></button>
                     <button onClick={(e)=>{e.stopPropagation(); onDelete(item.id);}} className="p-1 rounded bg-red-600 hover:bg-red-500 text-white flex items-center"><Trash2 size={14}/></button>
@@ -588,7 +592,7 @@ const SceneItem = ({ item, isActive, onSelect, onRename, onDelete, onDuplicate, 
                             setRenameVal(item.name); 
                         }} 
                         className="p-1 rounded bg-black/40 hover:bg-white/20 text-text-muted hover:text-white flex items-center"
-                        title="Cancelar"
+                        title={t('common.cancel')}
                     >
                         <ArrowLeft size={14}/>
                     </button>
@@ -599,7 +603,7 @@ const SceneItem = ({ item, isActive, onSelect, onRename, onDelete, onDuplicate, 
                             setIsRenaming(false); 
                         }} 
                         className="p-1 rounded bg-neon-green hover:bg-white text-black flex items-center"
-                        title="Salvar"
+                        title={t('common.save')}
                     >
                         <Check size={14}/>
                     </button>
@@ -647,10 +651,10 @@ const SceneItem = ({ item, isActive, onSelect, onRename, onDelete, onDuplicate, 
 
             <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity items-center absolute right-2 bg-black/60 rounded px-1 backdrop-blur-sm">
                 {!isFolder && (
-                    <button onClick={(e) => { e.stopPropagation(); onDuplicate(item.id); }} className="text-text-muted hover:text-neon-blue p-1.5 flex items-center" title="Duplicar"><Copy size={12}/></button>
+                    <button onClick={(e) => { e.stopPropagation(); onDuplicate(item.id); }} className="text-text-muted hover:text-neon-blue p-1.5 flex items-center" title={t('common.duplicate')}><Copy size={12}/></button>
                 )}
-                <button onClick={(e) => { e.stopPropagation(); setIsRenaming(true); }} className="text-text-muted hover:text-neon-green p-1.5 flex items-center" title="Renomear"><Edit2 size={12}/></button>
-                <button onClick={(e) => { e.stopPropagation(); setIsDeleting(true); }} className="text-text-muted hover:text-red-500 p-1.5 flex items-center" title="Excluir"><Trash2 size={12}/></button>
+                <button onClick={(e) => { e.stopPropagation(); setIsRenaming(true); }} className="text-text-muted hover:text-neon-green p-1.5 flex items-center" title={t('common.rename')}><Edit2 size={12}/></button>
+                <button onClick={(e) => { e.stopPropagation(); setIsDeleting(true); }} className="text-text-muted hover:text-red-500 p-1.5 flex items-center" title={t('common.delete')}><Trash2 size={12}/></button>
             </div>
         </div>
     );
@@ -667,6 +671,7 @@ const SceneSelector = ({ isOpen, currentFolderId, setCurrentFolderId }) => {
     const [newItemName, setNewItemName] = useState("");
 
     const sceneRef = useRef(null);
+    const t = useTranslation();
     
 
     if (!isOpen) return null;
@@ -674,9 +679,9 @@ const SceneSelector = ({ isOpen, currentFolderId, setCurrentFolderId }) => {
     const handleCreate = () => {
         const name = newItemName.trim();
         if (createMode === 'folder') {
-            addSceneFolder(name || "Nova Pasta", currentFolderId);
+            addSceneFolder(name || t('common.newFolder'), currentFolderId);
         } else {
-            addScene(name || "Nova Cena", currentFolderId);
+            addScene(name || t('scenes.newScene'), currentFolderId);
         }
         setNewItemName("");
         setIsCreating(false);
@@ -724,17 +729,17 @@ const SceneSelector = ({ isOpen, currentFolderId, setCurrentFolderId }) => {
     });
 
     const currentFolderName = currentFolderId 
-        ? activeAdventure?.scenes.find(s => s.id === currentFolderId)?.name || "Pasta"
-        : "Raiz";
+        ? activeAdventure?.scenes.find(s => s.id === currentFolderId)?.name || t('common.folder')
+        : t('scenes.root');
 
     return (
         <WindowWrapper containerRef={sceneRef} className="absolute top-16 right-4 w-80 bg-black/90 border border-glass-border backdrop-blur-sm rounded-xl shadow-2xl z-50 overflow-hidden animate-in fade-in flex flex-col max-h-[60vh]">
             
             <div className="p-3 border-b border-glass-border bg-white/5 flex justify-between items-center shrink-0">
-                <h3 className="font-rajdhani font-bold text-white text-sm">Cenas & Mapas</h3>
+                <h3 className="font-rajdhani font-bold text-white text-sm">{t('scenes.title')}</h3>
                 <div className="flex gap-1">
-                     <button onClick={() => { setCreateMode('folder'); setIsCreating(true); }} className="p-1 hover:bg-white/10 rounded text-text-muted hover:text-white" title="Criar Pasta"><FolderPlus size={14}/></button>
-                     <button onClick={() => { setCreateMode('scene'); setIsCreating(true); }} className="p-1 hover:bg-white/10 rounded text-text-muted hover:text-white" title="Criar Cena"><Plus size={14}/></button>
+                     <button onClick={() => { setCreateMode('folder'); setIsCreating(true); }} className="p-1 hover:bg-white/10 rounded text-text-muted hover:text-white" title={t('common.createFolder')}><FolderPlus size={14}/></button>
+                     <button onClick={() => { setCreateMode('scene'); setIsCreating(true); }} className="p-1 hover:bg-white/10 rounded text-text-muted hover:text-white" title={t('scenes.createScene')}><Plus size={14}/></button>
                 </div>
             </div>
             
@@ -743,7 +748,7 @@ const SceneSelector = ({ isOpen, currentFolderId, setCurrentFolderId }) => {
                     <Search size={12} className="text-text-muted"/>
                     <input 
                         className="bg-transparent border-none outline-none text-xs text-white placeholder-text-muted w-full"
-                        placeholder="Pesquisar..."
+                        placeholder={t('common.searchPlaceholder')}
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                     />
@@ -772,17 +777,17 @@ const SceneSelector = ({ isOpen, currentFolderId, setCurrentFolderId }) => {
                             setCurrentFolderId(curr?.parentId || null);
                         }}
                         className="p-1 bg-white/10 rounded hover:bg-white/20 text-white shrink-0"
-                        title="Subir Nível"
+                        title={t('scenes.goUp')}
                     >
                         <CornerLeftUp size={12}/>
                     </button>
                     <div className="flex flex-col min-w-0">
-                        <span className="text-[9px] text-text-muted uppercase leading-none font-bold">Pasta Atual</span>
+                        <span className="text-[9px] text-text-muted uppercase leading-none font-bold">{t('common.currentFolder')}</span>
                         <span className="text-white font-mono truncate font-bold leading-tight">{currentFolderName}</span>
                     </div>
                     {isBreadcrumbActive && (
                         <div className="absolute inset-0 flex items-center justify-center bg-black/60 font-bold text-neon-green text-[10px] uppercase pointer-events-none backdrop-blur-[1px]">
-                            Soltar para Mover Acima
+                            {t('scenes.dropToMoveUp')}
                         </div>
                     )}
                 </div>
@@ -792,7 +797,7 @@ const SceneSelector = ({ isOpen, currentFolderId, setCurrentFolderId }) => {
                 {displayItems.length === 0 && !isCreating && (
                     <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none opacity-40">
                         <Folder size={32} className="text-text-muted mb-2"/>
-                        <p className="text-text-muted italic text-xs">Vazio</p>
+                        <p className="text-text-muted italic text-xs">{t('scenes.empty')}</p>
                     </div>
                 )}
                 
@@ -800,11 +805,11 @@ const SceneSelector = ({ isOpen, currentFolderId, setCurrentFolderId }) => {
                     <div className="p-2 bg-white/5 border border-neon-green/30 rounded mb-2 animate-in fade-in">
                         <div className="flex items-center gap-2 mb-2 text-xs text-neon-green font-bold uppercase">
                             {createMode === 'folder' ? <Folder size={12}/> : <Map size={12}/>}
-                            {createMode === 'folder' ? "Nova Pasta" : "Nova Cena"}
+                            {createMode === 'folder' ? t('common.newFolder') : t('scenes.newScene')}
                         </div>
                         <input 
                             autoFocus 
-                            placeholder="Nome..." 
+                            placeholder={t('scenes.namePlaceholder')} 
                             className="w-full bg-black/50 border border-glass-border rounded px-2 py-1 text-sm text-white mb-2 outline-none focus:border-neon-green" 
                             value={newItemName} 
                             onChange={e => setNewItemName(e.target.value)} 
@@ -814,8 +819,8 @@ const SceneSelector = ({ isOpen, currentFolderId, setCurrentFolderId }) => {
                             }} 
                         />
                         <div className="flex gap-2">
-                            <button onClick={() => setIsCreating(false)} className="flex-1 py-1 text-[10px] text-text-muted hover:text-white bg-white/5 rounded">Cancelar</button>
-                            <button onClick={handleCreate} className="flex-1 py-1 text-[10px] bg-neon-green text-black font-bold rounded hover:bg-white">CRIAR</button>
+                            <button onClick={() => setIsCreating(false)} className="flex-1 py-1 text-[10px] text-text-muted hover:text-white bg-white/5 rounded">{t('common.cancel')}</button>
+                            <button onClick={handleCreate} className="flex-1 py-1 text-[10px] bg-neon-green text-black font-bold rounded hover:bg-white uppercase">{t('common.create')}</button>
                         </div>
                     </div>
                 )}
@@ -845,6 +850,7 @@ const SceneSelector = ({ isOpen, currentFolderId, setCurrentFolderId }) => {
 const MapConfigModal = ({ isOpen, onClose }) => {
     const { activeScene, updateScene, updateSceneMap } = useGame();
     const mapInputRef = useRef(null);
+    const t = useTranslation();
     const mapConfigRef = useRef(null);
     const [localScale, setLocalScale] = useState(100);
 
@@ -861,21 +867,21 @@ const MapConfigModal = ({ isOpen, onClose }) => {
         <WindowWrapper containerRef={mapConfigRef} className="absolute top-16 right-4 w-72 bg-black/90 border border-glass-border backdrop-blur-sm rounded-xl flex flex-col shadow-2xl z-50 animate-in fade-in">
             <div className="p-3 border-b border-glass-border flex justify-between items-center bg-white/5 rounded-t-xl">
                 <h3 className="font-rajdhani font-bold text-white flex items-center gap-2">
-                    Imagem de Fundo
+                    {t('mapConfig.title')}
                 </h3>
             </div>
             <div className="p-4 space-y-4 bg-black/20 rounded-b-xl">
-                <div onClick={() => mapInputRef.current?.click()} className="flex items-center justify-center gap-2 p-3 border border-dashed border-glass-border rounded hover:bg-white/5 cursor-pointer text-sm text-neon-blue transition"><ImageIcon size={16}/> {activeScene?.mapImageId ? "Trocar Imagem" : "Escolher Imagem"}</div>
+                <div onClick={() => mapInputRef.current?.click()} className="flex items-center justify-center gap-2 p-3 border border-dashed border-glass-border rounded hover:bg-white/5 cursor-pointer text-sm text-neon-blue transition"><ImageIcon size={16}/> {activeScene?.mapImageId ? t('common.changeImage') : t('common.chooseImage')}</div>
                 <input ref={mapInputRef} type="file" className="hidden" accept="image/*" onChange={(e) => { const f = e.target.files[0]; if(f) updateSceneMap(activeScene.id, f); e.target.value = ''; }} />
                 {(activeScene?.mapImageId || activeScene?.mapImage) && (
                     <div className="bg-black/20 p-3 rounded border border-white/5">
-                        <div className="flex justify-between items-center mb-2"><label className="text-xs text-text-muted uppercase font-bold">Escala (%)</label><button onClick={() => { setLocalScale(100); updateScene(activeScene.id, { mapScale: 1 }); }} title="Resetar para 100%" className="text-[10px] flex items-center gap-1 text-neon-blue hover:text-white transition"><RotateCcw size={10} /> Resetar</button></div>
+                        <div className="flex justify-between items-center mb-2"><label className="text-xs text-text-muted uppercase font-bold">{t('mapConfig.scale')}</label><button onClick={() => { setLocalScale(100); updateScene(activeScene.id, { mapScale: 1 }); }} title={t('mapConfig.resetTitle')} className="text-[10px] flex items-center gap-1 text-neon-blue hover:text-white transition"><RotateCcw size={10} /> {t('mapConfig.reset')}</button></div>
                         <div className="flex items-center gap-2"><div className="relative flex-1"><input type="number" className="w-full bg-black/50 border border-glass-border rounded-l p-2 text-white text-sm focus:border-neon-green outline-none pr-8 font-mono text-right [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" value={localScale} onChange={(e) => setLocalScale(e.target.value)} onKeyDown={(e) => { if(e.key === 'Enter') handleApplyScale(); }} placeholder="100"/><span className="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted text-xs font-bold pointer-events-none">%</span></div><button onClick={handleApplyScale} className="bg-neon-green text-black p-2 rounded-r font-bold hover:bg-white transition flex items-center justify-center"><Check size={16} /></button></div>
                     </div>
                 )}
                 {activeScene?.mapOriginalSize && (
                     <p className="text-[10px] text-text-muted leading-snug">
-                        Imagem original ({activeScene.mapOriginalSize.width}×{activeScene.mapOriginalSize.height}px) otimizada para melhor desempenho. O tamanho no mapa foi mantido.
+                        {t('mapConfig.optimizedNotice', { width: activeScene.mapOriginalSize.width, height: activeScene.mapOriginalSize.height })}
                     </p>
                 )}
             </div>
@@ -885,32 +891,33 @@ const MapConfigModal = ({ isOpen, onClose }) => {
 
 const HelpWindow = ({ isOpen, onClose }) => {
     const helpRef = useRef(null);
+    const t = useTranslation();
     if (!isOpen) return null;
 
     const shortcuts = [
-        { key: "Arrastar no vazio", desc: "Mover a tela" },
-        { key: "Middle Click / Espaço", desc: "Mover a tela" },
-        { key: "Scroll", desc: "Zoom In / Zoom Out" },
-        { key: "Touchpad: 2 dedos", desc: "Mover a tela" },
-        { key: "Touchpad: pinça", desc: "Zoom In / Zoom Out" },
-        { key: "↑ / ↓", desc: "Zoom pelo teclado" },
-        { key: "F11", desc: "Tela Cheia" },
-        { key: "Tab", desc: "Esconder UI" },
-        { key: "G", desc: "Ajustar Tela" },
-        { key: "Double Click", desc: "Criar/Editar Pin" },
-        { key: "Ctrl + Click", desc: "Seleção Múltipla" },
-        { key: "Ctrl + C / V", desc: "Copiar e Colar Tokens" },
-        { key: "F", desc: "Espelhar Token" },
-        { key: "Q / E", desc: "Rotacionar Token" },
-        { key: "+ / -", desc: "Aumentar/Diminuir Token" },
-        { key: "Backspace", desc: "Excluir Seleção" },
+        { key: t('help.keys.dragEmpty'), desc: t('help.panView') },
+        { key: t('help.keys.middleClickSpace'), desc: t('help.panView') },
+        { key: t('help.keys.scroll'), desc: t('help.zoom') },
+        { key: t('help.keys.touchpadTwoFingers'), desc: t('help.panView') },
+        { key: t('help.keys.touchpadPinch'), desc: t('help.zoom') },
+        { key: "↑ / ↓", desc: t('help.keyboardZoom') },
+        { key: "F11", desc: t('help.fullscreen') },
+        { key: "Tab", desc: t('help.hideUi') },
+        { key: "G", desc: t('help.fitView') },
+        { key: t('help.keys.doubleClick'), desc: t('help.pin') },
+        { key: t('help.keys.ctrlClick'), desc: t('help.multiSelect') },
+        { key: "Ctrl + C / V", desc: t('help.copyPaste') },
+        { key: "F", desc: t('help.mirror') },
+        { key: "Q / E", desc: t('help.rotate') },
+        { key: "+ / -", desc: t('help.resize') },
+        { key: "Backspace", desc: t('help.deleteSelection') },
     ];
 
     return (
         <WindowWrapper containerRef={helpRef} className="absolute top-16 right-4 w-[280px] max-h-[70vh] bg-black/90 border border-glass-border backdrop-blur-sm rounded-xl flex flex-col z-50 shadow-2xl animate-in fade-in">
             <div className="p-3 border-b border-glass-border flex justify-between items-center bg-white/5 rounded-t-xl">
                 <h3 className="font-rajdhani font-bold text-white flex items-center gap-2">
-                    <HelpCircle size={16}/> Comandos
+                    <HelpCircle size={16}/> {t('help.title')}
                 </h3>
             </div>
             <div className="p-4 space-y-3 text-sm overflow-y-auto scrollbar-thin">
@@ -955,6 +962,7 @@ export const VTTLayout = ({ zoomValue, onZoomChange, activeTool, setActiveTool, 
 
   const [confirmModal, setConfirmModal] = useState({ open: false, message: '', onConfirm: null });
   const headerRef = useRef(null);      
+  const t = useTranslation();
 
   const closeAllMenus = useCallback(() => {
       setUiState(prev => {
@@ -998,12 +1006,12 @@ export const VTTLayout = ({ zoomValue, onZoomChange, activeTool, setActiveTool, 
   }, [uiState, closeAllMenus]);
 
   const BRUSH_COLORS = [
-    { hex: '#ffffff', label: 'Branco' },
-    { hex: '#000000', label: 'Preto' },
-    { hex: '#ef4444', label: 'Vermelho' },
-    { hex: '#3b82f6', label: 'Azul' },
-    { hex: '#22c55e', label: 'Verde' },
-    { hex: '#eab308', label: 'Amarelo' },
+    { hex: '#ffffff', label: t('colors.white') },
+    { hex: '#000000', label: t('colors.black') },
+    { hex: '#ef4444', label: t('colors.red') },
+    { hex: '#3b82f6', label: t('colors.blue') },
+    { hex: '#22c55e', label: t('colors.green') },
+    { hex: '#eab308', label: t('colors.yellow') },
   ];
 
   const toggle = (key, e) => {
@@ -1023,11 +1031,11 @@ export const VTTLayout = ({ zoomValue, onZoomChange, activeTool, setActiveTool, 
       return ( 
           <div data-ecos-ui="true" className="absolute inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm pointer-events-auto" onMouseDown={e=>e.stopPropagation()}>
               <div className="bg-ecos-bg border border-glass-border p-6 rounded-xl shadow-2xl max-w-sm w-full mx-4">
-                  <h3 className="text-xl font-bold text-white mb-2">Confirmação</h3>
+                  <h3 className="text-xl font-bold text-white mb-2">{t('common.confirmation')}</h3>
                   <p className="text-text-muted mb-6">{confirmModal.message}</p>
                   <div className="flex gap-3">
-                      <button onClick={()=>setConfirmModal({open:false,message:'',onConfirm:null})} className="flex-1 py-2 bg-glass rounded text-white hover:bg-white/10">Cancelar</button>
-                      <button onClick={()=>{confirmModal.onConfirm();setConfirmModal({open:false,message:'',onConfirm:null})}} className="flex-1 py-2 bg-red-600 rounded text-white font-bold hover:bg-red-500">Confirmar</button>
+                      <button onClick={()=>setConfirmModal({open:false,message:'',onConfirm:null})} className="flex-1 py-2 bg-glass rounded text-white hover:bg-white/10">{t('common.cancel')}</button>
+                      <button onClick={()=>{confirmModal.onConfirm();setConfirmModal({open:false,message:'',onConfirm:null})}} className="flex-1 py-2 bg-red-600 rounded text-white font-bold hover:bg-red-500">{t('common.confirm')}</button>
                   </div>
               </div>
           </div> 
@@ -1057,15 +1065,15 @@ export const VTTLayout = ({ zoomValue, onZoomChange, activeTool, setActiveTool, 
 
               <div className="flex items-center gap-1 p-1.5">
 
-                <button onClick={() => { setActiveTool('select'); closeAllMenus(); }} className={`p-2 rounded hover:bg-white/10 transition ${activeTool === 'select' ? 'bg-white/20 text-neon-green' : 'text-text-muted'}`} title="Modo Seleção"><MousePointer size={18}/></button>
-                <button onClick={() => { setActiveTool('fogOfWar'); closeAllMenus(); }} className={`p-2 rounded hover:bg-white/10 transition ${activeTool === 'fogOfWar' ? 'bg-white/20 text-neon-purple' : 'text-text-muted'}`} title="Fog of War"><Square size={18}/></button>
+                <button onClick={() => { setActiveTool('select'); closeAllMenus(); }} className={`p-2 rounded hover:bg-white/10 transition ${activeTool === 'select' ? 'bg-white/20 text-neon-green' : 'text-text-muted'}`} title={t('toolbar.select')}><MousePointer size={18}/></button>
+                <button onClick={() => { setActiveTool('fogOfWar'); closeAllMenus(); }} className={`p-2 rounded hover:bg-white/10 transition ${activeTool === 'fogOfWar' ? 'bg-white/20 text-neon-purple' : 'text-text-muted'}`} title={t('toolbar.fogOfWar')}><Square size={18}/></button>
 
                 <div className="w-px h-6 bg-glass-border mx-1"></div>
 
                 <button 
                     onClick={() => { setActiveTool('brush'); closeAllMenus(); }} 
                     className={`p-2 rounded hover:bg-white/10 transition ${activeTool === 'brush' ? 'bg-white/20 text-white' : 'text-text-muted'}`} 
-                    title="Pincel"
+                    title={t('toolbar.brush')}
                 >
                     <PenTool size={18}/>
                 </button>
@@ -1073,7 +1081,7 @@ export const VTTLayout = ({ zoomValue, onZoomChange, activeTool, setActiveTool, 
                 <button 
                     onClick={() => { setActiveTool('eraser'); closeAllMenus(); }} 
                     className={`p-2 rounded hover:bg-white/10 transition ${activeTool === 'eraser' ? 'bg-white/20 text-red-400' : 'text-text-muted'}`} 
-                    title="Borracha"
+                    title={t('toolbar.eraser')}
                 >
                     <Eraser size={18}/>
                 </button>
@@ -1104,7 +1112,7 @@ export const VTTLayout = ({ zoomValue, onZoomChange, activeTool, setActiveTool, 
 
                                 <div className="flex items-center gap-2 shrink-0">
                                     <span className="text-[10px] font-bold text-text-muted uppercase tracking-wider whitespace-nowrap">
-                                        {'Tamanho'}
+                                        {t('toolbar.size')}
                                     </span>
                                 </div>
                                 
@@ -1127,31 +1135,31 @@ export const VTTLayout = ({ zoomValue, onZoomChange, activeTool, setActiveTool, 
                             <button onClick={(e) => toggle('menuOpen', e)} className="flex items-center gap-2 px-3 py-1.5 hover:bg-white/10 rounded text-white transition border border-transparent hover:border-glass-border mr-auto">
                                 <Map size={16} className="text-neon-green"/>
                                 <span className="font-rajdhani font-bold uppercase text-sm truncate min-w-[110px] max-w-[110px]">
-                                    {activeScene?.name ? (activeScene.name.length > 15 ? activeScene.name.substring(0, 15) + '...' : activeScene.name) : "Sem Cena"}
+                                    {activeScene?.name ? (activeScene.name.length > 15 ? activeScene.name.substring(0, 15) + '...' : activeScene.name) : t('toolbar.noScene')}
                                 </span>
                                 <ChevronDown size={14} className="text-text-muted"/>
                             </button>
 
                             <div className="w-px h-6 bg-glass-border mx-1"></div>
 
-                            <button onClick={() => toggleAdventurePinVisibility(isGMWindow)} className={`p-2 rounded hover:bg-white/10 transition ${arePinsVisible ? 'text-text-muted' : 'text-text-muted opacity-50'}`} title={arePinsVisible ? "Ocultar Pins" : "Mostrar Pins"}>
+                            <button onClick={() => toggleAdventurePinVisibility(isGMWindow)} className={`p-2 rounded hover:bg-white/10 transition ${arePinsVisible ? 'text-text-muted' : 'text-text-muted opacity-50'}`} title={arePinsVisible ? t('toolbar.hidePins') : t('toolbar.showPins')}>
                                 {arePinsVisible ? <MapPin size={18}/> : <MapPinOff size={18}/>}
                             </button>
 
                             <div className="w-px h-6 bg-glass-border mx-1"></div>
 
-                            <button onClick={(e) => toggle('mapConfigOpen', e)} className={`p-2 rounded hover:bg-white/10 transition ${uiState.mapConfigOpen ? 'text-neon-blue' : 'text-text-muted'}`} title="Configurar Fundo"><ImageIcon size={18}/></button>
-                            <button onClick={(e) => toggle('libraryOpen', e)} className={`p-2 rounded hover:bg-white/10 transition ${uiState.libraryOpen ? 'text-yellow-500' : 'text-text-muted'}`} title="Biblioteca"><Box size={18}/></button>
+                            <button onClick={(e) => toggle('mapConfigOpen', e)} className={`p-2 rounded hover:bg-white/10 transition ${uiState.mapConfigOpen ? 'text-neon-blue' : 'text-text-muted'}`} title={t('toolbar.background')}><ImageIcon size={18}/></button>
+                            <button onClick={(e) => toggle('libraryOpen', e)} className={`p-2 rounded hover:bg-white/10 transition ${uiState.libraryOpen ? 'text-yellow-500' : 'text-text-muted'}`} title={t('toolbar.library')}><Box size={18}/></button>
                             
                             <div className="w-px h-6 bg-glass-border mx-1"></div>
 
-                            <button onClick={(e) => toggle('soundboardOpen', e)} className={`p-2 rounded hover:bg-white/10 transition ${uiState.soundboardOpen ? 'text-pink-500' : 'text-text-muted'}`} title="Soundboard"><Speaker size={18}/></button>
-                            <button onClick={(e) => toggle('diceOpen', e)} className={`p-2 rounded hover:bg-white/10 transition ${uiState.diceOpen ? 'text-neon-purple' : 'text-text-muted'}`} title="Dados"><Dices size={18}/></button>
+                            <button onClick={(e) => toggle('soundboardOpen', e)} className={`p-2 rounded hover:bg-white/10 transition ${uiState.soundboardOpen ? 'text-pink-500' : 'text-text-muted'}`} title={t('toolbar.soundboard')}><Speaker size={18}/></button>
+                            <button onClick={(e) => toggle('diceOpen', e)} className={`p-2 rounded hover:bg-white/10 transition ${uiState.diceOpen ? 'text-neon-purple' : 'text-text-muted'}`} title={t('toolbar.dice')}><Dices size={18}/></button>
 
                             <div className="w-px h-6 bg-glass-border mx-1"></div>
 
-                            <button onClick={(e) => toggle('helpOpen', e)} className={`p-2 rounded hover:bg-white/10 transition ${uiState.helpOpen ? 'text-white' : 'text-text-muted'}`} title="Ajuda"><HelpCircle size={18}/></button>
-                            <button onClick={(e) => { e.stopPropagation(); closeAllMenus(); setConfirmModal({ open: true, message: "Sair da aventura?", onConfirm: () => setActiveAdventureId(null) }); }} className="p-2 rounded hover:bg-red-500/20 text-text-muted hover:text-red-500" title="Sair"><LogOut size={18}/></button>
+                            <button onClick={(e) => toggle('helpOpen', e)} className={`p-2 rounded hover:bg-white/10 transition ${uiState.helpOpen ? 'text-white' : 'text-text-muted'}`} title={t('toolbar.help')}><HelpCircle size={18}/></button>
+                            <button onClick={(e) => { e.stopPropagation(); closeAllMenus(); setConfirmModal({ open: true, message: t('toolbar.leaveAdventureQuestion'), onConfirm: () => setActiveAdventureId(null) }); }} className="p-2 rounded hover:bg-red-500/20 text-text-muted hover:text-red-500" title={t('toolbar.leave')}><LogOut size={18}/></button>
                         </div>
                     )}
                 </div>

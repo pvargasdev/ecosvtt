@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from '../../i18n';
 
 const showSmaller = false;
 
@@ -41,6 +42,7 @@ const D20Icon = ({ className }) => (
 const ICON_MAP = { d4: D4Icon, d6: D6Icon, d8: D8Icon, d10: D10Icon, d12: D12Icon, d20: D20Icon };
 
 export const Die = ({ type, value, isRolling, index, onRemove, isMax, isMin, showResult }) => {
+  const t = useTranslation();
   const IconComponent = ICON_MAP[type] || D6Icon;
   
   const animationDelay = isRolling ? `${index * 0.05}s` : '0s';
@@ -80,7 +82,7 @@ export const Die = ({ type, value, isRolling, index, onRemove, isMax, isMin, sho
       onClick={!isRolling ? onRemove : undefined}
       className={containerClass}
       style={{ animationDelay }}
-      title={!isRolling ? "Clique para remover" : ""}
+      title={!isRolling ? t('dice.clickToRemove') : ""}
     >
       <IconComponent className={iconClass} />
 

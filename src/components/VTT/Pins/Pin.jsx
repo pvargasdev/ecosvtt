@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
+import { useTranslation } from '../../../i18n';
 import { useGame } from '../../../context/GameContext';
 import * as Icons from 'lucide-react';
 
 const Pin = ({ data, viewScale, onMouseDown, onDoubleClick, isGM, isSelected, isGhost = false }) => {
     const { setActiveScene } = useGame();
     const [isHovered, setIsHovered] = useState(false);
+    const t = useTranslation();
 
     const IconComponent = Icons[data.icon] || Icons.MapPin;
     const inverseScale = Math.max(0.5, 1 / (viewScale || 1)); 
@@ -109,7 +111,7 @@ const Pin = ({ data, viewScale, onMouseDown, onDoubleClick, isGM, isSelected, is
                                     onClick={handleLinkClick}
                                     className="w-full py-1.5 bg-neon-blue/20 border border-neon-blue text-neon-blue text-xs font-bold rounded hover:bg-neon-blue hover:text-black transition flex items-center justify-center gap-1 mt-1"
                                 >
-                                    <Icons.ArrowRightCircle size={12} /> Ir para Cena
+                                    <Icons.ArrowRightCircle size={12} /> {t('pins.goToScene')}
                                 </button>
                             )}
                         </div>

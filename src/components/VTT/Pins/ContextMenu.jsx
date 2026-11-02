@@ -1,8 +1,10 @@
 import React, { useEffect, useRef } from 'react';
 import { MapPin } from 'lucide-react';
+import { useTranslation } from '../../../i18n';
 
 const ContextMenu = ({ x, y, onOptionClick, onClose }) => {
     const ref = useRef(null);
+    const t = useTranslation();
 
     useEffect(() => {
         const handleClickOutside = (event) => {
@@ -25,7 +27,7 @@ const ContextMenu = ({ x, y, onOptionClick, onClose }) => {
                 onClick={() => onOptionClick('add_pin')}
                 className="w-full flex items-center gap-2 px-3 py-2 text-sm text-white hover:bg-neon-green/20 hover:text-neon-green rounded text-left transition"
             >
-                <MapPin size={16} /> Adicionar Pin
+                <MapPin size={16} /> {t('pins.addPin')}
             </button>
         </div>
     );

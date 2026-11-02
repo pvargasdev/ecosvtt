@@ -3,7 +3,8 @@ import { imageDB } from './db';
 import { audioDB } from './audioDb'; 
 import JSZip from 'jszip'; 
 import { saveAs } from 'file-saver'; 
-import { getSystemDefaultState } from '../systems'; 
+import { getSystemDefaultState } from '../systems';
+import { translate } from '../i18n'; 
 
 const STORAGE_CHARACTERS_KEY = 'ecos_vtt_chars_v6';
 const STORAGE_ADVENTURES_KEY = 'ecos_vtt_adventures_v3'; 
@@ -459,7 +460,7 @@ export const GameProvider = ({ children }) => {
         pinSettings: { main: true, gm: true }, 
         scenes: [{ 
             id: newSceneId, 
-            name: "Cena 1", 
+            name: translate('scenes.defaultFirstScene'), 
             mapImageId: null, 
             mapScale: 1.0, 
             tokens: [], 
@@ -505,7 +506,7 @@ export const GameProvider = ({ children }) => {
       if (!original) return;
       const copy = JSON.parse(JSON.stringify(original));
       copy.id = generateUUID();
-      copy.name = `${copy.name} (Cópia)`;
+      copy.name = translate('common.copySuffix', { name: copy.name });
       setAdventures(prev => [...prev, copy]);
   }, [adventures]);
 
@@ -599,7 +600,7 @@ export const GameProvider = ({ children }) => {
       try {
           const zip = await JSZip.loadAsync(file);
           const jsonFile = zip.file("adventure.json");
-          if (!jsonFile) throw new Error("Arquivo inválido");
+          if (!jsonFile) throw new Error(translate('import.invalidFile'));
           
           let advData = JSON.parse(await jsonFile.async("string"));
           
@@ -645,7 +646,7 @@ export const GameProvider = ({ children }) => {
                 for (const aud of audiosToProcess) {
                     const blob = await aud.file.async("blob");
                     const meta = audioManifest[aud.id] || {};
-                    const originalName = meta.name || `Importado ${aud.id.substring(0,8)}`;
+                    const originalName = meta.name || translate('import.importedAudio', { id: aud.id.substring(0,8) });
                     const category = meta.category || 'music';
 
                     const uniqueKey = `${originalName}|${blob.size}`;
@@ -670,7 +671,7 @@ export const GameProvider = ({ children }) => {
 
       } catch (e) { 
           console.error(e); 
-          alert("Erro ao importar aventura: " + e.message); 
+          alert(translate('import.adventureError', { message: e.message })); 
       }
   }, []);
 
@@ -695,7 +696,7 @@ export const GameProvider = ({ children }) => {
 
   const addTrackToPlaylist = useCallback(async (playlistId, fileOrId, forcedDuration = 0, parentId = null) => {
       let fileId = fileOrId;
-      let title = "Faixa Importada";
+      let title = translate('import.importedTrack');
       let duration = forcedDuration;
       let originalTitle = ""; 
 
@@ -729,7 +730,7 @@ export const GameProvider = ({ children }) => {
   const addTrackFolder = useCallback((playlistId, name, parentId = null) => {
       const newFolder = {
           id: generateUUID(),
-          title: name || "Nova Pasta",
+          title: name || translate('common.newFolder'),
           type: 'folder',
           parentId: parentId || null,
           duration: 0
@@ -885,7 +886,7 @@ export const GameProvider = ({ children }) => {
       const newId = generateUUID();
       const newScene = { 
           id: newId, 
-          name: name || "Nova Cena", 
+          name: name || translate('scenes.newScene'), 
           type: 'scene',
           parentId: parentId || null,
           mapImageId: null, 
@@ -917,7 +918,7 @@ export const GameProvider = ({ children }) => {
       if (!internalActiveAdventureId) return;
       const newFolder = {
           id: generateUUID(),
-          name: name || "Nova Pasta",
+          name: name || translate('common.newFolder'),
           type: 'folder',
           parentId: parentId || null,
           tokens: [], fogOfWar: [], pins: [] 
@@ -978,7 +979,7 @@ export const GameProvider = ({ children }) => {
           if (!originalScene) return adv; 
           const copy = JSON.parse(JSON.stringify(originalScene)); 
           copy.id = generateUUID(); 
-          copy.name = `${copy.name} (Cópia)`; 
+          copy.name = translate('common.copySuffix', { name: copy.name }); 
           copy.tokens = copy.tokens.map(t => ({ ...t, id: generateUUID() })); 
           copy.fogOfWar = copy.fogOfWar.map(f => ({ ...f, id: generateUUID() })); 
           copy.pins = copy.pins.map(p => ({ ...p, id: generateUUID() })); 
@@ -1116,7 +1117,7 @@ export const GameProvider = ({ children }) => {
 
   const addFolder = useCallback((name, parentId = null) => { 
       if (!internalActiveAdventureId) return; 
-      setAdventures(prev => prev.map(adv => adv.id !== internalActiveAdventureId ? adv : { ...adv, tokenLibrary: [...(adv.tokenLibrary || []), { id: generateUUID(), name: name || "Nova Pasta", type: 'folder', parentId: parentId || null }] })); 
+      setAdventures(prev => prev.map(adv => adv.id !== internalActiveAdventureId ? adv : { ...adv, tokenLibrary: [...(adv.tokenLibrary || []), { id: generateUUID(), name: name || translate('common.newFolder'), type: 'folder', parentId: parentId || null }] })); 
   }, [internalActiveAdventureId]);
 
   const moveLibraryItem = useCallback((itemId, targetFolderId) => { 
@@ -1206,7 +1207,7 @@ export const GameProvider = ({ children }) => {
       const newChar = { 
           id: generateUUID(), 
           systemId: systemId, 
-          name: "Novo Personagem", 
+          name: translate('characters.newCharacter'), 
           photo: null, 
           ...defaults, 
           ...charData 
@@ -1244,7 +1245,7 @@ export const GameProvider = ({ children }) => {
       try { 
           const zip = await JSZip.loadAsync(file); 
           const jsonFile = zip.file("preset.json"); 
-          if (!jsonFile) throw new Error("Arquivo de grupo inválido"); 
+          if (!jsonFile) throw new Error(translate('import.invalidGroupFile')); 
           const presetData = JSON.parse(await jsonFile.async("string")); 
           const imgFolder = zip.folder("images"); 
           if (imgFolder) { 
@@ -1261,7 +1262,7 @@ export const GameProvider = ({ children }) => {
           setPresets(prev => [...prev, newPreset]); 
       } catch (e) { 
           console.error(e); 
-          alert("Erro ao importar grupo."); 
+          alert(translate('import.groupError')); 
       } 
   }, []);
 

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useGame } from '../../context/GameContext';
 import { X, ListMusic, Grid } from 'lucide-react';
+import { useTranslation } from '../../i18n';
 import PlaylistView from './PlaylistView';
 import PlayerBar from './PlayerBar';
 import SFXGrid from './SFXGrid';
@@ -8,12 +9,13 @@ import SFXGrid from './SFXGrid';
 const SoundboardWindow = ({ onClose, containerRef, WindowWrapperComponent, currentFolderId, setCurrentFolderId }) => {
     const { soundboard, addPlaylist } = useGame();
     const [activeTab, setActiveTab] = useState('music');
+    const t = useTranslation();
 
     useEffect(() => {
         if (soundboard.playlists.length === 0) {
-            addPlaylist("Padrão");
+            addPlaylist(t('soundboard.defaultPlaylist'));
         }
-    }, [soundboard.playlists.length, addPlaylist]);
+    }, [soundboard.playlists.length, addPlaylist, t]);
 
     const renderContent = () => {
         if (activeTab === 'music') {
@@ -39,13 +41,13 @@ const SoundboardWindow = ({ onClose, containerRef, WindowWrapperComponent, curre
                         onClick={() => setActiveTab('music')}
                         className={`px-4 py-2 rounded-t-lg text-sm font-bold font-rajdhani flex items-center gap-2 transition-colors ${activeTab === 'music' ? 'bg-white/10 text-white border-t border-x border-white/10' : 'text-text-muted hover:text-white'}`}
                     >
-                        <ListMusic size={14} /> MÚSICA
+                        <ListMusic size={14} /> {t('soundboard.musicTab')}
                     </button>
                     <button 
                         onClick={() => setActiveTab('sfx')}
                         className={`px-4 py-2 rounded-t-lg text-sm font-bold font-rajdhani flex items-center gap-2 transition-colors ${activeTab === 'sfx' ? 'bg-white/10 text-white border-t border-x border-white/10' : 'text-text-muted hover:text-white'}`}
                     >
-                        <Grid size={14} /> EFEITOS (SFX)
+                        <Grid size={14} /> {t('soundboard.sfxTab')}
                     </button>
                 </div>
             </div>
