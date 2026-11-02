@@ -280,3 +280,22 @@ lighting.hints.point,[Clique] no mapa para colocar uma luz pontual | [Arrastar] 
 lighting.hints.spot,[Clique] no mapa para colocar um holofote | depois [arraste a alça amarela] para apontar,[Click] the map to place a spotlight | then [drag the yellow handle] to aim it
 lighting.hints.segmentSelected,Parede selecionada | [Delete] remove | [Arraste] para mover | [Duplo clique no losango] deixa reta,Wall selected | [Delete] removes it | [Drag] to move | [Double click the diamond] to straighten
 lighting.hints.vertexSelected,Ponto selecionado | [Arraste sobre outro ponto] para unir | [Delete] remove (une as paredes vizinhas),Point selected | [Drag onto another point] to join | [Delete] removes it (joins neighbouring walls)
+files.openFile,Abrir arquivo,Open file
+files.openFileTitle,Abrir uma aventura .ecosvtt (ou importar um .zip antigo),Open an .ecosvtt adventure (or import an old .zip)
+files.dropToOpen,Solte para abrir a aventura,Drop to open the adventure
+files.opening,Abrindo...,Opening...
+files.missingTitle,Arquivo da aventura não encontrado,Adventure file not found
+files.locate,Localizar arquivo,Locate file
+files.removeFromList,Remover da lista,Remove from list
+files.saveCopy,Salvar cópia como...,Save copy as...
+files.showInFolder,Mostrar na pasta,Show in folder
+files.removeTitle,Remover aventura da lista?,Remove adventure from the list?
+files.removeMessage,O arquivo .ecosvtt continua no seu computador e pode ser aberto de novo quando quiser.,The .ecosvtt file stays on your computer and can be opened again anytime.
+files.alsoTrash,Também mover o arquivo para a Lixeira,Also move the file to the Recycle Bin
+files.migrated,"{count} aventuras foram convertidas em arquivos .ecosvtt na pasta {folder}","{count} adventures were converted into .ecosvtt files in {folder}"
+files.migrated_one,"1 aventura foi convertida em arquivo .ecosvtt na pasta {folder}","1 adventure was converted into an .ecosvtt file in {folder}"
+files.errors.missing,O arquivo desta aventura não foi encontrado. Use Localizar arquivo para apontar o novo local.,This adventure's file was not found. Use Locate file to point to its new location.
+files.errors.openFailed,Não foi possível abrir o arquivo. Ele pode estar corrompido ou não ser uma aventura do ECOS.,Could not open the file. It may be corrupted or not an ECOS adventure.
+files.errors.createFailed,Não foi possível criar o arquivo da aventura.,Could not create the adventure file.
+files.errors.saveMissing,O arquivo da aventura aberta sumiu do lugar. As alterações não puderam ser salvas.,The open adventure's file was moved or deleted. Changes could not be saved.
+files.errors.saveFailed,Erro ao salvar a aventura no arquivo. Verifique se há espaço e permissão na pasta.,Failed to save the adventure file. Check free space and folder permissions.

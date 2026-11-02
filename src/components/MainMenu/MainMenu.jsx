@@ -55,9 +55,11 @@ const MainMenu = () => {
         adventures = [], 
         createAdventure, setActiveAdventureId, 
         deleteAdventure, updateAdventure, duplicateAdventure, 
-        importAdventure, exportAdventure, 
-        isGMWindow, isGMWindowOpen 
-    } = useGame() || {}; 
+        importAdventure, exportAdventure,
+        isGMWindow, isGMWindowOpen,
+        fileMode, library = [], libraryNotice, setLibraryNotice, autoOpenEntryId, setAutoOpenEntryId,
+        loadAdventureEntry, openAdventureFile, openAdventurePath, relocateAdventure, showAdventureInFolder
+    } = useGame() || {};
     const t = useTranslation();
     const network = useNetwork();
 
@@ -71,15 +73,47 @@ const MainMenu = () => {
     
     const [isExiting, setIsExiting] = useState(false);
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+    const [openingId, setOpeningId] = useState(null);
+    const [trashFile, setTrashFile] = useState(false);
+    const [isDraggingFile, setIsDraggingFile] = useState(false);
     
     const importRef = useRef(null);
 
-    const handleEnterAdventure = (advId) => {
+    const handleEnterAdventure = async (advId) => {
+        if (openingId) return;
+        let targetId = advId;
+        if (fileMode) {
+            // Carrega o arquivo .ecosvtt antes da transição (pode levar alguns segundos
+            // na primeira vez, quando as imagens são extraídas para o cache).
+            setOpeningId(advId);
+            const res = await loadAdventureEntry(advId);
+            setOpeningId(null);
+            if (res?.error) {
+                setAlertMessage(t(res.error === 'missing' ? 'files.errors.missing' : 'files.errors.openFailed'));
+                return;
+            }
+            targetId = res.adventure.id;
+        }
         setIsExiting(true);
         setTimeout(() => {
-            setActiveAdventureId(advId);
+            setActiveAdventureId(targetId);
         }, TRANSITION_DURATION);
     };
+
+    // Avisos vindos do contexto (migração dos dados antigos, falhas de gravação).
+    useEffect(() => {
+        if (!libraryNotice) return;
+        if (libraryNotice.type === 'migration') setAlertMessage(t('files.migrated', { count: libraryNotice.count, folder: libraryNotice.folder }));
+        else if (libraryNotice.key) setAlertMessage(t(libraryNotice.key));
+        setLibraryNotice(null);
+    }, [libraryNotice, setLibraryNotice, t]);
+
+    // Arquivo aberto pelo sistema ("Abrir com"): entra direto na aventura.
+    useEffect(() => {
+        if (!autoOpenEntryId) return;
+        setAutoOpenEntryId(null);
+        handleEnterAdventure(autoOpenEntryId);
+    }, [autoOpenEntryId]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const toggleFullscreen = () => {
         if (!document.fullscreenElement) {
@@ -131,7 +165,8 @@ const MainMenu = () => {
         );
     }
 
-    const filteredAdventures = adventures.filter(adv => {
+    const menuItems = fileMode ? library : adventures;
+    const filteredAdventures = menuItems.filter(adv => {
         if (!adv || !adv.name) return false;
         const normalize = (str) => str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
         return normalize(adv.name).includes(normalize(searchTerm));
@@ -139,9 +174,29 @@ const MainMenu = () => {
 
     const handleCreate = () => {
         const name = newAdvName.trim() || t('mainMenu.defaultAdventureName');
-        if (createAdventure) createAdventure(name);
+        if (createAdventure) Promise.resolve(createAdventure(name)).then(entry => {
+            if (entry?.error) setAlertMessage(t('files.errors.createFailed'));
+        });
         setNewAdvName("");
         setIsCreating(false);
+    };
+
+    // Modo arquivo: um único botão abre .ecosvtt e também importa os .zip antigos.
+    const handleOpenFile = async () => {
+        setImporting(true);
+        try { await openAdventureFile(); }
+        finally { setImporting(false); }
+    };
+
+    const handleFileDrop = async (e) => {
+        e.preventDefault();
+        setIsDraggingFile(false);
+        if (!fileMode) return;
+        const files = [...(e.dataTransfer?.files || [])];
+        for (const file of files) {
+            const filePath = window.electron.adventures.pathForFile(file);
+            if (filePath && /\.(ecosvtt|zip)$/i.test(filePath)) await openAdventurePath(filePath);
+        }
     };
 
     const handleImport = async (e) => {
@@ -154,10 +209,24 @@ const MainMenu = () => {
     };
 
     return (
-        <div className="w-full h-full bg-[#09090b] text-white overflow-hidden flex flex-col relative z-50 font-inter animate-in fade-in duration-700 ease-out">
+        <div
+            className="w-full h-full bg-[#09090b] text-white overflow-hidden flex flex-col relative z-50 font-inter animate-in fade-in duration-700 ease-out"
+            onDragOver={(e) => { if (fileMode && e.dataTransfer?.types?.includes('Files')) { e.preventDefault(); setIsDraggingFile(true); } }}
+            onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) setIsDraggingFile(false); }}
+            onDrop={handleFileDrop}
+        >
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_#1f1f23_0%,_#000000_100%)] opacity-100 pointer-events-none" />
             
             <InternalAlert message={alertMessage} clearAlert={() => setAlertMessage(null)} />
+
+            {fileMode && (
+                <div
+                    className={`absolute inset-0 z-[90] pointer-events-none flex items-center justify-center transition-opacity duration-200 ${isDraggingFile ? 'opacity-100' : 'opacity-0'}`}
+                >
+                    <div className="absolute inset-4 rounded-2xl border-2 border-dashed border-neon-green/60 bg-neon-green/5" />
+                    <span className="relative font-rajdhani font-bold text-2xl uppercase tracking-widest text-neon-green">{t('files.dropToOpen')}</span>
+                </div>
+            )}
 
             <div 
                 className={`fixed inset-0 bg-black z-[9999] pointer-events-none transition-opacity ease-in-out`}
@@ -197,12 +266,13 @@ const MainMenu = () => {
                         </button>
                     )}
 
-                    <button 
-                        onClick={() => importRef.current?.click()}
+                    <button
+                        onClick={() => (fileMode ? handleOpenFile() : importRef.current?.click())}
+                        title={fileMode ? t('files.openFileTitle') : undefined}
                         className="flex items-center gap-2 h-9 px-4 rounded text-xs font-bold text-gray-500 hover:text-white hover:bg-white/5 transition-all"
                     >
                         {importing ? <Loader2 size={14} className="animate-spin text-neon-green"/> : <Import size={14}/>}
-                        <span className="uppercase">{t('mainMenu.import')}</span>
+                        <span className="uppercase">{fileMode ? t('files.openFile') : t('mainMenu.import')}</span>
                     </button>
                     <input ref={importRef} type="file" className="hidden" accept=".zip" onChange={handleImport} />
 
@@ -271,11 +341,17 @@ const MainMenu = () => {
                 {confirmDelete && (
                      <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm pointer-events-auto animate-in fade-in duration-200" onMouseDown={(e) => { e.stopPropagation(); setConfirmDelete(null); }}>
                         <div className="bg-ecos-bg border border-glass-border p-6 rounded-xl shadow-2xl max-w-sm w-full mx-4" onMouseDown={(e) => e.stopPropagation()}>
-                            <h3 className="text-xl font-bold text-white mb-2">{t('mainMenu.deleteTitle')}</h3>
-                            <p className="text-text-muted mb-6">{t('mainMenu.deleteMessage')}</p>
+                            <h3 className="text-xl font-bold text-white mb-2">{fileMode ? t('files.removeTitle') : t('mainMenu.deleteTitle')}</h3>
+                            <p className="text-text-muted mb-4">{fileMode ? t('files.removeMessage') : t('mainMenu.deleteMessage')}</p>
+                            {fileMode && !library.find(e => e.id === confirmDelete)?.missing && (
+                                <label className="flex items-center gap-2 text-sm text-gray-300 mb-6 cursor-pointer select-none">
+                                    <input type="checkbox" checked={trashFile} onChange={e => setTrashFile(e.target.checked)} className="accent-red-500 w-4 h-4" />
+                                    {t('files.alsoTrash')}
+                                </label>
+                            )}
                             <div className="flex gap-3">
                                 <button onClick={() => setConfirmDelete(null)} className="flex-1 py-2 bg-glass rounded text-white hover:bg-white/10 transition-colors">{t('common.cancel')}</button>
-                                <button onClick={() => { deleteAdventure(confirmDelete); setConfirmDelete(null); }} className="flex-1 py-2 bg-red-600 rounded text-white font-bold hover:bg-red-500 transition-colors">{t('common.confirm')}</button>
+                                <button onClick={() => { deleteAdventure(confirmDelete, trashFile); setConfirmDelete(null); setTrashFile(false); }} className="flex-1 py-2 bg-red-600 rounded text-white font-bold hover:bg-red-500 transition-colors">{t('common.confirm')}</button>
                             </div>
                         </div>
                     </div>
@@ -304,6 +380,10 @@ const MainMenu = () => {
                             onDuplicate={() => duplicateAdventure(adv.id)}
                             onDelete={() => setConfirmDelete(adv.id)}
                             onExport={() => exportAdventure(adv.id)}
+                            fileMode={fileMode}
+                            isOpening={openingId === adv.id}
+                            onRelocate={() => relocateAdventure(adv.id)}
+                            onShowInFolder={() => showAdventureInFolder(adv.id)}
                         />
                     ))}
                 </div>

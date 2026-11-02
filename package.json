@@ -53,14 +53,21 @@
     "productName": "ECOS Tabletop",
     "files": [
       "dist/**/*",
-      "electron/**/*"
+      "!dist/win-unpacked/**",
+      "!dist/*.exe",
+      "electron/**/*",
+      "package.json"
     ],
     "directories": {
-      "buildResources": "assets"
+      "buildResources": "assets",
+      "output": "release"
     },
     "win": {
       "target": "portable",
       "icon": "assets/icon.ico"
+    },
+    "portable": {
+      "artifactName": "ECOS Tabletop ${version}.exe"
     }
   }
 }

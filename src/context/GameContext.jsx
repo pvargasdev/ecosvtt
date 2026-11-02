@@ -47,6 +47,18 @@ export const GameProvider = ({ children }) => {
   const crossWindowSyncRef = useRef(true);
   const setCrossWindowSyncEnabled = useCallback((enabled) => { crossWindowSyncRef.current = enabled; }, []);
 
+  // Modo arquivo (Electron): cada aventura vive num arquivo .ecosvtt e o menu
+  // guarda só ponteiros para eles. No navegador continua o armazenamento antigo.
+  const fileApi = !isGMWindow ? window.electron?.adventures : null;
+  const fileMode = !!fileApi;
+  const [library, setLibrary] = useState([]);
+  const [libraryNotice, setLibraryNotice] = useState(null);
+  const [autoOpenEntryId, setAutoOpenEntryId] = useState(null);
+  const activeEntryIdRef = useRef(null);
+  const lastSavedAdventureRef = useRef(null);
+  const saveTimerRef = useRef(null);
+  const pendingFilesRef = useRef([]);
+
   const [brushSize, setBrushSize] = useState(5);
   const [brushColor, setBrushColor] = useState('#ffffffff');
   
@@ -206,7 +218,13 @@ export const GameProvider = ({ children }) => {
       const init = async () => {
           const loadedChars = await loadData(STORAGE_CHARACTERS_KEY) || [];
           const loadedPresets = await loadData(PRESETS_KEY) || [];
-          let loadedAdventures = await loadData(STORAGE_ADVENTURES_KEY) || [];
+          let loadedAdventures = fileMode ? [] : (await loadData(STORAGE_ADVENTURES_KEY) || []);
+          if (fileMode) {
+              const res = await fileApi.list();
+              setLibrary(res.entries || []);
+              if (res.notice) setLibraryNotice({ type: 'migration', ...res.notice });
+              pendingFilesRef.current = res.pendingFiles || [];
+          }
           const loadedSystems = await loadData(STORAGE_CUSTOM_SYSTEMS_KEY) || [];
           
           loadedAdventures = loadedAdventures.map(adv => {
@@ -266,10 +284,121 @@ export const GameProvider = ({ children }) => {
     broadcast('SYNC_CUSTOM_SYSTEMS', customSystems); 
   }, [customSystems, isDataLoaded]);
 
-  useEffect(() => { 
-      saveData(STORAGE_ADVENTURES_KEY, adventures);
+  useEffect(() => {
+      if (!fileMode) saveData(STORAGE_ADVENTURES_KEY, adventures);
       broadcast('SYNC_ADVENTURES', adventures);
   }, [adventures, isDataLoaded]);
+
+  // --- Aventuras em arquivo -------------------------------------------------
+  const refreshLibrary = useCallback(async () => {
+      if (!fileMode) return;
+      const res = await fileApi.list();
+      setLibrary(res.entries || []);
+      if (res.notice) setLibraryNotice({ type: 'migration', ...res.notice });
+  }, [fileMode]);
+
+  // Salva a aventura aberta no seu arquivo. Só a "cauda" do arquivo é reescrita,
+  // então dá para salvar com frequência mesmo em aventuras grandes.
+  const persistActiveAdventure = useCallback(async () => {
+      clearTimeout(saveTimerRef.current);
+      saveTimerRef.current = null;
+      const entryId = activeEntryIdRef.current;
+      const { adventures: advs, activeAdventureId } = stateRef.current;
+      const adv = advs.find(a => a.id === activeAdventureId) || advs[0];
+      if (!fileMode || !entryId || !adv || adv === lastSavedAdventureRef.current) return;
+      lastSavedAdventureRef.current = adv;
+      const clean = adv.soundboard ? { ...adv, soundboard: { ...adv.soundboard, activeTrack: null } } : adv;
+      const res = await fileApi.save(entryId, clean);
+      if (res?.error) setLibraryNotice({ type: 'error', key: res.error === 'missing' ? 'files.errors.saveMissing' : 'files.errors.saveFailed' });
+  }, [fileMode]);
+
+  useEffect(() => {
+      if (!fileMode || !isDataLoaded || !activeEntryIdRef.current) return;
+      clearTimeout(saveTimerRef.current);
+      saveTimerRef.current = setTimeout(persistActiveAdventure, 800);
+  }, [adventures, isDataLoaded, fileMode, persistActiveAdventure]);
+
+  // Ao fechar o programa, termina de salvar antes de a janela sumir.
+  useEffect(() => {
+      if (!fileMode) return;
+      window.electron.onBeforeClose(async () => {
+          try { await persistActiveAdventure(); } finally { window.electron.readyToClose(); }
+      });
+  }, [fileMode, persistActiveAdventure]);
+
+  const normalizeLoadedAdventure = (adv) => ({
+      ...adv,
+      scenes: (adv.scenes || []).map(s => ({ ...s, tokens: s.tokens || [], fogOfWar: s.fogOfWar || [], pins: s.pins || [] })),
+      soundboard: adv.soundboard ? {
+          ...adv.soundboard,
+          activeTrack: null,
+          playlists: (adv.soundboard.playlists || []).map(pl => ({ ...pl, tracks: (pl.tracks || []).map(t => ({ ...t, isPlaying: false })) }))
+      } : { ...defaultSoundboardState }
+  });
+
+  // Carrega o arquivo de uma entrada da biblioteca (sem ainda entrar na aventura).
+  const loadAdventureEntry = useCallback(async (entryId) => {
+      if (!fileMode) return { error: 'invalid' };
+      await persistActiveAdventure();
+      const res = await fileApi.open(entryId);
+      if (res?.error) { await refreshLibrary(); return res; }
+      const adv = normalizeLoadedAdventure(res.adventure);
+      activeEntryIdRef.current = entryId;
+      lastSavedAdventureRef.current = adv;
+      setAdventures([adv]);
+      refreshLibrary();
+      return { adventure: adv };
+  }, [fileMode, persistActiveAdventure, refreshLibrary]);
+
+  const openAdventurePath = useCallback(async (filePath) => {
+      if (!fileMode) return null;
+      const entry = await fileApi.openPath(filePath);
+      await refreshLibrary();
+      if (entry?.error) setLibraryNotice({ type: 'error', key: 'files.errors.openFailed' });
+      return entry;
+  }, [fileMode, refreshLibrary]);
+
+  const openAdventureFile = useCallback(async () => {
+      if (!fileMode) return null;
+      const entry = await fileApi.openFile();
+      await refreshLibrary();
+      if (entry?.error) setLibraryNotice({ type: 'error', key: 'files.errors.openFailed' });
+      return entry;
+  }, [fileMode, refreshLibrary]);
+
+  const relocateAdventure = useCallback(async (entryId) => {
+      const res = await fileApi?.relocate(entryId);
+      await refreshLibrary();
+      if (res?.error) setLibraryNotice({ type: 'error', key: 'files.errors.openFailed' });
+      return res;
+  }, [refreshLibrary]);
+
+  const showAdventureInFolder = useCallback((entryId) => fileApi?.showInFolder(entryId), []);
+
+  // Arquivos podem ser movidos/apagados fora do programa: ao voltar o foco para a
+  // janela, o menu confere de novo quais ainda existem.
+  useEffect(() => {
+      if (!fileMode) return;
+      const onFocus = () => { if (!activeEntryIdRef.current) refreshLibrary(); };
+      window.addEventListener('focus', onFocus);
+      return () => window.removeEventListener('focus', onFocus);
+  }, [fileMode, refreshLibrary]);
+
+  // Arquivos abertos pelo sistema ("Abrir com" / segunda instância) entram na
+  // biblioteca e a aventura é aberta direto.
+  useEffect(() => {
+      if (!fileMode || !isDataLoaded) return;
+      const openFiles = async (files) => {
+          let last = null;
+          for (const f of files) {
+              const entry = await openAdventurePath(f);
+              if (entry && !entry.error) last = entry;
+          }
+          if (last) setAutoOpenEntryId(last.id);
+      };
+      if (pendingFilesRef.current.length) { openFiles(pendingFilesRef.current); pendingFilesRef.current = []; }
+      fileApi.onFilesOpened(openFiles);
+  }, [fileMode, isDataLoaded, openAdventurePath]);
 
   useEffect(() => {
       if (isDataLoaded) broadcast('SYNC_ACTIVE_ADV_ID', internalActiveAdventureId);
@@ -417,6 +546,12 @@ export const GameProvider = ({ children }) => {
              }));
           }
           setInternalActiveAdventureId(null);
+          if (fileMode) {
+              persistActiveAdventure().then(() => {
+                  activeEntryIdRef.current = null;
+                  refreshLibrary();
+              });
+          }
           return;
       }
 
@@ -445,7 +580,7 @@ export const GameProvider = ({ children }) => {
       setInternalActiveAdventureId(adventureId);
       window.dispatchEvent(new CustomEvent('ecos-audio-stop-all'));
 
-  }, [internalActiveAdventureId]);
+  }, [internalActiveAdventureId, fileMode, persistActiveAdventure, refreshLibrary]);
 
   const handleImageUpload = async (file) => {
       if (!file) return null;
@@ -482,8 +617,12 @@ export const GameProvider = ({ children }) => {
         }],
         soundboard: { ...defaultSoundboardState } 
     };
+    if (fileMode) {
+        // Pergunta onde salvar o arquivo .ecosvtt e adiciona o ponteiro ao menu.
+        return fileApi.create(newAdventure).then(async (entry) => { await refreshLibrary(); return entry; });
+    }
     setAdventures(prev => [...prev, newAdventure]);
-  }, []);
+  }, [fileMode, refreshLibrary]);
 
   const toggleAdventurePinVisibility = useCallback((isGM) => {
       if (!internalActiveAdventureId) return;
@@ -504,25 +643,38 @@ export const GameProvider = ({ children }) => {
       }));
   }, [internalActiveAdventureId]);
 
-  const deleteAdventure = useCallback((id) => {
+  const deleteAdventure = useCallback((id, moveFileToTrash = false) => {
+      if (fileMode) {
+          // Remove só o ponteiro; o arquivo vai para a Lixeira apenas se pedido.
+          return fileApi.remove(id, moveFileToTrash).then(refreshLibrary);
+      }
       setAdventures(prev => prev.filter(a => a.id !== id));
       if (internalActiveAdventureId === id) setInternalActiveAdventureId(null);
-  }, [internalActiveAdventureId]);
+  }, [internalActiveAdventureId, fileMode, refreshLibrary]);
 
   const updateAdventure = useCallback((id, updates) => {
+    if (fileMode && id !== internalActiveAdventureId) {
+        // Aventura fechada: a alteração é gravada direto no arquivo dela.
+        return fileApi.updateMeta(id, updates).then(refreshLibrary);
+    }
     setAdventures(prev => prev.map(a => a.id === id ? { ...a, ...updates } : a));
-  }, []);
+  }, [fileMode, internalActiveAdventureId, refreshLibrary]);
 
   const duplicateAdventure = useCallback((id) => {
+      if (fileMode) {
+          const entry = library.find(e => e.id === id);
+          return fileApi.duplicate(id, translate('common.copySuffix', { name: entry?.name || '' })).then(refreshLibrary);
+      }
       const original = adventures.find(a => a.id === id);
       if (!original) return;
       const copy = JSON.parse(JSON.stringify(original));
       copy.id = generateUUID();
       copy.name = translate('common.copySuffix', { name: copy.name });
       setAdventures(prev => [...prev, copy]);
-  }, [adventures]);
+  }, [adventures, fileMode, library, refreshLibrary]);
 
   const exportAdventure = useCallback(async (advId) => {
+      if (fileMode) return fileApi.saveCopy(advId);
       const adv = adventures.find(a => a.id === advId);
       if (!adv) return;
       
@@ -582,7 +734,7 @@ export const GameProvider = ({ children }) => {
       zip.file("audio_manifest.json", JSON.stringify(audioManifest));
       const content = await zip.generateAsync({ type: "blob" });
       saveAs(content, `adventure_${adv.name.replace(/\s+/g, '_')}.zip`);
-  }, [adventures]);
+  }, [adventures, fileMode]);
 
   const remapAdventureAudioIds = (adventureData, idMap) => {
       if (!adventureData.soundboard) return adventureData;
@@ -1337,6 +1489,8 @@ export const GameProvider = ({ children }) => {
     adventures, activeAdventureId: internalActiveAdventureId, activeAdventure, activeScene,
     createAdventure, deleteAdventure, updateAdventure, duplicateAdventure, setActiveAdventureId,
     exportAdventure, importAdventure,
+    fileMode, library, libraryNotice, setLibraryNotice, autoOpenEntryId, setAutoOpenEntryId,
+    loadAdventureEntry, refreshLibrary, openAdventureFile, openAdventurePath, relocateAdventure, showAdventureInFolder,
     soundboard, updateSoundboard, addPlaylist, addTrackToPlaylist, removeTrack, reorderPlaylist, playTrack, stopTrack, setMusicVolume, addTrackFolder, moveTrackItem,
     addSfx, removeSfx, updateSfx, reorderSfx, setSfxMasterVolume, triggerSfxRemote,
     addScene, duplicateScene, updateScene, updateSceneMap, setActiveScene, deleteScene,

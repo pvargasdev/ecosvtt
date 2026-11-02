@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { MoreVertical, Trash2, Copy, Edit2, Image as ImageIcon, Clock, Upload } from 'lucide-react';
+import { MoreVertical, Trash2, Copy, Edit2, Image as ImageIcon, Clock, Upload, FolderOpen, FileWarning, FileSearch, Loader2 } from 'lucide-react';
 import { imageDB } from '../../context/db';
 import { useTranslation, getCurrentLanguage } from '../../i18n';
 
 const NEON_COLOR = "#39ff14";
 
-const AdventureCard = ({ adventure, onPlay, onEdit, onDuplicate, onDelete, onExport }) => {
+const AdventureCard = ({ adventure, onPlay, onEdit, onDuplicate, onDelete, onExport, fileMode = false, onRelocate, onShowInFolder, isOpening = false }) => {
     const [coverUrl, setCoverUrl] = useState(null);
     const [showMenu, setShowMenu] = useState(false);
     const t = useTranslation();
@@ -48,9 +48,34 @@ const AdventureCard = ({ adventure, onPlay, onEdit, onDuplicate, onDelete, onExp
     return (
         <div 
             className="group relative aspect-[3/4] bg-white/5 rounded-xl overflow-hidden hover:shadow-2xl transition-all duration-300 cursor-pointer flex flex-col border border-white/5 hover:border-white/10 hover:-translate-y-1 hover:shadow-neon-green/10"
-            onClick={onPlay}
+            onClick={adventure?.missing || isOpening ? undefined : onPlay}
             onMouseLeave={() => setShowMenu(false)}
+            title={fileMode ? adventure?.path : undefined}
         >
+            {adventure?.missing && (
+                // O arquivo .ecosvtt foi movido ou apagado: o card continua no menu
+                // e permite apontar para o novo local.
+                <div className="absolute inset-0 z-30 bg-black/85 backdrop-blur-[2px] flex flex-col items-center justify-center text-center p-5 gap-3 cursor-default" onClick={e => e.stopPropagation()}>
+                    <FileWarning size={30} className="text-yellow-400" />
+                    <div>
+                        <p className="text-base font-rajdhani font-bold text-white truncate max-w-full">{advName}</p>
+                        <p className="text-[11px] font-bold text-yellow-400 uppercase tracking-wider mt-0.5">{t('files.missingTitle')}</p>
+                        <p className="text-[10px] text-gray-500 mt-1 break-all line-clamp-3">{adventure.path}</p>
+                    </div>
+                    <button onClick={onRelocate} className="flex items-center gap-2 px-4 py-2 rounded bg-neon-green text-black text-[11px] font-bold uppercase tracking-wider hover:bg-white transition">
+                        <FileSearch size={14} /> {t('files.locate')}
+                    </button>
+                    <button onClick={onDelete} className="text-[10px] text-gray-500 hover:text-red-400 uppercase font-bold tracking-wider transition">
+                        {t('files.removeFromList')}
+                    </button>
+                </div>
+            )}
+            {isOpening && (
+                <div className="absolute inset-0 z-30 bg-black/70 flex flex-col items-center justify-center gap-2">
+                    <Loader2 size={28} className="animate-spin text-neon-green" />
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-gray-300">{t('files.opening')}</span>
+                </div>
+            )}
             <div className="flex-1 relative overflow-hidden bg-[#0a0a0c]">
                 {coverUrl ? (
                     <img 
@@ -84,11 +109,16 @@ const AdventureCard = ({ adventure, onPlay, onEdit, onDuplicate, onDelete, onExp
                             <Copy size={14}/> {t('common.duplicate')}
                         </button>
                         <button onClick={(e) => { e.stopPropagation(); onExport(); setShowMenu(false); }} className="w-full text-left px-4 py-2.5 text-xs text-gray-300 hover:bg-white/5 hover:text-white flex items-center gap-3 transition-colors">
-                            <Upload size={14}/> {t('adventureCard.export')}
+                            <Upload size={14}/> {fileMode ? t('files.saveCopy') : t('adventureCard.export')}
                         </button>
+                        {fileMode && (
+                            <button onClick={(e) => { e.stopPropagation(); onShowInFolder(); setShowMenu(false); }} className="w-full text-left px-4 py-2.5 text-xs text-gray-300 hover:bg-white/5 hover:text-white flex items-center gap-3 transition-colors">
+                                <FolderOpen size={14}/> {t('files.showInFolder')}
+                            </button>
+                        )}
                         <div className="h-px bg-white/5 my-1.5"></div>
                         <button onClick={(e) => { e.stopPropagation(); onDelete(); setShowMenu(false); }} className="w-full text-left px-4 py-2.5 text-xs text-red-400 hover:bg-red-500/10 flex items-center gap-3 transition-colors">
-                            <Trash2 size={14}/> {t('common.delete')}
+                            <Trash2 size={14}/> {fileMode ? t('files.removeFromList') : t('common.delete')}
                         </button>
                     </div>
                 )}
@@ -101,7 +131,7 @@ const AdventureCard = ({ adventure, onPlay, onEdit, onDuplicate, onDelete, onExp
                 
                 <div className="flex items-center justify-between text-[11px] text-gray-600 font-bold uppercase tracking-wider group-hover:text-gray-400 transition-colors">
                     <span className="flex items-center gap-1.5">
-                        <ImageIcon size={12} /> {t('adventureCard.sceneCount', { count: adventure?.scenes?.length || 0 })}
+                        <ImageIcon size={12} /> {t('adventureCard.sceneCount', { count: adventure?.sceneCount ?? adventure?.scenes?.length ?? 0 })}
                     </span>
                     {adventure?.updatedAt && (
                         <span className="flex items-center gap-1.5" title={t('adventureCard.lastModified')}>

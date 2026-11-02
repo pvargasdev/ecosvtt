@@ -4,23 +4,24 @@ const fs = require('fs');
 
 Menu.setApplicationMenu(null);
 
-let BASE_PATH;
-let DATA_PATH;
+const adventureStore = require('./adventureStore.cjs');
+const { migrateLegacyData } = require('./migration.cjs');
 
-try {
-    if (app.isPackaged) {
-        BASE_PATH = path.dirname(app.getPath('exe'));
-    } else {
-        BASE_PATH = app.getAppPath();
-    }
-    if (BASE_PATH.includes('app.asar')) throw new Error("Caminho ASAR detectado.");
-    
-    DATA_PATH = path.join(BASE_PATH, 'ecos_data');
-    if (!fs.existsSync(DATA_PATH)) fs.mkdirSync(DATA_PATH, { recursive: true });
-} catch (error) {
-    DATA_PATH = path.join(app.getPath('userData'), 'ecos_data');
-    if (!fs.existsSync(DATA_PATH)) fs.mkdirSync(DATA_PATH, { recursive: true });
-}
+// Dados do usuário ficam em %APPDATA%\ECOS Tabletop (nunca ao lado do .exe), para o
+// executável ser um arquivo único e portátil. As aventuras em si ficam em arquivos
+// .ecosvtt onde o usuário escolher (por padrão, em Documentos).
+const DATA_PATH = app.getPath('userData');
+fs.mkdirSync(DATA_PATH, { recursive: true });
+
+const DATA_PATHS = {
+    userData: DATA_PATH,
+    images: path.join(DATA_PATH, 'images'),
+    audio: path.join(DATA_PATH, 'audio'),
+    audioLibrary: path.join(DATA_PATH, 'audio_library.json'),
+    library: path.join(DATA_PATH, 'library.json'),
+    appState: path.join(DATA_PATH, 'app_state.json'),
+    journal: path.join(DATA_PATH, 'journal')
+};
 
 console.log(`✅ Pasta de dados: ${DATA_PATH}`);
 
@@ -40,21 +41,21 @@ ipcMain.handle('write-json', async (event, key, data) => {
     } catch (e) { return false; }
 });
 
-const IMAGES_PATH = path.join(DATA_PATH, 'images');
+const IMAGES_PATH = DATA_PATHS.images;
 try { if (!fs.existsSync(IMAGES_PATH)) fs.mkdirSync(IMAGES_PATH, { recursive: true }); } catch (e) {}
 
 ipcMain.handle('save-image', async (event, id, buffer) => {
     try { fs.writeFileSync(path.join(IMAGES_PATH, id), Buffer.from(buffer)); return true; } catch (e) { return false; }
 });
 ipcMain.handle('get-image', async (event, id) => {
-    try { const p = path.join(IMAGES_PATH, id); if (fs.existsSync(p)) return fs.readFileSync(p).buffer; } catch (e) {} return null;
+    try { const p = path.join(IMAGES_PATH, id); if (fs.existsSync(p)) { const b = fs.readFileSync(p); return b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength); } } catch (e) {} return null;
 });
 ipcMain.handle('delete-image', async (event, id) => {
     try { const p = path.join(IMAGES_PATH, id); if (fs.existsSync(p)) { fs.unlinkSync(p); return true; } } catch (e) {} return false;
 });
 
-const AUDIO_PATH = path.join(DATA_PATH, 'audio');
-const AUDIO_LIB_PATH = path.join(DATA_PATH, 'audio_library.json');
+const AUDIO_PATH = DATA_PATHS.audio;
+const AUDIO_LIB_PATH = DATA_PATHS.audioLibrary;
 
 try { if (!fs.existsSync(AUDIO_PATH)) fs.mkdirSync(AUDIO_PATH, { recursive: true }); } catch (e) {}
 
@@ -91,7 +92,7 @@ ipcMain.handle('save-audio', async (event, id, buffer, fileName, category) => {
 });
 
 ipcMain.handle('get-audio', async (event, id) => {
-    try { const p = path.join(AUDIO_PATH, id); if (fs.existsSync(p)) return fs.readFileSync(p).buffer; } catch (e) {} return null;
+    try { const p = path.join(AUDIO_PATH, id); if (fs.existsSync(p)) { const b = fs.readFileSync(p); return b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength); } } catch (e) {} return null;
 });
 
 ipcMain.handle('delete-audio', async (event, id) => {
@@ -115,6 +116,30 @@ ipcMain.handle('list-audio', async () => {
 let mainWindow = null;
 let gmWindow = null;
 
+// Arquivos .ecosvtt passados ao abrir o programa ("Abrir com", arrastar no ícone).
+const isAdventureArg = (a) => typeof a === 'string' && /\.(ecosvtt|zip)$/i.test(a) && fs.existsSync(a);
+let pendingFiles = process.argv.slice(1).filter(isAdventureArg);
+const takePendingFiles = () => { const files = pendingFiles; pendingFiles = []; return files; };
+
+const gotInstanceLock = app.requestSingleInstanceLock();
+if (!gotInstanceLock) {
+    app.quit();
+} else {
+    app.on('second-instance', (event, argv) => {
+        const files = argv.slice(1).filter(isAdventureArg);
+        if (mainWindow) {
+            if (mainWindow.isMinimized()) mainWindow.restore();
+            mainWindow.focus();
+            if (files.length) mainWindow.webContents.send('adv:files-opened', files);
+        }
+    });
+}
+
+if (gotInstanceLock) {
+    adventureStore.register(DATA_PATHS, { getPendingFiles: takePendingFiles });
+    migrateLegacyData(DATA_PATHS, adventureStore);
+}
+
 const VITE_DEV_SERVER_URL = 'http://localhost:5173';
 const INDEX_PATH = path.join(app.getAppPath(), 'dist/index.html');
 const PRELOAD_PATH = path.join(app.getAppPath(), 'electron', 'preload.cjs');
@@ -128,6 +153,21 @@ function createWindow() {
 
     if (process.argv[2] === 'electron:start' || process.env.VITE_DEV) mainWindow.loadURL(VITE_DEV_SERVER_URL);
     else mainWindow.loadFile(INDEX_PATH);
+
+    // Antes de fechar, o app termina de salvar a aventura aberta (com limite de tempo).
+    let readyToClose = false;
+    mainWindow.on('close', (event) => {
+        if (readyToClose) return;
+        event.preventDefault();
+        const finish = () => {
+            if (readyToClose) return;
+            readyToClose = true;
+            adventureStore.flushAll().finally(() => { if (mainWindow && !mainWindow.isDestroyed()) mainWindow.close(); });
+        };
+        ipcMain.once('app:ready-to-close', finish);
+        setTimeout(finish, 6000);
+        mainWindow.webContents.send('app:before-close');
+    });
 
     mainWindow.on('closed', () => { mainWindow = null; if (gmWindow) gmWindow.close(); });
 }
@@ -152,6 +192,7 @@ function createGMWindow(startAdventureId) {
 }
 
 ipcMain.handle('open-gm-window', (event, advId) => createGMWindow(advId));
+ipcMain.handle('app:quit', () => { if (mainWindow) mainWindow.close(); else app.quit(); });
 
 ipcMain.on('app-sync', (event, arg) => {
     if (mainWindow && event.sender.id === mainWindow.webContents.id && gmWindow && !gmWindow.isDestroyed()) {
@@ -163,6 +204,7 @@ ipcMain.on('app-sync', (event, arg) => {
 });
 
 app.on('ready', () => {
+    if (!gotInstanceLock) return;
     createWindow();
     app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });
 });
