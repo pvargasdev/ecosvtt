@@ -1,19 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { MousePointer2, Spline, Lightbulb, Flashlight, Sun, Eye, EyeOff, Power } from 'lucide-react';
+import { Move, Spline, Flashlight, Sun, Eye, EyeOff, Contrast } from 'lucide-react';
+import { SegmentedControl, Switch, ToolbarButton, ToolbarDivider, Tooltip } from '../VTT/Toolbar/ToolbarParts';
 import { useTranslation } from '../../i18n';
 import { AMBIENT_PRESETS } from '../../lighting/model';
-
-const ToolButton = ({ active, disabled, onClick, title, children }) => (
-    <button
-        onClick={onClick}
-        disabled={disabled}
-        title={title}
-        className={`p-2 rounded transition ${active ? 'bg-white/20 text-yellow-300' : 'text-text-muted hover:bg-white/10 hover:text-white'} disabled:opacity-30 disabled:pointer-events-none`}
-    >
-        {children}
-    </button>
-);
+import { MODE_ACCENTS } from '../VTT/Toolbar/theme';
 
 // Painel da iluminação base (aberto pelo botão do sol).
 const AmbientPopover = ({ anchorRef, position, lighting, setLighting, onClose }) => {
@@ -42,7 +33,7 @@ const AmbientPopover = ({ anchorRef, position, lighting, setLighting, onClose })
             className="w-64 bg-black/90 border border-glass-border backdrop-blur-sm rounded-xl shadow-2xl z-[60] overflow-hidden animate-in fade-in pointer-events-auto cursor-default"
         >
             <div className="p-3 border-b border-glass-border bg-white/5 flex items-center gap-2">
-                <Sun size={14} className="text-yellow-300" />
+                <Contrast size={14} className="text-yellow-300" />
                 <h3 className="font-rajdhani font-bold text-white text-sm">{t('lighting.ambientTitle')}</h3>
             </div>
             <div className="p-3 space-y-4 bg-black/20">
@@ -83,69 +74,80 @@ const AmbientPopover = ({ anchorRef, position, lighting, setLighting, onClose })
     );
 };
 
-// Conteúdo da barra superior quando o modo de iluminação está ativo.
+const LIGHT_ACCENT = MODE_ACCENTS.lighting;
+
+// Conteúdo da barra contextual do modo de iluminação.
 const LightingToolbar = ({ lighting, setLighting, tool, setTool, previewAsPlayer, setPreviewAsPlayer }) => {
     const t = useTranslation();
     const [ambientOpen, setAmbientOpen] = useState(false);
     const [ambientPos, setAmbientPos] = useState({ top: 0, left: 0 });
-    const sunRef = useRef(null);
+    const ambientRef = useRef(null);
+    const enabled = lighting.enabled;
 
     const toggleAmbient = () => {
-        if (!ambientOpen && sunRef.current) {
-            const rect = sunRef.current.getBoundingClientRect();
+        if (!ambientOpen && ambientRef.current) {
+            const rect = ambientRef.current.getBoundingClientRect();
             setAmbientPos({ top: rect.bottom + 10, left: Math.max(8, Math.min(rect.left - 100, window.innerWidth - 268)) });
         }
         setAmbientOpen(o => !o);
     };
-    const enabled = lighting.enabled;
 
     return (
-        <div className="flex-1 flex items-center gap-1 px-1 w-full">
-            <button
-                onClick={() => setLighting(l => ({ ...l, enabled: !l.enabled }))}
-                className={`flex items-center gap-2 px-3 py-1.5 rounded border text-xs font-bold uppercase tracking-wider transition shrink-0 ${enabled ? 'border-yellow-300/60 bg-yellow-300/10 text-yellow-300' : 'border-glass-border text-text-muted hover:text-white'}`}
+        <div className="flex items-center gap-1">
+            <Switch
+                checked={enabled}
+                onChange={(v) => setLighting(l => ({ ...l, enabled: v }))}
+                label={enabled ? t('lighting.on') : t('lighting.off')}
+                accent={LIGHT_ACCENT}
                 title={enabled ? t('lighting.disableTitle') : t('lighting.enableTitle')}
-            >
-                <Power size={14} /> {enabled ? t('lighting.on') : t('lighting.off')}
-            </button>
-
-            <div className="w-px h-6 bg-glass-border mx-1" />
+            />
 
             {!enabled ? (
-                <span className="text-[11px] text-text-muted px-2 truncate">{t('lighting.offHint')}</span>
+                <>
+                    <ToolbarDivider />
+                    <span className="max-w-[280px] truncate px-2 text-[11px] text-text-muted">{t('lighting.offHint')}</span>
+                </>
             ) : (
                 <>
-                    <ToolButton active={tool === 'select'} onClick={() => setTool('select')} title={t('lighting.tools.select')}><MousePointer2 size={18} /></ToolButton>
-                    <ToolButton active={tool === 'wall'} onClick={() => setTool('wall')} title={t('lighting.tools.wall')}><Spline size={18} /></ToolButton>
-                    <ToolButton active={tool === 'point'} onClick={() => setTool('point')} title={t('lighting.tools.point')}><Lightbulb size={18} /></ToolButton>
-                    <ToolButton active={tool === 'spot'} onClick={() => setTool('spot')} title={t('lighting.tools.spot')}><Flashlight size={18} /></ToolButton>
+                    <ToolbarDivider />
+                    <SegmentedControl
+                        value={tool}
+                        onChange={setTool}
+                        items={[
+                            { id: 'select', icon: Move, label: t('lighting.tools.select'), shortcut: 'V', accent: LIGHT_ACCENT },
+                            { id: 'wall', icon: Spline, label: t('lighting.tools.wall'), shortcut: 'W', accent: '#22d3ee' },
+                            { id: 'point', icon: Sun, label: t('lighting.tools.point'), shortcut: 'L', accent: LIGHT_ACCENT },
+                            { id: 'spot', icon: Flashlight, label: t('lighting.tools.spot'), shortcut: 'H', accent: LIGHT_ACCENT }
+                        ]}
+                    />
 
-                    <div className="w-px h-6 bg-glass-border mx-1" />
-
+                    <ToolbarDivider />
                     <button
-                        ref={sunRef}
+                        ref={ambientRef}
                         onClick={toggleAmbient}
-                        className={`flex items-center gap-2 px-2 py-1.5 rounded transition ${ambientOpen ? 'bg-white/20 text-white' : 'text-text-muted hover:bg-white/10 hover:text-white'}`}
-                        title={t('lighting.ambientTitle')}
+                        aria-pressed={ambientOpen}
+                        className={`group/tip relative flex h-8 items-center gap-2 rounded-md px-2 transition-colors ${ambientOpen ? 'bg-white/15 text-white' : 'text-text-muted hover:bg-white/10 hover:text-white'}`}
                     >
-                        <Sun size={16} className="text-yellow-300" />
-                        <span className="text-xs font-mono font-bold">{Math.round(lighting.ambientLevel * 100)}%</span>
-                        <span className="w-3 h-3 rounded-full border border-white/30" style={{ background: lighting.ambientColor }} />
+                        <Contrast size={16} />
+                        <span className="font-rajdhani text-[13px] font-bold uppercase tracking-wider">{t('lighting.ambientShort')}</span>
+                        <span className="font-mono text-[11px] text-white">{Math.round(lighting.ambientLevel * 100)}%</span>
+                        <span className="h-3 w-3 rounded-full border border-white/30" style={{ background: lighting.ambientColor }} />
+                        <Tooltip label={t('lighting.ambientTitle')} />
                     </button>
 
-                    <div className="ml-auto flex items-center gap-1">
-                        <span className="text-[10px] text-text-muted font-bold uppercase whitespace-nowrap hidden xl:inline">
-                            {t('lighting.stats', { lights: lighting.lights.length, walls: lighting.walls.segments.length })}
-                        </span>
-                        <ToolButton active={previewAsPlayer} onClick={() => setPreviewAsPlayer(p => !p)} title={t('lighting.previewAsPlayer')}>
-                            {previewAsPlayer ? <Eye size={18} /> : <EyeOff size={18} />}
-                        </ToolButton>
-                    </div>
+                    <ToolbarButton
+                        icon={previewAsPlayer ? Eye : EyeOff}
+                        label={t('lighting.previewAsPlayer')}
+                        active={previewAsPlayer}
+                        accent={LIGHT_ACCENT}
+                        onClick={() => setPreviewAsPlayer(p => !p)}
+                        tooltipAlign="right"
+                    />
                 </>
             )}
 
             {ambientOpen && enabled && (
-                <AmbientPopover anchorRef={sunRef} position={ambientPos} lighting={lighting} setLighting={setLighting} onClose={() => setAmbientOpen(false)} />
+                <AmbientPopover anchorRef={ambientRef} position={ambientPos} lighting={lighting} setLighting={setLighting} onClose={() => setAmbientOpen(false)} />
             )}
         </div>
     );

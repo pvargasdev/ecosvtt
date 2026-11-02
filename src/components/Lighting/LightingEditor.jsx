@@ -28,6 +28,10 @@ const LightingEditor = forwardRef(({ lighting, viewScale, tool, setTool, selecti
     const [chain, setChain] = useState(null); // { startId, lastId } ao desenhar paredes
     const dragRef = useRef(null);
     const [isDragging, setIsDragging] = useState(false);
+    // Ferramenta de parede: o ponto é criado ao soltar o botão; arrastar antes de soltar
+    // curva a parede que está sendo desenhada (como puxar uma corda).
+    const pendingWallRef = useRef(null);
+    const [curvePreview, setCurvePreview] = useState(null);
 
     const tol = (px) => px / viewScale;
     const walls = lighting.walls;
@@ -111,9 +115,56 @@ const LightingEditor = forwardRef(({ lighting, viewScale, tool, setTool, selecti
         return true;
     };
 
+    // Controle de uma Bézier quadrática que faz a curva passar pelo ponto p no parâmetro t.
+    const controlThrough = (a, b, p, t) => {
+        const u = 1 - t;
+        return { x: (p.x - u * u * a.x - t * t * b.x) / (2 * u * t), y: (p.y - u * u * a.y - t * t * b.y) / (2 * u * t) };
+    };
+
+    const addWallPoint = (r, bendThrough) => {
+        // O grafo novo é calculado aqui (fora do setState) para os IDs gerados serem estáveis.
+        let w = walls;
+        let id;
+        if (r.kind === 'vertex') id = r.id;
+        else if (r.kind === 'segment') { const res = splitSegment(w, r.segId, r.t); w = res.walls; id = res.vertex.id; }
+        else { const res = addVertex(w, r.x, r.y); w = res.walls; id = res.vertex.id; }
+        if (chain?.lastId && w.vertices.some(v => v.id === chain.lastId) && chain.lastId !== id) {
+            const before = w.segments.length;
+            w = addSegment(w, chain.lastId, id);
+            if (bendThrough && w.segments.length > before) {
+                const segId = w.segments[w.segments.length - 1].id;
+                w = setSegmentCurve(w, segId, bendThrough);
+            }
+        }
+        commit(l => ({ ...l, walls: w }));
+        const closesLoop = !!chain && id === chain.startId && chain.lastId !== chain.startId;
+        if (closesLoop) finishChain();
+        else setChain({ startId: chain?.startId ?? id, lastId: id });
+    };
+
+    // Itens selecionados em formato copiável (coordenadas absolutas, sem IDs).
+    const copySelection = () => {
+        if (selection?.kind === 'light') {
+            const light = lighting.lights.find(l => l.id === selection.id);
+            return light ? { lights: [light], segments: [] } : null;
+        }
+        if (selection?.kind === 'segment') {
+            const seg = walls.segments.find(sg => sg.id === selection.id);
+            const verts = vertexMap(walls);
+            if (!seg) return null;
+            return { lights: [], segments: [{ a: { ...verts.get(seg.a) }, b: { ...verts.get(seg.b) }, c: seg.c ? { ...seg.c } : null }] };
+        }
+        return null;
+    };
+
     useImperativeHandle(ref, () => ({
         // true = o editor tratou o clique (o Board não deve mover a câmera).
         pointerDown(p, e) {
+            if (tool === 'wall') {
+                pendingWallRef.current = { point: resolveWallPoint(p, e.shiftKey), start: p };
+                e.preventDefault();
+                return true;
+            }
             if (tool !== 'select') return false;
             const target = pick(p);
             if (!target) { setSelection(null); return false; }
@@ -134,10 +185,16 @@ const LightingEditor = forwardRef(({ lighting, viewScale, tool, setTool, selecti
                 setSelection({ kind: 'segment', id: target.id });
                 const seg = walls.segments.find(s => s.id === target.id);
                 const verts = vertexMap(walls);
-                startDrag({
-                    kind: 'segment', id: target.id, start: p,
-                    a: { ...verts.get(seg.a) }, b: { ...verts.get(seg.b) }, c: seg.c ? { ...seg.c } : null
-                });
+                if (e.shiftKey) {
+                    // Shift + arrastar: move a parede inteira.
+                    startDrag({
+                        kind: 'segment', id: target.id, start: p,
+                        a: { ...verts.get(seg.a) }, b: { ...verts.get(seg.b) }, c: seg.c ? { ...seg.c } : null
+                    });
+                } else {
+                    // Arrastar a parede a curva no ponto onde ela foi agarrada.
+                    startDrag({ kind: 'bend', id: target.id, t: Math.min(0.85, Math.max(0.15, target.t)) });
+                }
             }
             e.preventDefault();
             return true;
@@ -146,6 +203,12 @@ const LightingEditor = forwardRef(({ lighting, viewScale, tool, setTool, selecti
         pointerMove(p, e) {
             setCursor(p);
             const drag = dragRef.current;
+            const pending = pendingWallRef.current;
+            if (tool === 'wall' && pending) {
+                const moved = Math.hypot(p.x - pending.start.x, p.y - pending.start.y) > tol(5);
+                setCurvePreview(moved && chain?.lastId ? { through: p, end: pending.point } : null);
+                return;
+            }
             if (!drag) {
                 if (tool === 'select') setHover(pick(p));
                 else if (tool === 'wall') {
@@ -175,6 +238,15 @@ const LightingEditor = forwardRef(({ lighting, viewScale, tool, setTool, selecti
                 commit(l => ({ ...l, walls: moveVertex(l.walls, drag.id, target.x, target.y) }));
             } else if (drag.kind === 'curve') {
                 commit(l => ({ ...l, walls: setSegmentCurve(l.walls, drag.id, p) }));
+            } else if (drag.kind === 'bend') {
+                commit(l => {
+                    const verts = vertexMap(l.walls);
+                    return { ...l, walls: { ...l.walls, segments: l.walls.segments.map(sg => {
+                        if (sg.id !== drag.id) return sg;
+                        const a = verts.get(sg.a), b = verts.get(sg.b);
+                        return a && b ? { ...sg, c: controlThrough(a, b, p, drag.t) } : sg;
+                    }) } };
+                });
             } else if (drag.kind === 'segment') {
                 const dx = p.x - drag.start.x, dy = p.y - drag.start.y;
                 commit(l => {
@@ -189,6 +261,14 @@ const LightingEditor = forwardRef(({ lighting, viewScale, tool, setTool, selecti
         },
 
         pointerUp() {
+            const pending = pendingWallRef.current;
+            if (pending) {
+                pendingWallRef.current = null;
+                const bend = curvePreview?.through || null;
+                setCurvePreview(null);
+                addWallPoint(pending.point, bend);
+                return;
+            }
             const drag = dragRef.current;
             if (drag?.kind === 'vertex' && snapTarget?.kind === 'vertex') {
                 const into = snapTarget.id;
@@ -199,7 +279,7 @@ const LightingEditor = forwardRef(({ lighting, viewScale, tool, setTool, selecti
         },
 
         // Clique sem arrastar (as ferramentas de criação usam isso; arrastar move a câmera).
-        click(p, e) {
+        click(p) {
             if (tool === 'point' || tool === 'spot') {
                 const light = createLight(tool, Math.round(p.x), Math.round(p.y));
                 commit(l => ({ ...l, lights: [...l.lights, light] }));
@@ -207,20 +287,6 @@ const LightingEditor = forwardRef(({ lighting, viewScale, tool, setTool, selecti
                 setTool('select');
                 return;
             }
-            if (tool !== 'wall') return;
-
-            // O grafo novo é calculado aqui (fora do setState) para os IDs gerados serem estáveis.
-            const r = resolveWallPoint(p, e.shiftKey);
-            let w = walls;
-            let id;
-            if (r.kind === 'vertex') id = r.id;
-            else if (r.kind === 'segment') { const res = splitSegment(w, r.segId, r.t); w = res.walls; id = res.vertex.id; }
-            else { const res = addVertex(w, r.x, r.y); w = res.walls; id = res.vertex.id; }
-            if (chain?.lastId && w.vertices.some(v => v.id === chain.lastId)) w = addSegment(w, chain.lastId, id);
-            commit(l => ({ ...l, walls: w }));
-            const closesLoop = !!chain && id === chain.startId && chain.lastId !== chain.startId;
-            if (closesLoop) finishChain();
-            else setChain({ startId: chain?.startId ?? id, lastId: id });
         },
 
         doubleClick(p) {
@@ -250,7 +316,11 @@ const LightingEditor = forwardRef(({ lighting, viewScale, tool, setTool, selecti
         },
 
         cancel() { finishChain(); endDrag(); setHover(null); },
-        isDragging: () => !!dragRef.current
+        copySelection,
+        deleteSelection,
+        getCursor: () => cursor,
+        // Inclui o ponto de parede pendente, para o Board repassar o mouseup mesmo fora do tabuleiro.
+        isDragging: () => !!dragRef.current || !!pendingWallRef.current
     }));
 
     // ------------------------------------------------------------------ render
@@ -280,6 +350,8 @@ const LightingEditor = forwardRef(({ lighting, viewScale, tool, setTool, selecti
             {tool === 'select' && walls.segments.map(seg => {
                 const a = verts.get(seg.a), b = verts.get(seg.b);
                 if (!a || !b) return null;
+                const showHandle = isHovered('segment', seg.id) || isHovered('curve', seg.id) || isSelected('segment', seg.id);
+                if (!showHandle) return null;
                 const h = segmentHandle(seg, a, b);
                 const active = isHovered('curve', seg.id) || isSelected('segment', seg.id);
                 const size = px(active ? 5 : 3.5);
@@ -300,7 +372,12 @@ const LightingEditor = forwardRef(({ lighting, viewScale, tool, setTool, selecti
                 );
             })}
 
-            {tool === 'wall' && lastVertex && previewPoint && (
+            {tool === 'wall' && lastVertex && curvePreview && (() => {
+                const { end, through } = curvePreview;
+                const c = { x: 2 * through.x - (lastVertex.x + end.x) / 2, y: 2 * through.y - (lastVertex.y + end.y) / 2 };
+                return <path d={`M${lastVertex.x},${lastVertex.y} Q${c.x},${c.y} ${end.x},${end.y}`} fill="none" stroke={WALL_COLOR} strokeWidth={2.5} strokeDasharray="6 5" vectorEffect="non-scaling-stroke" />;
+            })()}
+            {tool === 'wall' && lastVertex && previewPoint && !curvePreview && (
                 <line x1={lastVertex.x} y1={lastVertex.y} x2={previewPoint.x} y2={previewPoint.y}
                     stroke={WALL_COLOR} strokeWidth={2} strokeDasharray="6 5" vectorEffect="non-scaling-stroke" opacity={0.9} />
             )}

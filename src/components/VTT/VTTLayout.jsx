@@ -1,10 +1,13 @@
 import React, { useState, useRef, useEffect, useCallback, memo } from 'react';
 import { useGame } from '../../context/GameContext';
-import { Settings, Image as ImageIcon, Box, ArrowLeft, Map, Plus, Trash2, X, ChevronDown, LogOut, Edit2, RotateCcw, Check, Search, Square, MousePointer, AlertTriangle, Folder, FolderPlus, CornerLeftUp, Copy, HelpCircle, Import, Speaker, Dices, MapPin, MapPinOff, File as FileIcon, PenTool, Eraser, Lightbulb, } from 'lucide-react';
+import { Settings, Image as ImageIcon, Box, ArrowLeft, Map, Plus, Trash2, X, ChevronDown, LogOut, Edit2, RotateCcw, Check, Search, Square, MousePointer, AlertTriangle, Folder, FolderPlus, CornerLeftUp, Copy, HelpCircle, Import, Speaker, Dices, MapPin, MapPinOff, File as FileIcon, PenTool, Eraser, Lightbulb, MousePointer2, CloudFog, Pencil, } from 'lucide-react';
 import { imageDB } from '../../context/db';
 import SoundboardWindow from '../Soundboard/SoundboardWindow';
 import HostControls from '../Network/HostControls';
 import LightingToolbar from '../Lighting/LightingToolbar';
+import DrawingToolbar from './Toolbar/DrawingToolbar';
+import { SegmentedControl, ToolbarButton, ToolbarDivider, Tooltip, ContextBar } from './Toolbar/ToolbarParts';
+import { MODE_ACCENTS } from './Toolbar/theme';
 import { useNetwork } from '../../network';
 import DiceWindow from '../DiceRoller/DiceWindow';
 import { useTranslation } from '../../i18n';
@@ -909,7 +912,7 @@ const HelpWindow = ({ isOpen, onClose }) => {
         { key: "G", desc: t('help.fitView') },
         { key: t('help.keys.doubleClick'), desc: t('help.pin') },
         { key: t('help.keys.ctrlClick'), desc: t('help.multiSelect') },
-        { key: "Ctrl + C / V", desc: t('help.copyPaste') },
+        { key: "Ctrl + C / V / D", desc: t('help.copyPaste') },
         { key: "F", desc: t('help.mirror') },
         { key: "Q / E", desc: t('help.rotate') },
         { key: "+ / -", desc: t('help.resize') },
@@ -988,6 +991,17 @@ export const VTTLayout = ({ zoomValue, onZoomChange, activeTool, setActiveTool, 
   const isDrawingMode = activeTool === 'brush' || activeTool === 'eraser';
   const isLightingMode = activeTool === 'lighting' && !!lightingControls;
 
+  // Modo atual da barra (cada modo pode ter mais de uma ferramenta, ex.: pincel/borracha).
+  const currentMode = activeTool === 'fogOfWar' ? 'fog' : isDrawingMode ? 'draw' : activeTool === 'lighting' ? 'lighting' : 'select';
+  const lastDrawToolRef = useRef('brush');
+  useEffect(() => { if (isDrawingMode) lastDrawToolRef.current = activeTool; }, [isDrawingMode, activeTool]);
+  const selectMode = (mode) => {
+      const toolByMode = { select: 'select', fog: 'fogOfWar', draw: lastDrawToolRef.current, lighting: 'lighting' };
+      setActiveTool(toolByMode[mode]);
+      closeAllMenus();
+  };
+  const hasContextBar = currentMode !== 'select';
+
   useEffect(() => {
       if (isDrawingMode || isLightingMode) {
           closeAllMenus();
@@ -1057,140 +1071,93 @@ export const VTTLayout = ({ zoomValue, onZoomChange, activeTool, setActiveTool, 
           
           <InternalAlert message={alertMessage} clearAlert={clearAlert} />
 
-          <div 
+          {/* Barra superior: a linha principal é sempre a mesma (botões nunca mudam de
+              lugar) e uma barra contextual aparece logo abaixo com as ferramentas do
+              modo atual (desenho, névoa, iluminação). */}
+          <div
              ref={headerRef}
              data-ecos-ui="true"
-             className={`
-                absolute top-4 right-4 flex items-center bg-black/80 rounded-lg border border-glass-border shadow-lg backdrop-blur-sm pointer-events-auto z-40 overflow-hidden scale-90 origin-top-right transition-all duration-300
-                ${showUI ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-10 pointer-events-none'}
-                cursor-default
-             `}
+             className={`absolute top-4 right-4 z-40 flex flex-col items-end gap-2 scale-90 origin-top-right transition-all duration-300 cursor-default ${showUI ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-10 pointer-events-none'}`}
              onClick={e => e.stopPropagation()} onMouseDown={e => e.stopPropagation()}
           >
-
-
-              <div className="flex items-center gap-1 p-1.5">
-
+              <div className="flex items-center gap-1 rounded-lg border border-glass-border bg-black/80 p-1.5 shadow-lg backdrop-blur-sm pointer-events-auto">
                 {isHost && (
                     <>
                         <HostControls />
-                        <div className="w-px h-6 bg-glass-border mx-1"></div>
+                        <ToolbarDivider />
                     </>
                 )}
 
-                <button onClick={() => { setActiveTool('select'); closeAllMenus(); }} className={`p-2 rounded hover:bg-white/10 transition ${activeTool === 'select' ? 'bg-white/20 text-neon-green' : 'text-text-muted'}`} title={t('toolbar.select')}><MousePointer size={18}/></button>
-                <button onClick={() => { setActiveTool('fogOfWar'); closeAllMenus(); }} className={`p-2 rounded hover:bg-white/10 transition ${activeTool === 'fogOfWar' ? 'bg-white/20 text-neon-purple' : 'text-text-muted'}`} title={t('toolbar.fogOfWar')}><Square size={18}/></button>
+                <SegmentedControl
+                    value={currentMode}
+                    onChange={selectMode}
+                    items={[
+                        { id: 'select', icon: MousePointer2, label: t('toolbar.modes.select'), accent: MODE_ACCENTS.select },
+                        { id: 'fog', icon: CloudFog, label: t('toolbar.modes.fog'), accent: MODE_ACCENTS.fog },
+                        { id: 'draw', icon: Pencil, label: t('toolbar.modes.draw'), accent: MODE_ACCENTS.draw },
+                        { id: 'lighting', icon: Lightbulb, label: t('toolbar.modes.lighting'), accent: MODE_ACCENTS.lighting }
+                    ]}
+                />
 
-                <div className="w-px h-6 bg-glass-border mx-1"></div>
+                <ToolbarDivider />
 
-                <button 
-                    onClick={() => { setActiveTool('brush'); closeAllMenus(); }} 
-                    className={`p-2 rounded hover:bg-white/10 transition ${activeTool === 'brush' ? 'bg-white/20 text-white' : 'text-text-muted'}`} 
-                    title={t('toolbar.brush')}
-                >
-                    <PenTool size={18}/>
-                </button>
-                
-                <button 
-                    onClick={() => { setActiveTool('eraser'); closeAllMenus(); }} 
-                    className={`p-2 rounded hover:bg-white/10 transition ${activeTool === 'eraser' ? 'bg-white/20 text-red-400' : 'text-text-muted'}`} 
-                    title={t('toolbar.eraser')}
-                >
-                    <Eraser size={18}/>
-                </button>
-
-                <button 
-                    onClick={() => { setActiveTool('lighting'); closeAllMenus(); }} 
-                    className={`p-2 rounded hover:bg-white/10 transition ${activeTool === 'lighting' ? 'bg-white/20 text-yellow-300' : 'text-text-muted'}`} 
-                    title={t('toolbar.lighting')}
-                >
-                    <Lightbulb size={18}/>
+                <button onClick={(e) => toggle('menuOpen', e)} aria-pressed={uiState.menuOpen} className={`group/tip relative flex h-9 items-center gap-2 rounded-md px-3 transition-colors ${uiState.menuOpen ? 'bg-white/15 text-white' : 'text-white hover:bg-white/10'}`}>
+                    <Map size={16} className="text-neon-green"/>
+                    <span className="font-rajdhani font-bold uppercase text-sm truncate max-w-[130px]">
+                        {activeScene?.name || t('toolbar.noScene')}
+                    </span>
+                    <ChevronDown size={14} className={`text-text-muted transition-transform ${uiState.menuOpen ? 'rotate-180' : ''}`}/>
+                    <Tooltip label={t('toolbar.scenes')} />
                 </button>
 
-                <div className="w-px h-6 bg-glass-border mx-1"></div>
+                <ToolbarDivider />
 
-                <div className="flex-1 flex items-center min-w-[501px]">
-                    {isLightingMode ? (
-                        <LightingToolbar {...lightingControls} />
-                    ) : isDrawingMode ? (
-                        <div className="flex-1 flex items-center gap-3 px-2 w-full">
-                                
-                                {activeTool === 'brush' && (
-                                    <div className="flex items-center gap-1.5 border-r border-glass-border pr-3 mr-1 shrink-0">
-                                        {BRUSH_COLORS.map((c) => (
-                                            <button
-                                                key={c.hex}
-                                                onClick={() => setBrushColor(c.hex)}
-                                                className={`w-5 h-5 rounded-full border border-white/20 hover:scale-110 transition-all relative flex items-center justify-center ${brushColor === c.hex ? 'ring-2 ring-white scale-110 shadow-[0_0_10px_rgba(255,255,255,0.3)]' : ''}`}
-                                                style={{ backgroundColor: c.hex }}
-                                                title={c.label}
-                                            >
-                                            {brushColor === c.hex && (
-                                                <div className="w-1.5 h-1.5 rounded-full bg-white/50 mix-blend-difference" />
-                                            )}
-                                            </button>
-                                        ))}
-                                    </div>
-                                )}
+                <ToolbarButton icon={ImageIcon} label={t('toolbar.background')} active={uiState.mapConfigOpen} accent="#00d4ff" onClick={(e) => toggle('mapConfigOpen', e)} />
+                <ToolbarButton icon={Box} label={t('toolbar.library')} active={uiState.libraryOpen} accent="#eab308" onClick={(e) => toggle('libraryOpen', e)} />
+                <ToolbarButton icon={Speaker} label={t('toolbar.soundboard')} active={uiState.soundboardOpen} accent="#ec4899" onClick={(e) => toggle('soundboardOpen', e)} />
+                <ToolbarButton icon={Dices} label={t('toolbar.dice')} active={uiState.diceOpen} accent="#d084ff" onClick={(e) => toggle('diceOpen', e)} />
 
-                                <div className="flex items-center gap-2 shrink-0">
-                                    <span className="text-[10px] font-bold text-text-muted uppercase tracking-wider whitespace-nowrap">
-                                        {t('toolbar.size')}
-                                    </span>
-                                </div>
-                                
-                                <input 
-                                  type="range" 
-                                  min="2" 
-                                  max="150" 
-                                  step="2"
-                                  value={brushSize} 
-                                  onChange={(e) => setBrushSize(Number(e.target.value))}
-                                  onMouseDown={() => setIsResizingBrush(true)}
-                                  onMouseUp={() => setIsResizingBrush(false)}
-                                  onTouchStart={() => setIsResizingBrush(true)}
-                                  onTouchEnd={() => setIsResizingBrush(false)}
-                                  className={`h-1.5 bg-white/20 rounded-lg appearance-none cursor-pointer outline-none [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white hover:[&::-webkit-slider-thumb]:bg-white ${activeTool === 'brush' ? 'w-[190px]' : 'w-[344px]'}`}
-                              />
-                        </div>
-                    ) : (
-                        <div className="flex-1 flex items-center justify-end gap-1">
-                            <button onClick={(e) => toggle('menuOpen', e)} className="flex items-center gap-2 px-3 py-1.5 hover:bg-white/10 rounded text-white transition border border-transparent hover:border-glass-border mr-auto">
-                                <Map size={16} className="text-neon-green"/>
-                                <span className="font-rajdhani font-bold uppercase text-sm truncate min-w-[110px] max-w-[110px]">
-                                    {activeScene?.name ? (activeScene.name.length > 15 ? activeScene.name.substring(0, 15) + '...' : activeScene.name) : t('toolbar.noScene')}
-                                </span>
-                                <ChevronDown size={14} className="text-text-muted"/>
-                            </button>
+                <ToolbarDivider />
 
-                            <div className="w-px h-6 bg-glass-border mx-1"></div>
-
-                            <button onClick={() => toggleAdventurePinVisibility(seesAsGM)} className={`p-2 rounded hover:bg-white/10 transition ${arePinsVisible ? 'text-text-muted' : 'text-text-muted opacity-50'}`} title={arePinsVisible ? t('toolbar.hidePins') : t('toolbar.showPins')}>
-                                {arePinsVisible ? <MapPin size={18}/> : <MapPinOff size={18}/>}
-                            </button>
-
-                            <div className="w-px h-6 bg-glass-border mx-1"></div>
-
-                            <button onClick={(e) => toggle('mapConfigOpen', e)} className={`p-2 rounded hover:bg-white/10 transition ${uiState.mapConfigOpen ? 'text-neon-blue' : 'text-text-muted'}`} title={t('toolbar.background')}><ImageIcon size={18}/></button>
-                            <button onClick={(e) => toggle('libraryOpen', e)} className={`p-2 rounded hover:bg-white/10 transition ${uiState.libraryOpen ? 'text-yellow-500' : 'text-text-muted'}`} title={t('toolbar.library')}><Box size={18}/></button>
-                            
-                            <div className="w-px h-6 bg-glass-border mx-1"></div>
-
-                            <button onClick={(e) => toggle('soundboardOpen', e)} className={`p-2 rounded hover:bg-white/10 transition ${uiState.soundboardOpen ? 'text-pink-500' : 'text-text-muted'}`} title={t('toolbar.soundboard')}><Speaker size={18}/></button>
-                            <button onClick={(e) => toggle('diceOpen', e)} className={`p-2 rounded hover:bg-white/10 transition ${uiState.diceOpen ? 'text-neon-purple' : 'text-text-muted'}`} title={t('toolbar.dice')}><Dices size={18}/></button>
-
-                            <div className="w-px h-6 bg-glass-border mx-1"></div>
-
-                            <button onClick={(e) => toggle('helpOpen', e)} className={`p-2 rounded hover:bg-white/10 transition ${uiState.helpOpen ? 'text-white' : 'text-text-muted'}`} title={t('toolbar.help')}><HelpCircle size={18}/></button>
-                            <button onClick={(e) => { e.stopPropagation(); closeAllMenus(); setConfirmModal({ open: true, message: t('toolbar.leaveAdventureQuestion'), onConfirm: () => setActiveAdventureId(null) }); }} className="p-2 rounded hover:bg-red-500/20 text-text-muted hover:text-red-500" title={t('toolbar.leave')}><LogOut size={18}/></button>
-                        </div>
-                    )}
-                </div>
+                <ToolbarButton icon={arePinsVisible ? MapPin : MapPinOff} label={arePinsVisible ? t('toolbar.hidePins') : t('toolbar.showPins')} onClick={() => toggleAdventurePinVisibility(seesAsGM)} />
+                <ToolbarButton icon={HelpCircle} label={t('toolbar.help')} active={uiState.helpOpen} onClick={(e) => toggle('helpOpen', e)} tooltipAlign="right" />
+                <ToolbarButton icon={LogOut} label={t('toolbar.leave')} danger tooltipAlign="right" onClick={(e) => { e.stopPropagation(); closeAllMenus(); setConfirmModal({ open: true, message: t('toolbar.leaveAdventureQuestion'), onConfirm: () => setActiveAdventureId(null) }); }} />
               </div>
+
+              {currentMode === 'draw' && (
+                  <div className="pointer-events-auto">
+                      <ContextBar accent={MODE_ACCENTS.draw} icon={Pencil} title={t('toolbar.modes.draw')}>
+                          <DrawingToolbar
+                              activeTool={activeTool}
+                              setActiveTool={setActiveTool}
+                              brushColor={brushColor}
+                              setBrushColor={setBrushColor}
+                              brushSize={brushSize}
+                              setBrushSize={setBrushSize}
+                              setIsResizingBrush={setIsResizingBrush}
+                              colors={BRUSH_COLORS}
+                          />
+                      </ContextBar>
+                  </div>
+              )}
+              {currentMode === 'fog' && (
+                  <div className="pointer-events-auto">
+                      <ContextBar accent={MODE_ACCENTS.fog} icon={CloudFog} title={t('toolbar.modes.fog')}>
+                          <span className="px-2 text-[11px] text-text-muted">{t('toolbar.fogHint')}</span>
+                      </ContextBar>
+                  </div>
+              )}
+              {currentMode === 'lighting' && isLightingMode && (
+                  <div className="pointer-events-auto">
+                      <ContextBar accent={MODE_ACCENTS.lighting} icon={Lightbulb} title={t('toolbar.modes.lighting')}>
+                          <LightingToolbar {...lightingControls} />
+                      </ContextBar>
+                  </div>
+              )}
           </div>
 
           {showUI && (
-            <>
+            <div className="absolute inset-0 pointer-events-none transition-transform duration-200" style={{ transform: hasContextBar ? 'translateY(52px)' : 'none' }}>
               <MapConfigModal isOpen={uiState.mapConfigOpen} onClose={() => setUiState(p => ({...p, mapConfigOpen: false}))} />
               <AssetDock isOpen={uiState.libraryOpen} onClose={() => setUiState(p => ({...p, libraryOpen: false}))} />
               
@@ -1210,9 +1177,9 @@ export const VTTLayout = ({ zoomValue, onZoomChange, activeTool, setActiveTool, 
                   />
               )}
               {uiState.diceOpen && <DiceWindow onClose={() => setUiState(p => ({...p, diceOpen: false}))} WindowWrapperComponent={WindowWrapper} />}
-              <ConfirmationModal />
-            </>
+            </div>
           )}
+          {showUI && <ConfirmationModal />}
       </div>
   );
 };

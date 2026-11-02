@@ -48,7 +48,7 @@ const LightPropertiesPanel = ({ light, setLighting, onSelect, onClose }) => {
         <div
             data-ecos-window="true"
             data-ecos-ui="true"
-            className="absolute top-16 right-4 w-72 bg-black/90 border border-glass-border backdrop-blur-sm rounded-xl shadow-2xl z-50 pointer-events-auto cursor-default animate-in fade-in flex flex-col max-h-[calc(100vh-6rem)]"
+            className="absolute top-[7.5rem] right-4 w-72 bg-black/90 border border-glass-border backdrop-blur-sm rounded-xl shadow-2xl z-50 pointer-events-auto cursor-default animate-in fade-in flex flex-col max-h-[calc(100vh-9rem)]"
             onMouseDown={e => e.stopPropagation()}
             onWheel={e => e.stopPropagation()}
         >

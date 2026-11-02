@@ -17,7 +17,9 @@ import LightingLayer from '../Lighting/LightingLayer';
 import LightingEditor from '../Lighting/LightingEditor';
 import LightPropertiesPanel from '../Lighting/LightPropertiesPanel';
 import LightingHints from '../Lighting/LightingHints';
+import WallPanel from '../Lighting/WallPanel';
 import { getLighting } from '../../lighting/model';
+import { newId as newLightingId } from '../../lighting/geometry';
 
 const MIN_SCALE = 0.1;
 const MAX_SCALE = 5.0;
@@ -31,6 +33,15 @@ const DRAW_MAX_DIMENSION = 4096; // resolução máxima da camada de desenho
 const TOKEN_BASE_SIZE = 70;
 
 const clamp = (v, min, max) => Math.min(Math.max(v, min), max);
+
+// Só campos onde se digita texto devem "engolir" atalhos (Delete, Ctrl+C...).
+// Controles como sliders e seletores de cor continuam deixando os atalhos passarem.
+const TEXT_INPUT_TYPES = new Set(['text', 'number', 'search', 'email', 'password', 'url', 'tel']);
+const isTypingTarget = (el) => {
+    if (!el) return false;
+    if (el.isContentEditable || el.tagName === 'TEXTAREA') return true;
+    return el.tagName === 'INPUT' && TEXT_INPUT_TYPES.has((el.type || 'text').toLowerCase());
+};
 
 // Chromium não diferencia mouse de touchpad no evento wheel, então usamos heurística:
 // roda do mouse gera deltas em múltiplos de 120 (wheelDelta) sem eixo X; touchpad gera
@@ -80,7 +91,7 @@ const Board = ({ showUI }) => {
 
   const cursorRef = useRef(null);
   
-  const clipboardRef = useRef([]);
+  const clipboardRef = useRef(null); // { tokens, fogs, pins, lights, segments }
   const mousePosRef = useRef({ x: 0, y: 0 });
   const isMouseOverRef = useRef(false);
 
@@ -430,9 +441,95 @@ const Board = ({ showUI }) => {
     }, 50);
   };
 
+  // --- área de transferência ------------------------------------------------
+  // No modo de luz copia a luz/parede selecionada; nos outros modos, os tokens,
+  // áreas de névoa e pins selecionados.
+  const collectClipboard = () => {
+      if (!activeScene) return null;
+      if (activeTool === 'lighting') return lightingEditorRef.current?.copySelection() || null;
+      const tokens = activeScene.tokens.filter(t => selectedIds.has(t.id));
+      const fogs = (activeScene.fogOfWar || []).filter(f => selectedFogIds.has(f.id));
+      const pins = (activeScene.pins || []).filter(p => selectedPinIds.has(p.id));
+      if (!tokens.length && !fogs.length && !pins.length) return null;
+      return { tokens, fogs, pins };
+  };
+
+  // Onde colar: sob o mouse (se estiver sobre o tabuleiro) ou no centro da tela.
+  const pasteTarget = () => {
+      const node = containerRef.current;
+      if (!node) return { x: 0, y: 0 };
+      const rect = node.getBoundingClientRect();
+      const sx = isMouseOverRef.current ? mousePosRef.current.x - rect.left : rect.width / 2;
+      const sy = isMouseOverRef.current ? mousePosRef.current.y - rect.top : rect.height / 2;
+      return { x: (sx - targetViewRef.current.x) / targetViewRef.current.scale, y: (sy - targetViewRef.current.y) / targetViewRef.current.scale };
+  };
+
+  // Cola os itens mantendo a disposição entre eles. `at`: centro de destino;
+  // `offset`: deslocamento a partir da posição original (usado no Ctrl+D).
+  const pasteClipboard = (data, at, offset = null) => {
+      if (!activeScene) return;
+      const points = [
+          ...(data.tokens || []).map(t => ({ x: t.x, y: t.y })),
+          ...(data.fogs || []).map(f => ({ x: f.x + f.width / 2, y: f.y + f.height / 2 })),
+          ...(data.pins || []).map(p => ({ x: p.x, y: p.y })),
+          ...(data.lights || []).map(l => ({ x: l.x, y: l.y })),
+          ...(data.segments || []).map(sg => ({ x: (sg.a.x + sg.b.x) / 2, y: (sg.a.y + sg.b.y) / 2 }))
+      ];
+      if (!points.length) return;
+      const cx = points.reduce((sum, pt) => sum + pt.x, 0) / points.length;
+      const cy = points.reduce((sum, pt) => sum + pt.y, 0) / points.length;
+      const dx = offset ? offset.x : at.x - cx;
+      const dy = offset ? offset.y : at.y - cy;
+
+      const withoutId = (item) => { const { id: _ID, ...rest } = item; return rest; };
+      (data.tokens || []).map(withoutId).forEach(t => addTokenInstance(activeScene.id, { ...t, x: t.x + dx, y: t.y + dy }));
+      (data.fogs || []).map(withoutId).forEach(f => addFogArea(activeScene.id, { ...f, x: f.x + dx, y: f.y + dy }));
+      (data.pins || []).map(withoutId).forEach(pin => addPin(activeScene.id, { ...pin, x: pin.x + dx, y: pin.y + dy }));
+
+      if ((data.lights || []).length || (data.segments || []).length) {
+          // IDs gerados fora do setState para serem estáveis.
+          const lights = (data.lights || []).map(l => ({ ...l, id: newLightingId(), x: l.x + dx, y: l.y + dy }));
+          const vertices = [];
+          const segments = (data.segments || []).map(sg => {
+              const a = { id: newLightingId(), x: sg.a.x + dx, y: sg.a.y + dy };
+              const b = { id: newLightingId(), x: sg.b.x + dx, y: sg.b.y + dy };
+              vertices.push(a, b);
+              return { id: newLightingId(), a: a.id, b: b.id, ...(sg.c ? { c: { x: sg.c.x + dx, y: sg.c.y + dy } } : {}) };
+          });
+          updateSceneLighting(activeScene.id, l => ({
+              ...l,
+              lights: [...l.lights, ...lights],
+              walls: { vertices: [...l.walls.vertices, ...vertices], segments: [...l.walls.segments, ...segments] }
+          }));
+          if (lights.length === 1 && !segments.length) setLightSelection({ kind: 'light', id: lights[0].id });
+          else if (segments.length === 1 && !lights.length) setLightSelection({ kind: 'segment', id: segments[0].id });
+      }
+  };
+
   useEffect(() => {
     const handleKeyDown = (e) => {
-        if (['INPUT', 'TEXTAREA', 'CONTENTEDITABLE'].includes(document.activeElement?.tagName)) return;
+        if (isTypingTarget(document.activeElement)) return;
+
+        // Copiar/colar vale para tudo (tokens, névoa, pins, luzes e paredes), não só tokens.
+        const ctrl = e.ctrlKey || e.metaKey;
+        const lowerKey = e.key.toLowerCase();
+        if (ctrl && !isPlayer && activeScene && ['c', 'v', 'd'].includes(lowerKey)) {
+            if (lowerKey === 'c') {
+                const data = collectClipboard();
+                if (data) { clipboardRef.current = data; e.preventDefault(); }
+                return;
+            }
+            if (lowerKey === 'v') {
+                if (clipboardRef.current) { e.preventDefault(); pasteClipboard(clipboardRef.current, pasteTarget()); }
+                return;
+            }
+            if (lowerKey === 'd') {
+                const data = collectClipboard();
+                if (data) { e.preventDefault(); pasteClipboard(data, null, { x: 40, y: 40 }); }
+                return;
+            }
+        }
+
         if (activeTool === 'lighting' && lightingEditorRef.current?.keyDown(e)) { e.preventDefault(); return; }
         
         if (e.code === 'Space' && !e.repeat) setIsSpacePressed(true);
@@ -525,10 +622,6 @@ const Board = ({ showUI }) => {
                 setSelectedIds(new Set());
             }
 
-            if ((e.ctrlKey || e.metaKey) && key === 'c') {
-                const tokensToCopy = activeScene.tokens.filter(t => selectedIds.has(t.id));
-                if (tokensToCopy.length > 0) clipboardRef.current = tokensToCopy;
-            }
         }
 
         if ((key === 'delete' || key === 'backspace')) {
@@ -542,32 +635,6 @@ const Board = ({ showUI }) => {
             }
         }
 
-        if ((e.ctrlKey || e.metaKey) && key === 'v') {
-            if (clipboardRef.current.length > 0 && activeScene) {
-                if (isMouseOverRef.current && containerRef.current) {
-                    const rect = containerRef.current.getBoundingClientRect();
-                    const mouseX = mousePosRef.current.x - rect.left;
-                    const mouseY = mousePosRef.current.y - rect.top;
-                    const worldMouseX = (mouseX - targetViewRef.current.x) / targetViewRef.current.scale;
-                    const worldMouseY = (mouseY - targetViewRef.current.y) / targetViewRef.current.scale;
-
-                    let sumX = 0, sumY = 0;
-                    clipboardRef.current.forEach(t => { sumX += t.x; sumY += t.y; });
-                    const centerX = sumX / clipboardRef.current.length;
-                    const centerY = sumY / clipboardRef.current.length;
-
-                    clipboardRef.current.forEach(token => {
-                        const { id, ...tokenData } = token;
-                        addTokenInstance(activeScene.id, {
-                            ...tokenData,
-                            x: worldMouseX + (tokenData.x - centerX),
-                            y: worldMouseY + (tokenData.y - centerY)
-                        });
-                    });
-                }
-            }
-        }
-
         if (['arrowup', 'arrowdown'].includes(key) && !e.repeat) {
             e.preventDefault();
             zoomKeyRef.current = key === 'arrowup' ? 1 : -1;
@@ -577,7 +644,7 @@ const Board = ({ showUI }) => {
     };
 
     const handleKeyUp = (e) => {
-        if (['INPUT', 'TEXTAREA'].includes(document.activeElement?.tagName)) return;
+        if (isTypingTarget(document.activeElement)) return;
         if (e.code === 'Space') setIsSpacePressed(false);
         if (['ArrowUp', 'ArrowDown'].includes(e.key)) { zoomKeyRef.current = 0; zoomSpeedRef.current = 0.01; }
     };
@@ -1209,6 +1276,15 @@ const Board = ({ showUI }) => {
                 } : null}
             />}
             {isLightingMode && sceneLighting.enabled && <LightingHints tool={lightTool} selection={lightSelection} visible={showUI} />}
+            {isLightingMode && showUI && (lightSelection?.kind === 'segment' || lightSelection?.kind === 'vertex') && (
+                <WallPanel
+                    lighting={sceneLighting}
+                    selection={lightSelection}
+                    setLighting={commitLighting}
+                    onSelect={setLightSelection}
+                    onCopy={() => { const data = lightingEditorRef.current?.copySelection(); if (data) pasteClipboard(data, null, { x: 40, y: 40 }); }}
+                />
+            )}
             {isLightingMode && selectedLight && showUI && (
                 <LightPropertiesPanel light={selectedLight} setLighting={commitLighting} onSelect={setLightSelection} onClose={() => setLightSelection(null)} />
             )}
