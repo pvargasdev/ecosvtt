@@ -858,11 +858,13 @@ const MapConfigModal = ({ isOpen, onClose }) => {
     };
 
     return (
-        <WindowWrapper containerRef={mapConfigRef} className="absolute top-16 right-4 bg-black/85 border border-glass-border backdrop-blur-sm p-4 rounded-xl shadow-2xl z-50 w-72 animate-in fade-in">
-            <div className="flex justify-between items-center mb-4">
-                <h3 className="font-rajdhani font-bold text-white">Imagem de Fundo</h3>
+        <WindowWrapper containerRef={mapConfigRef} className="absolute top-16 right-4 w-72 bg-black/90 border border-glass-border backdrop-blur-sm rounded-xl flex flex-col shadow-2xl z-50 animate-in fade-in">
+            <div className="p-3 border-b border-glass-border flex justify-between items-center bg-white/5 rounded-t-xl">
+                <h3 className="font-rajdhani font-bold text-white flex items-center gap-2">
+                    Imagem de Fundo
+                </h3>
             </div>
-            <div className="space-y-4">
+            <div className="p-4 space-y-4 bg-black/20 rounded-b-xl">
                 <div onClick={() => mapInputRef.current?.click()} className="flex items-center justify-center gap-2 p-3 border border-dashed border-glass-border rounded hover:bg-white/5 cursor-pointer text-sm text-neon-blue transition"><ImageIcon size={16}/> {activeScene?.mapImageId ? "Trocar Imagem" : "Escolher Imagem"}</div>
                 <input ref={mapInputRef} type="file" className="hidden" accept="image/*" onChange={(e) => { const f = e.target.files[0]; if(f) updateSceneMap(activeScene.id, f); e.target.value = ''; }} />
                 {(activeScene?.mapImageId || activeScene?.mapImage) && (
@@ -870,6 +872,11 @@ const MapConfigModal = ({ isOpen, onClose }) => {
                         <div className="flex justify-between items-center mb-2"><label className="text-xs text-text-muted uppercase font-bold">Escala (%)</label><button onClick={() => { setLocalScale(100); updateScene(activeScene.id, { mapScale: 1 }); }} title="Resetar para 100%" className="text-[10px] flex items-center gap-1 text-neon-blue hover:text-white transition"><RotateCcw size={10} /> Resetar</button></div>
                         <div className="flex items-center gap-2"><div className="relative flex-1"><input type="number" className="w-full bg-black/50 border border-glass-border rounded-l p-2 text-white text-sm focus:border-neon-green outline-none pr-8 font-mono text-right [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" value={localScale} onChange={(e) => setLocalScale(e.target.value)} onKeyDown={(e) => { if(e.key === 'Enter') handleApplyScale(); }} placeholder="100"/><span className="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted text-xs font-bold pointer-events-none">%</span></div><button onClick={handleApplyScale} className="bg-neon-green text-black p-2 rounded-r font-bold hover:bg-white transition flex items-center justify-center"><Check size={16} /></button></div>
                     </div>
+                )}
+                {activeScene?.mapOriginalSize && (
+                    <p className="text-[10px] text-text-muted leading-snug">
+                        Imagem original ({activeScene.mapOriginalSize.width}×{activeScene.mapOriginalSize.height}px) otimizada para melhor desempenho. O tamanho no mapa foi mantido.
+                    </p>
                 )}
             </div>
         </WindowWrapper>
@@ -881,8 +888,12 @@ const HelpWindow = ({ isOpen, onClose }) => {
     if (!isOpen) return null;
 
     const shortcuts = [
-        { key: "Middle Click", desc: "Mover a tela" },
+        { key: "Arrastar no vazio", desc: "Mover a tela" },
+        { key: "Middle Click / Espaço", desc: "Mover a tela" },
         { key: "Scroll", desc: "Zoom In / Zoom Out" },
+        { key: "Touchpad: 2 dedos", desc: "Mover a tela" },
+        { key: "Touchpad: pinça", desc: "Zoom In / Zoom Out" },
+        { key: "↑ / ↓", desc: "Zoom pelo teclado" },
         { key: "F11", desc: "Tela Cheia" },
         { key: "Tab", desc: "Esconder UI" },
         { key: "G", desc: "Ajustar Tela" },
@@ -896,7 +907,7 @@ const HelpWindow = ({ isOpen, onClose }) => {
     ];
 
     return (
-        <WindowWrapper containerRef={helpRef} className="absolute top-16 right-4 w-[280px] bg-black/90 border border-glass-border backdrop-blur-sm rounded-xl flex flex-col z-50 shadow-2xl animate-in fade-in">
+        <WindowWrapper containerRef={helpRef} className="absolute top-16 right-4 w-[280px] max-h-[70vh] bg-black/90 border border-glass-border backdrop-blur-sm rounded-xl flex flex-col z-50 shadow-2xl animate-in fade-in">
             <div className="p-3 border-b border-glass-border flex justify-between items-center bg-white/5 rounded-t-xl">
                 <h3 className="font-rajdhani font-bold text-white flex items-center gap-2">
                     <HelpCircle size={16}/> Comandos

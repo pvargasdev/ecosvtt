@@ -993,14 +993,21 @@ export const GameProvider = ({ children }) => {
           const currentScene = currentAdv?.scenes.find(s => s.id === sceneId);
           const oldImageId = currentScene?.mapImageId;
           const oldThumbId = currentScene?.mapThumbnailId;
-          const newImageId = await handleImageUpload(file); 
-          const newThumbBlob = await imageDB.generateThumbnail(file);
+          const optimized = await imageDB.optimizeMapImage(file);
+          const newImageId = await handleImageUpload(optimized.blob);
+          const newThumbBlob = await imageDB.generateThumbnail(optimized.blob);
           const newThumbId = await handleImageUpload(newThumbBlob);
-          setAdventures(prev => prev.map(adv => 
-              adv.id !== internalActiveAdventureId ? adv : { 
-                  ...adv, 
-                  scenes: adv.scenes.map(s => 
-                      s.id === sceneId ? { ...s, mapImageId: newImageId, mapThumbnailId: newThumbId } : s
+          setAdventures(prev => prev.map(adv =>
+              adv.id !== internalActiveAdventureId ? adv : {
+                  ...adv,
+                  scenes: adv.scenes.map(s =>
+                      s.id === sceneId ? {
+                          ...s,
+                          mapImageId: newImageId,
+                          mapThumbnailId: newThumbId,
+                          mapResolutionScale: optimized.resolutionScale,
+                          mapOriginalSize: optimized.originalWidth ? { width: optimized.originalWidth, height: optimized.originalHeight } : null
+                      } : s
                   ) 
               }
           )); 

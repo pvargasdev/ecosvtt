@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useLayoutEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useLayoutEffect, useCallback, useMemo } from 'react';
 import { useGame } from '../../context/GameContext';
 import Token from './Token';
 import { VTTLayout } from './VTTLayout';
@@ -13,9 +13,26 @@ import MainMenu from '../../components/MainMenu/MainMenu';
 
 const MIN_SCALE = 0.1;
 const MAX_SCALE = 5.0;
-const PAN_LIMIT = 3000; 
-const CAMERA_SMOOTHING = 0.2; 
-const ZOOM_SPEED_FACTOR = 0.001; 
+const PAN_LIMIT = 3000; // área navegável quando a cena não tem mapa
+const PAN_PADDING = 200; // folga (em px do mundo) ao redor do conteúdo da cena
+const CAMERA_SMOOTHING = 0.2;
+const ZOOM_SPEED_FACTOR = 0.001;
+const PINCH_ZOOM_SPEED = 0.02;
+const TRACKPAD_GESTURE_GAP = 150; // ms sem eventos de wheel para considerar um novo gesto
+const DRAW_MAX_DIMENSION = 4096; // resolução máxima da camada de desenho
+const TOKEN_BASE_SIZE = 70;
+
+const clamp = (v, min, max) => Math.min(Math.max(v, min), max);
+
+// Chromium não diferencia mouse de touchpad no evento wheel, então usamos heurística:
+// roda do mouse gera deltas em múltiplos de 120 (wheelDelta) sem eixo X; touchpad gera
+// deltas pequenos/fracionados e frequentemente com X.
+const looksLikeTrackpad = (e) => {
+    if (e.deltaMode !== 0) return false;
+    if (e.deltaX !== 0) return true;
+    if (typeof e.wheelDeltaY === 'number' && e.wheelDeltaY !== 0) return Math.abs(e.wheelDeltaY) % 120 !== 0;
+    return !Number.isInteger(e.deltaY);
+};
 
 const TOKEN_ROTATION_STEP = 30; 
 const FADE_DURATION = 600; 
@@ -43,6 +60,11 @@ const Board = ({ showUI }) => {
 
   const canvasRef = useRef(null);
   const isDrawingRef = useRef(false);
+  const drawRatioRef = useRef(1); // resolução da camada de desenho / resolução da imagem
+  const lastSavedLayerRef = useRef(null);
+
+  const boundsRef = useRef(null);
+  const wheelGestureRef = useRef({ lastTime: 0, isTrackpad: false });
 
   const cursorRef = useRef(null);
   
@@ -80,6 +102,7 @@ const Board = ({ showUI }) => {
   const [isSpacePressed, setIsSpacePressed] = useState(false);
   
   const [mapParams, setMapParams] = useState({ url: null, id: null });
+  const [mapSize, setMapSize] = useState({ url: null, w: 0, h: 0 });
 
   const [contextMenu, setContextMenu] = useState(null);
   const [pinModal, setPinModal] = useState({ open: false, data: null, position: { x: 0, y: 0 } });
@@ -106,15 +129,67 @@ const Board = ({ showUI }) => {
       ? (isGMWindow ? activeAdventure.pinSettings.gm : activeAdventure.pinSettings.main)
       : true;
       
+  // Escala final do mapa no mundo: escala escolhida pelo usuário × compensação da
+  // redução de resolução aplicada na importação de imagens muito grandes.
+  const effectiveMapScale = (displayScene?.mapScale || 1) * (displayScene?.mapResolutionScale || 1);
+  const hasMapSize = mapParams.url && mapSize.url === mapParams.url && mapSize.w > 0;
+
+  // Converte coordenadas da tela para coordenadas em pixels da imagem do mapa.
   const getCanvasCoordinates = (e) => {
       if (!containerRef.current) return { x: 0, y: 0 };
       const rect = containerRef.current.getBoundingClientRect();
-      
+
       return {
-          x: (e.clientX - rect.left - view.x) / view.scale,
-          y: (e.clientY - rect.top - view.y) / view.scale
+          x: (e.clientX - rect.left - view.x) / view.scale / effectiveMapScale,
+          y: (e.clientY - rect.top - view.y) / view.scale / effectiveMapScale
       };
   };
+
+  const contentBounds = useMemo(() => {
+      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+      const extend = (x1, y1, x2, y2) => {
+          minX = Math.min(minX, x1); minY = Math.min(minY, y1);
+          maxX = Math.max(maxX, x2); maxY = Math.max(maxY, y2);
+      };
+
+      if (hasMapSize) extend(0, 0, mapSize.w * effectiveMapScale, mapSize.h * effectiveMapScale);
+      else extend(-PAN_LIMIT, -PAN_LIMIT, PAN_LIMIT, PAN_LIMIT);
+
+      displayScene?.tokens?.forEach(t => {
+          const size = TOKEN_BASE_SIZE * (t.scale || 1);
+          extend(t.x, t.y, t.x + size, t.y + size);
+      });
+      displayScene?.pins?.forEach(p => extend(p.x, p.y, p.x, p.y));
+      displayScene?.fogOfWar?.forEach(f => extend(f.x, f.y, f.x + f.width, f.y + f.height));
+
+      return { minX: minX - PAN_PADDING, minY: minY - PAN_PADDING, maxX: maxX + PAN_PADDING, maxY: maxY + PAN_PADDING };
+  }, [hasMapSize, mapSize.w, mapSize.h, effectiveMapScale, displayScene?.tokens, displayScene?.pins, displayScene?.fogOfWar]);
+
+  useLayoutEffect(() => { boundsRef.current = contentBounds; }, [contentBounds]);
+
+  // Mantém o centro da tela dentro dos limites do conteúdo. Assim qualquer borda do mapa
+  // (por maior que seja) pode ser trazida até o meio da tela, sem deixar a câmera se perder.
+  const clampView = useCallback((v) => {
+      const node = containerRef.current;
+      const b = boundsRef.current;
+      if (!node || !b) return v;
+      const halfW = node.clientWidth / 2;
+      const halfH = node.clientHeight / 2;
+      return {
+          scale: v.scale,
+          x: clamp(v.x, halfW - b.maxX * v.scale, halfW - b.minX * v.scale),
+          y: clamp(v.y, halfH - b.maxY * v.scale, halfH - b.minY * v.scale)
+      };
+  }, []);
+
+  // Permite afastar o suficiente para ver o conteúdo inteiro, mesmo em mapas gigantes.
+  const getMinScale = useCallback(() => {
+      const node = containerRef.current;
+      const b = boundsRef.current;
+      if (!node || !b) return MIN_SCALE;
+      const fit = Math.min(node.clientWidth / (b.maxX - b.minX), node.clientHeight / (b.maxY - b.minY));
+      return Math.min(MIN_SCALE, fit * 0.9);
+  }, []);
 
   const forceSetView = (newView) => {
       setView(newView);
@@ -124,29 +199,40 @@ const Board = ({ showUI }) => {
   };
 
   useEffect(() => {
+      const url = mapParams.url;
+      return () => { if (url && url.startsWith('blob:')) URL.revokeObjectURL(url); };
+  }, [mapParams.url]);
+
+  useEffect(() => {
       const canvas = canvasRef.current;
-      if (!canvas || !mapParams.url) return;
+      if (!canvas || !hasMapSize) return;
       if (isDrawingRef.current) return;
 
-      const bgImg = new Image();
-      bgImg.src = mapParams.url;
-      
-      bgImg.onload = () => {
-          canvas.width = bgImg.naturalWidth;
-          canvas.height = bgImg.naturalHeight;
-          
-          const ctx = canvas.getContext('2d');
-          ctx.clearRect(0, 0, canvas.width, canvas.height);
+      const layer = displayScene?.drawingLayer || null;
+      const sizeKey = `${mapParams.url}|${displayScene?.id}`;
+      // Ignora a atualização gerada pelo próprio traço que acabou de ser salvo.
+      if (canvas.dataset.sizeKey === sizeKey && layer && layer === lastSavedLayerRef.current) return;
 
-          if (displayScene?.drawingLayer) {
-              const savedLayer = new Image();
-              savedLayer.src = displayScene.drawingLayer;
-              savedLayer.onload = () => {
-                  ctx.drawImage(savedLayer, 0, 0);
-              };
-          }
+      const ratio = Math.min(1, DRAW_MAX_DIMENSION / Math.max(mapSize.w, mapSize.h));
+      drawRatioRef.current = ratio;
+      canvas.width = Math.round(mapSize.w * ratio);
+      canvas.height = Math.round(mapSize.h * ratio);
+      canvas.dataset.sizeKey = sizeKey;
+
+      const ctx = canvas.getContext('2d');
+      ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+      ctx.clearRect(0, 0, mapSize.w, mapSize.h);
+
+      if (!layer) return;
+      let cancelled = false;
+      const savedLayer = new Image();
+      savedLayer.onload = () => {
+          if (cancelled) return;
+          ctx.drawImage(savedLayer, 0, 0, mapSize.w, mapSize.h);
       };
-  },[mapParams.url, displayScene?.id, displayScene?.drawingLayer]);
+      savedLayer.src = layer;
+      return () => { cancelled = true; };
+  },[hasMapSize, mapParams.url, mapSize.w, mapSize.h, displayScene?.id, displayScene?.drawingLayer]);
 
   useEffect(() => {
       const handleGlobalMouseUp = (e) => {
@@ -307,21 +393,20 @@ const Board = ({ showUI }) => {
 
         if (key === 'g') {
             e.preventDefault();
-            const canvas = canvasRef.current;
             const container = containerRef.current;
 
-            if (canvas && container && canvas.width > 0 && canvas.height > 0) {
+            if (container && hasMapSize) {
                 const contW = container.clientWidth;
                 const contH = container.clientHeight;
-                const imgW = canvas.width;
-                const imgH = canvas.height;
+                const imgW = mapSize.w * effectiveMapScale;
+                const imgH = mapSize.h * effectiveMapScale;
 
                 const scaleX = contW / imgW;
                 const scaleY = contH / imgH;
-                
+
                 let newScale = Math.max(scaleX, scaleY);
 
-                newScale = Math.min(Math.max(newScale, MIN_SCALE), MAX_SCALE);
+                newScale = clamp(newScale, getMinScale(), MAX_SCALE);
 
                 const newX = (contW - (imgW * newScale)) / 2;
                 const newY = (contH - (imgH * newScale)) / 2;
@@ -450,7 +535,7 @@ const Board = ({ showUI }) => {
     
     window.addEventListener('keydown', handleKeyDown); window.addEventListener('keyup', handleKeyUp);
     return () => { window.removeEventListener('keydown', handleKeyDown); window.removeEventListener('keyup', handleKeyUp); };
-  }, [selectedIds, selectedFogIds, selectedPinIds, activeScene, deleteMultipleTokenInstances, deleteMultipleFogAreas, deleteMultiplePins, setActiveTool, addTokenInstance, updateTokenInstance]);
+  }, [selectedIds, selectedFogIds, selectedPinIds, activeScene, deleteMultipleTokenInstances, deleteMultipleFogAreas, deleteMultiplePins, setActiveTool, addTokenInstance, updateTokenInstance, hasMapSize, mapSize.w, mapSize.h, effectiveMapScale, getMinScale]);
 
   const animateCamera = useCallback(() => {
       const target = targetViewRef.current;
@@ -472,70 +557,96 @@ const Board = ({ showUI }) => {
 
   const startAnimation = useCallback(() => { if (animationRef.current) cancelAnimationFrame(animationRef.current); animationRef.current = requestAnimationFrame(animateCamera); }, [animateCamera]);
 
+  // immediate: aplica a câmera direto, sem suavização (gestos de touchpad precisam
+  // responder 1:1 ao movimento dos dedos). Se já houver uma animação em curso, ela
+  // apenas recebe o novo alvo para não dar saltos.
+  const applyView = useCallback((next, immediate = false) => {
+      targetViewRef.current = next;
+      if (immediate && !animationRef.current) {
+          viewRef.current = next;
+          setView(next);
+      } else {
+          startAnimation();
+      }
+  }, [startAnimation]);
+
+  const zoomAt = useCallback((rawScale, anchorX, anchorY, immediate = false) => {
+      const currentTarget = targetViewRef.current;
+      const newScale = clamp(rawScale, getMinScale(), MAX_SCALE);
+      if (Math.abs(newScale - currentTarget.scale) < 0.0001) return;
+      const ratio = newScale / currentTarget.scale;
+      const next = clampView({
+          scale: newScale,
+          x: anchorX - (anchorX - currentTarget.x) * ratio,
+          y: anchorY - (anchorY - currentTarget.y) * ratio
+      });
+      setSliderValue(Math.round(newScale * 100));
+      applyView(next, immediate);
+  }, [getMinScale, clampView, applyView]);
+
   const applyKeyboardZoom = useCallback(() => {
     if (zoomKeyRef.current === 0) return;
     const now = Date.now();
     if (now - lastZoomTimeRef.current > 100) zoomSpeedRef.current = Math.min(zoomSpeedRef.current * 1.1, 0.05);
     const zoomAmount = zoomKeyRef.current * zoomSpeedRef.current;
-    const currentTarget = targetViewRef.current;
-    const rawNewScale = Math.min(Math.max(MIN_SCALE, currentTarget.scale * (1 + zoomAmount)), MAX_SCALE);
-    if (Math.abs(rawNewScale - currentTarget.scale) < 0.001) return;
     const node = containerRef.current;
     if (node) {
-        const rect = node.getBoundingClientRect();
-        const ratio = rawNewScale / currentTarget.scale;
-        let newX = (rect.width/2) - ((rect.width/2) - currentTarget.x) * ratio;
-        let newY = (rect.height/2) - ((rect.height/2) - currentTarget.y) * ratio;
-        const limit = PAN_LIMIT * rawNewScale;
-        targetViewRef.current = { scale: rawNewScale, x: Math.min(Math.max(newX, -limit), limit), y: Math.min(Math.max(newY, -limit), limit) };
-        setSliderValue(Math.round(rawNewScale * 100));
-        startAnimation();
+        zoomAt(targetViewRef.current.scale * (1 + zoomAmount), node.clientWidth / 2, node.clientHeight / 2);
     }
     lastZoomTimeRef.current = now;
-  }, [startAnimation]);
+  }, [zoomAt]);
 
   useEffect(() => { let frameId; const loop = () => { if (zoomKeyRef.current !== 0) applyKeyboardZoom(); frameId = requestAnimationFrame(loop); }; frameId = requestAnimationFrame(loop); return () => cancelAnimationFrame(frameId); }, [applyKeyboardZoom]);
 
   const handleSliderZoom = (e) => {
       const val = parseFloat(e.target.value);
       setSliderValue(val);
-      const newScale = val / 100;
       const node = containerRef.current;
-      if (node) {
-          const rect = node.getBoundingClientRect();
-          const ratio = newScale / targetViewRef.current.scale;
-          let newX = (rect.width/2) - ((rect.width/2) - targetViewRef.current.x) * ratio;
-          let newY = (rect.height/2) - ((rect.height/2) - targetViewRef.current.y) * ratio;
-          targetViewRef.current = { scale: newScale, x: newX, y: newY };
-          startAnimation();
-      }
+      if (node) zoomAt(val / 100, node.clientWidth / 2, node.clientHeight / 2);
   };
 
   useLayoutEffect(() => {
     const node = containerRef.current;
     if (!node) return;
     const onWheel = (e) => {
-        if (e.target.closest('.overflow-y-auto')) return;
-        e.preventDefault(); 
-        const delta = -e.deltaY; 
-        const scaleAmount = delta * ZOOM_SPEED_FACTOR; 
-        const currentTarget = targetViewRef.current;
-        const rawNewScale = Math.min(Math.max(MIN_SCALE, currentTarget.scale * (1 + scaleAmount)), MAX_SCALE);
-        if (Math.abs(rawNewScale - currentTarget.scale) < 0.0001) return;
+        if (e.target.closest('.overflow-y-auto') || e.target.closest('[data-ecos-ui="true"]')) return;
+        e.preventDefault();
+
         const rect = node.getBoundingClientRect();
         const mouseX = e.clientX - rect.left;
         const mouseY = e.clientY - rect.top;
-        const ratio = rawNewScale / currentTarget.scale;
-        let newX = mouseX - (mouseX - currentTarget.x) * ratio;
-        let newY = mouseY - (mouseY - currentTarget.y) * ratio;
-        const limit = PAN_LIMIT * rawNewScale;
-        targetViewRef.current = { scale: rawNewScale, x: Math.min(Math.max(newX, -limit), limit), y: Math.min(Math.max(newY, -limit), limit) };
-        setSliderValue(Math.round(rawNewScale * 100));
-        startAnimation();
+
+        let dx = e.deltaX, dy = e.deltaY;
+        if (e.deltaMode === 1) { dx *= 16; dy *= 16; }
+        else if (e.deltaMode === 2) { dx *= rect.width; dy *= rect.height; }
+
+        // Um gesto contínuo de touchpad mantém a classificação, evitando que um evento
+        // isolado com delta "redondo" seja interpretado como roda do mouse.
+        const now = performance.now();
+        const gesture = wheelGestureRef.current;
+        const continuing = now - gesture.lastTime < TRACKPAD_GESTURE_GAP;
+        gesture.isTrackpad = (continuing && gesture.isTrackpad) || looksLikeTrackpad(e);
+        gesture.lastTime = now;
+
+        const currentTarget = targetViewRef.current;
+
+        if (gesture.isTrackpad) {
+            if (e.ctrlKey || e.metaKey) {
+                // Pinça no touchpad (o Chromium entrega como wheel + ctrlKey).
+                const factor = Math.pow(2, -clamp(dy, -50, 50) * PINCH_ZOOM_SPEED);
+                zoomAt(currentTarget.scale * factor, mouseX, mouseY, true);
+            } else {
+                // Dois dedos: move a câmera.
+                applyView(clampView({ ...currentTarget, x: currentTarget.x - dx, y: currentTarget.y - dy }), true);
+            }
+            return;
+        }
+
+        zoomAt(currentTarget.scale * (1 - dy * ZOOM_SPEED_FACTOR), mouseX, mouseY);
     };
     node.addEventListener('wheel', onWheel, { passive: false });
     return () => node.removeEventListener('wheel', onWheel);
-  }, [startAnimation, activeAdventureId]);
+  }, [zoomAt, applyView, clampView, activeAdventureId]);
 
   const handleAuxClick = (e) => { if (e.button === 1) e.preventDefault(); };
 
@@ -559,6 +670,11 @@ const Board = ({ showUI }) => {
         if (activeTool === 'select') { setSelectedIds(new Set()); setSelectedFogIds(new Set()); setSelectedPinIds(new Set()); }
         else if (activeTool === 'fogOfWar') { setSelectedFogIds(new Set()); setSelectedIds(new Set()); }
     }
+    // Arrastar no espaço vazio move a tela (essencial para touchpad, que não tem botão do meio).
+    if (activeTool === 'select' && e.button === 0 && !isClickingElement && !e.ctrlKey && !e.metaKey) {
+        setInteraction({ mode: 'PANNING', startX: e.clientX, startY: e.clientY, initialViewX: targetViewRef.current.x, initialViewY: targetViewRef.current.y });
+        return;
+    }
     if (activeTool === 'fogOfWar' && e.button === 0 && !isClickingElement) {
         const rect = containerRef.current.getBoundingClientRect();
         const wX = (e.clientX - rect.left - view.x) / view.scale;
@@ -575,12 +691,14 @@ const Board = ({ showUI }) => {
         if (!canvas) return;
         isDrawingRef.current = true;
         const ctx = canvas.getContext('2d');
+        const ratio = drawRatioRef.current;
+        ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
         const { x, y } = getCanvasCoordinates(e);
         ctx.beginPath();
         ctx.moveTo(x, y);
         ctx.lineCap = 'round';
         ctx.lineJoin = 'round';
-        ctx.lineWidth = brushSize;
+        ctx.lineWidth = brushSize / effectiveMapScale;
 
         if (activeTool === 'eraser') {
             ctx.globalCompositeOperation = 'destination-out';
@@ -669,8 +787,7 @@ const Board = ({ showUI }) => {
     if (interaction.mode === 'PANNING') {
         const dX = e.clientX - interaction.startX;
         const dY = e.clientY - interaction.startY;
-        const limit = PAN_LIMIT * targetViewRef.current.scale;
-        targetViewRef.current = { ...targetViewRef.current, x: Math.min(Math.max(interaction.initialViewX + dX, -limit), limit), y: Math.min(Math.max(interaction.initialViewY + dY, -limit), limit) };
+        targetViewRef.current = clampView({ ...targetViewRef.current, x: interaction.initialViewX + dX, y: interaction.initialViewY + dY });
         startAnimation();
     } else if (interaction.mode === 'DRAGGING' && activeScene) {
         const dx = (e.clientX - interaction.startX) / view.scale;
@@ -718,8 +835,17 @@ const Board = ({ showUI }) => {
           if (canvas && activeScene) {
               const ctx = canvas.getContext('2d');
               ctx.closePath();
-              const dataUrl = canvas.toDataURL(); 
-              updateSceneDrawing(activeScene.id, dataUrl);
+              const sceneId = activeScene.id;
+              // toBlob codifica fora da thread principal, evitando travadas ao soltar o traço.
+              canvas.toBlob((blob) => {
+                  if (!blob) return;
+                  const reader = new FileReader();
+                  reader.onloadend = () => {
+                      lastSavedLayerRef.current = reader.result;
+                      updateSceneDrawing(sceneId, reader.result);
+                  };
+                  reader.readAsDataURL(blob);
+              }, 'image/png');
           }
           return;
       }
@@ -770,8 +896,9 @@ const Board = ({ showUI }) => {
 
   return (
     <div 
-        className={`w-full h-full relative overflow-hidden bg-[#15151a] transition-colors duration-300 ${
-            activeTool === 'fogOfWar' ? 'cursor-crosshair' : 
+        className={`w-full h-full relative overflow-hidden bg-[#15151a] transition-colors duration-300 touch-none ${
+            interaction.mode === 'PANNING' ? 'cursor-grabbing' :
+            activeTool === 'fogOfWar' ? 'cursor-crosshair' :
             (activeTool === 'brush' || activeTool === 'eraser' ? 'cursor-none' : 'cursor-default')
         }`}
         ref={containerRef}
@@ -797,16 +924,28 @@ const Board = ({ showUI }) => {
             <div className="absolute -top-[50000px] -left-[50000px] w-[100000px] h-[100000px] opacity-20 pointer-events-none" style={{ backgroundImage: 'radial-gradient(circle, #555 1px, transparent 1px)', backgroundSize: '70px 70px' }} />
             
             {mapParams.url && (
-                <div style={{ transform: `scale(${displayScene?.mapScale || 1})`, transformOrigin: '0 0' }}>
-                    <img src={mapParams.url} className="max-w-none pointer-events-none select-none opacity-90 shadow-2xl" alt="Map Layer"/>
+                <div style={{ transform: `scale(${effectiveMapScale})`, transformOrigin: '0 0' }}>
+                    <img
+                        src={mapParams.url}
+                        className="max-w-none pointer-events-none select-none opacity-90 shadow-2xl"
+                        alt="Map Layer"
+                        draggable={false}
+                        decoding="async"
+                        onLoad={(e) => setMapSize({ url: mapParams.url, w: e.currentTarget.naturalWidth, h: e.currentTarget.naturalHeight })}
+                    />
                 </div>
             )}
-            
+
             {mapParams.url && (
                 <canvas
                     ref={canvasRef}
                     className="absolute top-0 left-0 pointer-events-none z-[5]"
-                    style={{ transform: `scale(${displayScene?.mapScale || 1})`, transformOrigin: '0 0' }}
+                    style={{
+                        width: hasMapSize ? mapSize.w : 0,
+                        height: hasMapSize ? mapSize.h : 0,
+                        transform: `scale(${effectiveMapScale})`,
+                        transformOrigin: '0 0'
+                    }}
                 />
             )}
 

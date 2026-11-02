@@ -60,8 +60,53 @@ const generateThumbnailBlob = (file, maxWidth = 320, quality = 0.6) => {
     });
 };
 
+// Limites para imagens de mapa. Acima disso a imagem é reduzida na importação e a
+// diferença é compensada por `resolutionScale`, mantendo o tamanho do mapa no mundo.
+export const MAP_MAX_DIMENSION = 8192;
+export const MAP_MAX_PIXELS = 48_000_000;
+
+const optimizeMapImage = async (file) => {
+    let bitmap;
+    try {
+        bitmap = await createImageBitmap(file);
+    } catch (e) {
+        console.error("Não foi possível decodificar a imagem do mapa:", e);
+        return { blob: file, resolutionScale: 1 };
+    }
+
+    const { width, height } = bitmap;
+    const ratio = Math.min(
+        1,
+        MAP_MAX_DIMENSION / Math.max(width, height),
+        Math.sqrt(MAP_MAX_PIXELS / (width * height))
+    );
+
+    if (ratio >= 1) {
+        bitmap.close();
+        return { blob: file, resolutionScale: 1, width, height };
+    }
+
+    const targetW = Math.round(width * ratio);
+    const targetH = Math.round(height * ratio);
+    const canvas = document.createElement('canvas');
+    canvas.width = targetW;
+    canvas.height = targetH;
+    const ctx = canvas.getContext('2d');
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(bitmap, 0, 0, targetW, targetH);
+    bitmap.close();
+
+    const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/webp', 0.92));
+    canvas.width = 0; canvas.height = 0;
+    if (!blob) return { blob: file, resolutionScale: 1, width, height };
+
+    return { blob, resolutionScale: width / targetW, width: targetW, height: targetH, originalWidth: width, originalHeight: height };
+};
+
 export const imageDB = {
-    generateThumbnail: generateThumbnailBlob, 
+    generateThumbnail: generateThumbnailBlob,
+    optimizeMapImage,
 
     saveImage: async (fileOrBlob, forcedId = null) => {
         const id = forcedId || crypto.randomUUID();
