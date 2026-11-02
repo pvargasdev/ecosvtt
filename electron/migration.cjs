@@ -1,7 +1,7 @@
 // Migração dos dados da versão antiga, que guardava tudo numa pasta "ecos_data"
 // ao lado do executável. Na primeira execução da versão nova:
-//  - imagens, áudios e configurações são copiados para %APPDATA%\ECOS Tabletop;
-//  - cada aventura vira um arquivo .ecosvtt em Documentos\ECOS Tabletop.
+//  - imagens, áudios e configurações são copiados para %APPDATA%\EcosVTT;
+//  - cada aventura vira um arquivo .ecosvtt em Documentos\EcosVTT.
 // A pasta antiga nunca é apagada, para não haver risco de perda.
 
 const { app } = require('electron');
@@ -52,7 +52,7 @@ const migrateLegacyData = (paths, store) => {
         let adventures = [];
         try { adventures = JSON.parse(fs.readFileSync(path.join(oldDir, OLD_ADVENTURES_FILE), 'utf8')) || []; } catch { adventures = []; }
 
-        const targetDir = path.join(app.getPath('documents'), 'ECOS Tabletop');
+        const targetDir = path.join(app.getPath('documents'), 'EcosVTT');
         let converted = 0;
         adventures.forEach(adv => {
             if (!adv?.id || !Array.isArray(adv.scenes)) return;
@@ -79,4 +79,43 @@ const migrateLegacyData = (paths, store) => {
     }
 };
 
-module.exports = { migrateLegacyData };
+// O programa se chamava "ECOS Tabletop", então os dados ficavam em
+// %APPDATA%\ECOS Tabletop. Com o novo nome (EcosVTT) a pasta muda; na primeira
+// execução copiamos os dados do programa (biblioteca, cache, configurações e as
+// preferências salvas pelo navegador interno) para a pasta nova. A antiga é mantida.
+const OLD_APP_NAMES = ['ECOS Tabletop'];
+const APP_DATA_ITEMS = ['library.json', 'audio_library.json', 'app_state.json', MARKER, 'images', 'audio', 'journal', 'Local Storage'];
+
+const copyRecursive = (from, to) => {
+    const stat = fs.statSync(from);
+    if (stat.isDirectory()) {
+        fs.mkdirSync(to, { recursive: true });
+        fs.readdirSync(from).forEach(name => copyRecursive(path.join(from, name), path.join(to, name)));
+    } else if (!fs.existsSync(to)) {
+        fs.copyFileSync(from, to);
+    }
+};
+
+const migrateFromOldAppName = (newUserData) => {
+    if (fs.existsSync(path.join(newUserData, 'library.json'))) return;
+    for (const oldName of OLD_APP_NAMES) {
+        const oldDir = path.join(app.getPath('appData'), oldName);
+        if (!fs.existsSync(oldDir) || path.resolve(oldDir) === path.resolve(newUserData)) continue;
+        try {
+            const items = fs.readdirSync(oldDir).filter(n => APP_DATA_ITEMS.includes(n) || n.endsWith('.json'));
+            if (!items.length) continue;
+            fs.mkdirSync(newUserData, { recursive: true });
+            items.forEach(name => {
+                // A pasta do navegador só é copiada se a nova ainda não existir.
+                if (name === 'Local Storage' && fs.existsSync(path.join(newUserData, name))) return;
+                copyRecursive(path.join(oldDir, name), path.join(newUserData, name));
+            });
+            console.log(`Dados migrados de ${oldDir}`);
+            return;
+        } catch (e) {
+            console.error('Falha ao migrar dados do nome antigo do programa:', e);
+        }
+    }
+};
+
+module.exports = { migrateLegacyData, migrateFromOldAppName };

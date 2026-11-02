@@ -6,13 +6,12 @@ import { useTranslation } from '../../i18n';
 import { useNetwork } from '../../network';
 import { normalizeRoomCode } from '../../network/protocol';
 import NetworkCompatibility from './NetworkCompatibility';
+import { APP_VERSION } from '../../config/app';
 
 const toggleFullscreen = () => {
     if (!document.fullscreenElement) document.documentElement.requestFullscreen().catch(() => {});
     else document.exitFullscreen();
 };
-
-const APP_VERSION = 'v1.1.0';
 
 const quitApp = () => {
     if (window.electron?.quit) window.electron.quit();

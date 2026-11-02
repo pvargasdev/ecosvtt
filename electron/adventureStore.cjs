@@ -236,7 +236,7 @@ const createFile = (targetPath, adventure, sourceFile = null) => {
 const askSavePath = async (win, suggestedName) => {
     const res = await dialog.showSaveDialog(win, {
         defaultPath: uniquePath(defaultDir(), sanitizeFileName(suggestedName)),
-        filters: [{ name: 'ECOS VTT', extensions: [EXTENSION] }]
+        filters: [{ name: 'EcosVTT', extensions: [EXTENSION] }]
     });
     if (res.canceled || !res.filePath) return null;
     let filePath = res.filePath;
@@ -345,7 +345,7 @@ const register = (dataPaths, { getPendingFiles }) => {
         if (!entry) return null;
         const res = await dialog.showOpenDialog(winOf(event), {
             defaultPath: fs.existsSync(path.dirname(entry.path)) ? path.dirname(entry.path) : defaultDir(),
-            filters: [{ name: 'ECOS VTT', extensions: [EXTENSION] }],
+            filters: [{ name: 'EcosVTT', extensions: [EXTENSION] }],
             properties: ['openFile']
         });
         if (res.canceled || !res.filePaths[0]) return null;
@@ -368,7 +368,7 @@ const register = (dataPaths, { getPendingFiles }) => {
     ipcMain.handle('adv:openFile', async (event) => {
         const res = await dialog.showOpenDialog(winOf(event), {
             defaultPath: defaultDir(),
-            filters: [{ name: 'ECOS VTT', extensions: [EXTENSION, 'zip'] }],
+            filters: [{ name: 'EcosVTT', extensions: [EXTENSION, 'zip'] }],
             properties: ['openFile']
         });
         if (res.canceled || !res.filePaths[0]) return null;

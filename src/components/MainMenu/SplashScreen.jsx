@@ -34,7 +34,7 @@ const SplashScreen = ({ onComplete }) => {
             <div className={`relative transition-all duration-1000 ease-out-expo flex flex-col items-center ${getOpacity()} ${getScale()}`}>
                 <img 
                     src={LogoPNG} 
-                    alt="ECOS VTT Logo" 
+                    alt="EcosVTT" 
                     className="h-32 w-auto mb-6 drop-shadow-[0_0_30px_rgba(255,255,255,0.1)]"
                 />
                 

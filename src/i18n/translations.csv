@@ -232,7 +232,7 @@ network.errors.roomNotFound,Sala não encontrada. Confira o código e se o mestr
 network.errors.timeout,O mestre não respondeu. A rede de um de vocês pode estar bloqueando conexões diretas.,The game master did not respond. One of your networks may be blocking direct connections.
 network.errors.kicked,Você foi removido da sala pelo mestre.,You were removed from the room by the game master.
 network.errors.roomClosed,O mestre encerrou a sala.,The game master closed the room.
-network.errors.protocol,Sua versão do ECOS é diferente da do mestre. Atualizem para a mesma versão.,Your ECOS version differs from the game master's. Update to the same version.
+network.errors.protocol,Sua versão do EcosVTT é diferente da do mestre. Atualizem para a mesma versão.,Your EcosVTT version differs from the game master's. Update to the same version.
 network.errors.connectionLost,A conexão com o mestre foi perdida.,The connection to the game master was lost.
 toolbar.lighting,Iluminação,Lighting
 lighting.on,Ativa,On
@@ -295,7 +295,7 @@ files.alsoTrash,Também mover o arquivo para a Lixeira,Also move the file to the
 files.migrated,{count} aventuras foram convertidas em arquivos .ecosvtt na pasta {folder},{count} adventures were converted into .ecosvtt files in {folder}
 files.migrated_one,1 aventura foi convertida em arquivo .ecosvtt na pasta {folder},1 adventure was converted into an .ecosvtt file in {folder}
 files.errors.missing,O arquivo desta aventura não foi encontrado. Use Localizar arquivo para apontar o novo local.,This adventure's file was not found. Use Locate file to point to its new location.
-files.errors.openFailed,Não foi possível abrir o arquivo. Ele pode estar corrompido ou não ser uma aventura do ECOS.,Could not open the file. It may be corrupted or not an ECOS adventure.
+files.errors.openFailed,Não foi possível abrir o arquivo. Ele pode estar corrompido ou não ser uma aventura do EcosVTT.,Could not open the file. It may be corrupted or not an EcosVTT adventure.
 files.errors.createFailed,Não foi possível criar o arquivo da aventura.,Could not create the adventure file.
 files.errors.saveMissing,O arquivo da aventura aberta sumiu do lugar. As alterações não puderam ser salvas.,The open adventure's file was moved or deleted. Changes could not be saved.
 files.errors.saveFailed,Erro ao salvar a aventura no arquivo. Verifique se há espaço e permissão na pasta.,Failed to save the adventure file. Check free space and folder permissions.

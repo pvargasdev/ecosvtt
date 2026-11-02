@@ -5,12 +5,13 @@ const fs = require('fs');
 Menu.setApplicationMenu(null);
 
 const adventureStore = require('./adventureStore.cjs');
-const { migrateLegacyData } = require('./migration.cjs');
+const { migrateLegacyData, migrateFromOldAppName } = require('./migration.cjs');
 
-// Dados do usuário ficam em %APPDATA%\ECOS Tabletop (nunca ao lado do .exe), para o
+// Dados do usuário ficam em %APPDATA%\EcosVTT (nunca ao lado do .exe), para o
 // executável ser um arquivo único e portátil. As aventuras em si ficam em arquivos
 // .ecosvtt onde o usuário escolher (por padrão, em Documentos).
 const DATA_PATH = app.getPath('userData');
+migrateFromOldAppName(DATA_PATH);
 fs.mkdirSync(DATA_PATH, { recursive: true });
 
 const DATA_PATHS = {
@@ -176,7 +177,7 @@ function createGMWindow(startAdventureId) {
     if (gmWindow) { gmWindow.focus(); return; }
     gmWindow = new BrowserWindow({
         width: 1000, height: 700, minWidth: 800, minHeight: 600,
-        title: "Painel do Mestre - Ecos VTT",
+        title: "Painel do Mestre - EcosVTT",
         autoHideMenuBar: true,
         webPreferences: { preload: PRELOAD_PATH, nodeIntegration: false, contextIsolation: true },
     });

@@ -5,13 +5,13 @@ import AdventureCard from './AdventureCard';
 import EditAdventureModal from './EditAdventureModal';
 import SettingsModal from './SettingsModal';
 import { useTranslation } from '../../i18n';
+import { APP_VERSION } from '../../config/app';
 import { useNetwork } from '../../network';
 import { ENABLE_MODULE_ONLINE } from '../../config/modules';
 import { CopyCodeButton } from '../Network/HostControls';
 import NetworkCompatibility from '../Network/NetworkCompatibility';
 import Logo from '../../assets/logo2.png'; 
 
-const APP_VERSION = "v1.1.0"; 
 const NEON_COLOR = "text-neon-green"; 
 const TRANSITION_DURATION = 600;
 
