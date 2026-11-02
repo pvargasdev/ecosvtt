@@ -6,7 +6,9 @@ import EditAdventureModal from './EditAdventureModal';
 import SettingsModal from './SettingsModal';
 import { useTranslation } from '../../i18n';
 import { useNetwork } from '../../network';
+import { ENABLE_MODULE_ONLINE } from '../../config/modules';
 import { CopyCodeButton } from '../Network/HostControls';
+import NetworkCompatibility from '../Network/NetworkCompatibility';
 import Logo from '../../assets/logo2.png'; 
 
 const APP_VERSION = "v1.1.0"; 
@@ -313,6 +315,7 @@ const MainMenu = () => {
                             <Power size={14} /> {t('host.closeRoom')}
                         </button>
                     </div>
+                    <NetworkCompatibility compact className="mt-2" />
                 </div>
             )}
 
@@ -391,7 +394,7 @@ const MainMenu = () => {
 
             <div className="relative z-10 px-8 py-6 flex items-center justify-between shrink-0 text-xs text-gray-600">
                  <div className="flex items-center gap-2 select-none">
-                    {!network.isHost && (
+                    {ENABLE_MODULE_ONLINE && !network.isHost && (
                         <button onClick={network.backToStart} className="flex items-center gap-1.5 p-2 -ml-2 rounded text-gray-600 hover:text-white hover:bg-white/5 transition text-[10px] font-bold uppercase tracking-widest" title={t('mainMenu.backToStart')}>
                             <Home size={14}/> {t('mainMenu.home')}
                         </button>

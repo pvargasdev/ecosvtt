@@ -299,3 +299,10 @@ files.errors.openFailed,Não foi possível abrir o arquivo. Ele pode estar corro
 files.errors.createFailed,Não foi possível criar o arquivo da aventura.,Could not create the adventure file.
 files.errors.saveMissing,O arquivo da aventura aberta sumiu do lugar. As alterações não puderam ser salvas.,The open adventure's file was moved or deleted. Changes could not be saved.
 files.errors.saveFailed,Erro ao salvar a aventura no arquivo. Verifique se há espaço e permissão na pasta.,Failed to save the adventure file. Check free space and folder permissions.
+netcheck.checking,Verificando a compatibilidade da sua rede...,Checking your network compatibility...
+netcheck.ok,Sua rede é compatível com o jogo online,Your network is compatible with online play
+netcheck.okDetail,"Conexões diretas devem funcionar nesta rede. Se o outro jogador estiver numa rede restrita, ainda pode haver problemas do lado dele.","Direct connections should work on this network. If the other player is on a restricted network, problems may still happen on their side."
+netcheck.symmetricTitle,Sua rede pode dificultar o jogo online,Your network may get in the way of online play
+netcheck.symmetricDetail,"Ela troca a porta de cada conexão (NAT simétrico), comum em redes de empresas, faculdades e internet móvel. Conectar com jogadores em redes parecidas pode falhar. Se der problema, tente outra rede, como o Wi-Fi de casa.","It changes the port for each connection (symmetric NAT), common on company, university and mobile networks. Connecting with players on similar networks may fail. If you run into problems, try another network, such as your home Wi-Fi."
+netcheck.blockedTitle,Sua rede bloqueia o jogo online,Your network blocks online play
+netcheck.blockedDetail,"Não foi possível fazer conexões ponto a ponto (UDP bloqueado, provavelmente por um firewall ou VPN). O jogo online provavelmente não vai funcionar nesta rede.","Peer-to-peer connections could not be made (UDP blocked, likely by a firewall or VPN). Online play will most likely not work on this network."

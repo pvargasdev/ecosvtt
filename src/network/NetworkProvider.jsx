@@ -3,6 +3,7 @@ import Peer from 'peerjs';
 import { GameContext, useGame } from '../context/GameContext';
 import { imageDB } from '../context/db';
 import { NetworkContext } from './index';
+import { ENABLE_MODULE_ONLINE } from '../config/modules';
 import { AssetSender, AssetClient, PRIORITY } from './assetTransfer';
 import { audioTap } from './audioTap';
 import {
@@ -33,7 +34,8 @@ const NetworkProvider = ({ children }) => {
     useEffect(() => { gameRef.current = game; });
 
     // mode: null (ainda não escolheu) | 'local' | 'host' | 'player'
-    const [mode, setMode] = useState(game.isGMWindow ? 'local' : null);
+    // Sem o módulo online, o programa abre direto no modo local (sem tela de escolha).
+    const [mode, setMode] = useState(game.isGMWindow || !ENABLE_MODULE_ONLINE ? 'local' : null);
     const [status, setStatus] = useState('idle');
     const [error, setError] = useState(null);
     const [roomCode, setRoomCode] = useState(null);
@@ -262,6 +264,7 @@ const NetworkProvider = ({ children }) => {
     }, [resolveHostBlob, handleHostMessage, removeClient]);
 
     const startHosting = useCallback(() => {
+        if (!ENABLE_MODULE_ONLINE) return;
         destroyPeer();
         resetState();
         intentionalCloseRef.current = false;
@@ -503,6 +506,7 @@ const NetworkProvider = ({ children }) => {
     });
 
     const joinRoom = useCallback((code, name) => {
+        if (!ENABLE_MODULE_ONLINE) return;
         destroyPeer();
         resetState();
         intentionalCloseRef.current = false;
@@ -603,6 +607,7 @@ const NetworkProvider = ({ children }) => {
     }, [destroyPeer, resetState]);
 
     const backToStart = useCallback(() => {
+        if (!ENABLE_MODULE_ONLINE) { gameRef.current.setActiveAdventureId(null); return; }
         if (mode === 'host') stopHosting();
         else if (mode === 'player') leaveRoom();
         gameRef.current.setActiveAdventureId(null);

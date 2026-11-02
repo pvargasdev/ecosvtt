@@ -2,6 +2,7 @@ import React from 'react';
 import { Loader2, Wifi, WifiOff, ArrowLeft, Hourglass } from 'lucide-react';
 import { useTranslation } from '../../i18n';
 import { useNetwork } from '../../network';
+import NetworkCompatibility from './NetworkCompatibility';
 
 // Tela do jogador enquanto não há aventura para mostrar: conectando, aguardando
 // o mestre escolher uma aventura, ou explicando por que a conexão falhou.
@@ -26,6 +27,10 @@ const PlayerLobby = () => {
                 </div>
                 <h1 className="text-3xl font-rajdhani font-bold tracking-[0.2em] uppercase mb-3">{title}</h1>
                 <p className="text-gray-500 text-sm mb-8 leading-relaxed">{subtitle}</p>
+
+                {isError && ['timeout', 'roomNotFound', 'connectionLost'].includes(error) && (
+                    <NetworkCompatibility compact className="mb-8" />
+                )}
 
                 {!isError && roomCode && (
                     <div className="flex items-center gap-3 px-5 py-2 rounded-full border border-white/5 bg-white/[0.02] mb-8">

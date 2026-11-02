@@ -5,6 +5,7 @@ import SettingsModal from '../MainMenu/SettingsModal';
 import { useTranslation } from '../../i18n';
 import { useNetwork } from '../../network';
 import { normalizeRoomCode } from '../../network/protocol';
+import NetworkCompatibility from './NetworkCompatibility';
 
 const toggleFullscreen = () => {
     if (!document.fullscreenElement) document.documentElement.requestFullscreen().catch(() => {});
@@ -87,6 +88,8 @@ const JoinPanel = ({ onBack }) => {
             >
                 {isSubmitting ? <Loader2 size={14} className="animate-spin" /> : <LogIn size={14} />} {t('start.join')}
             </button>
+
+            <NetworkCompatibility compact className="mt-5" />
         </form>
     );
 };
@@ -116,6 +119,7 @@ const StartScreen = () => {
                             <OptionCard icon={<Wifi size={26} strokeWidth={1.8} />} accent="#00d4ff" title={t('start.hostTitle')} description={t('start.hostDesc')} onClick={startHosting} />
                             <OptionCard icon={<LogIn size={26} strokeWidth={1.8} />} accent="#d084ff" title={t('start.joinCardTitle')} description={t('start.joinDesc')} onClick={() => setIsJoining(true)} />
                         </div>
+                        <NetworkCompatibility className="mt-8" />
                     </>
                 )}
             </div>
