@@ -5,7 +5,7 @@ import { imageDB } from '../../context/db';
 const ANIMATION_SPEED_ROTATION = '0.4s';
 const ANIMATION_EASING = 'cubic-bezier(0.25, 0.46, 0.45, 0.94)';
 
-const Token = ({ data, isSelected, isDragging, onMouseDown }) => {
+const Token = ({ data, isSelected, isDragging, onMouseDown, interactive = true }) => {
   const BASE_SIZE = 70;
   const widthPx = BASE_SIZE * (data.scale || 1);
   const rotation = data.rotation || 0;
@@ -54,6 +54,7 @@ const Token = ({ data, isSelected, isDragging, onMouseDown }) => {
         width: `${widthPx}px`, 
         height: 'auto',
         position: 'absolute', top: 0, left: 0,
+        pointerEvents: interactive ? undefined : 'none',
         zIndex: isSelected ? 20 : 10,
         
         transition: combinedTransition,

@@ -13,6 +13,11 @@ import MainMenu from '../../components/MainMenu/MainMenu';
 import { useTranslation } from '../../i18n';
 import { useNetwork } from '../../network';
 import PlayerHUD from '../Network/PlayerHUD';
+import LightingLayer from '../Lighting/LightingLayer';
+import LightingEditor from '../Lighting/LightingEditor';
+import LightPropertiesPanel from '../Lighting/LightPropertiesPanel';
+import LightingHints from '../Lighting/LightingHints';
+import { getLighting } from '../../lighting/model';
 
 const MIN_SCALE = 0.1;
 const MAX_SCALE = 5.0;
@@ -54,7 +59,7 @@ const Board = ({ showUI }) => {
     exportAdventure, importAdventure,
     isGMWindow, isGMWindowOpen,
     addPin, updatePin, deletePin, deleteMultiplePins,
-    brushSize, brushColor, updateSceneDrawing
+    brushSize, brushColor, updateSceneDrawing, updateSceneLighting
   } = useGame();
   const t = useTranslation();
   const { isPlayer, isHost, shareView } = useNetwork();
@@ -131,6 +136,14 @@ const Board = ({ showUI }) => {
 
   const [isResizingBrush, setIsResizingBrush] = useState(false);
 
+  // Iluminação: ferramenta e seleção do modo de luz (compartilhadas com a barra superior).
+  const lightingEditorRef = useRef(null);
+  const lightClickStartRef = useRef(null);
+  const [lightTool, setLightTool] = useState('select');
+  const [lightSelection, setLightSelection] = useState(null);
+  const [lightingInteractive, setLightingInteractive] = useState(false);
+  const [previewAsPlayer, setPreviewAsPlayer] = useState(false);
+
   const [alertMessage, setAlertMessage] = useState(null);
   const clearAlert = useCallback(() => setAlertMessage(null), []);
 
@@ -152,6 +165,12 @@ const Board = ({ showUI }) => {
           x: (e.clientX - rect.left - view.x) / view.scale / effectiveMapScale,
           y: (e.clientY - rect.top - view.y) / view.scale / effectiveMapScale
       };
+  };
+
+  // Coordenadas do mundo (sem a escala do mapa) a partir de um evento de mouse.
+  const toWorld = (e) => {
+      const rect = containerRef.current.getBoundingClientRect();
+      return { x: (e.clientX - rect.left - view.x) / view.scale, y: (e.clientY - rect.top - view.y) / view.scale };
   };
 
   const contentBounds = useMemo(() => {
@@ -246,7 +265,7 @@ const Board = ({ showUI }) => {
 
   useEffect(() => {
       const handleGlobalMouseUp = (e) => {
-          if (isDrawingRef.current || interaction.mode !== 'IDLE' || fogDrawing.isDrawing) {
+          if (isDrawingRef.current || interaction.mode !== 'IDLE' || fogDrawing.isDrawing || lightingEditorRef.current?.isDragging()) {
               handleMouseUp(e);
           }
       };
@@ -414,6 +433,7 @@ const Board = ({ showUI }) => {
   useEffect(() => {
     const handleKeyDown = (e) => {
         if (['INPUT', 'TEXTAREA', 'CONTENTEDITABLE'].includes(document.activeElement?.tagName)) return;
+        if (activeTool === 'lighting' && lightingEditorRef.current?.keyDown(e)) { e.preventDefault(); return; }
         
         if (e.code === 'Space' && !e.repeat) setIsSpacePressed(true);
 
@@ -564,7 +584,7 @@ const Board = ({ showUI }) => {
     
     window.addEventListener('keydown', handleKeyDown); window.addEventListener('keyup', handleKeyUp);
     return () => { window.removeEventListener('keydown', handleKeyDown); window.removeEventListener('keyup', handleKeyUp); };
-  }, [isPlayer, selectedIds, selectedFogIds, selectedPinIds, activeScene, deleteMultipleTokenInstances, deleteMultipleFogAreas, deleteMultiplePins, setActiveTool, addTokenInstance, updateTokenInstance, hasMapSize, mapSize.w, mapSize.h, effectiveMapScale, getMinScale]);
+  }, [activeTool, isPlayer, selectedIds, selectedFogIds, selectedPinIds, activeScene, deleteMultipleTokenInstances, deleteMultipleFogAreas, deleteMultiplePins, setActiveTool, addTokenInstance, updateTokenInstance, hasMapSize, mapSize.w, mapSize.h, effectiveMapScale, getMinScale]);
 
   const animateCamera = useCallback(() => {
       const target = targetViewRef.current;
@@ -707,6 +727,7 @@ const Board = ({ showUI }) => {
   const handleAuxClick = (e) => { if (e.button === 1) e.preventDefault(); };
 
   const handleBoardDoubleClick = (e) => {
+      if (activeTool === 'lighting') { lightingEditorRef.current?.doubleClick(toWorld(e), e); return; }
       if (activeTool !== 'select' || isPlayer) return;
       const rect = containerRef.current.getBoundingClientRect();
       const worldX = (e.clientX - rect.left - view.x) / view.scale;
@@ -718,6 +739,14 @@ const Board = ({ showUI }) => {
     if (e.target.closest('.vtt-ui-layer')) return;
     if (contextMenu) setContextMenu(null);
     if (e.button === 1 || (isSpacePressed && e.button === 0)) {
+        setInteraction({ mode: 'PANNING', startX: e.clientX, startY: e.clientY, initialViewX: targetViewRef.current.x, initialViewY: targetViewRef.current.y });
+        return;
+    }
+    if (activeTool === 'lighting') {
+        if (e.button !== 0) return;
+        if (lightingEditorRef.current?.pointerDown(toWorld(e), e)) return;
+        // Nada sob o cursor: arrastar move a câmera; um clique simples cria pontos/luzes.
+        lightClickStartRef.current = { x: e.clientX, y: e.clientY };
         setInteraction({ mode: 'PANNING', startX: e.clientX, startY: e.clientY, initialViewX: targetViewRef.current.x, initialViewY: targetViewRef.current.y });
         return;
     }
@@ -834,6 +863,8 @@ const Board = ({ showUI }) => {
         }
     }
 
+    if (activeTool === 'lighting' && !isOverUI) lightingEditorRef.current?.pointerMove(toWorld(e), e);
+
     if (fogDrawing.isDrawing && activeTool === 'fogOfWar') {
         const rect = containerRef.current.getBoundingClientRect();
         const wX = (e.clientX - rect.left - view.x) / view.scale;
@@ -875,7 +906,15 @@ const Board = ({ showUI }) => {
     }
   };
 
-  const handleMouseUp = () => {
+  const handleMouseUp = (e) => {
+      if (activeTool === 'lighting') {
+          lightingEditorRef.current?.pointerUp();
+          const start = lightClickStartRef.current;
+          lightClickStartRef.current = null;
+          if (start && e && Math.hypot(e.clientX - start.x, e.clientY - start.y) < 5) {
+              lightingEditorRef.current?.click(toWorld(e), e);
+          }
+      }
       if (fogDrawing.isDrawing && activeTool === 'fogOfWar') {
           const { startX, startY, currentX, currentY } = fogDrawing;
           const w = currentX - startX;
@@ -948,6 +987,16 @@ const Board = ({ showUI }) => {
       setContextMenu(null);
   };
 
+  const sceneLighting = getLighting(displayScene);
+  const lightingActive = !!displayScene?.lighting?.enabled;
+  const isLightingMode = activeTool === 'lighting' && !isPlayer && !!displayScene;
+  const selectedLight = lightSelection?.kind === 'light' ? sceneLighting.lights.find(l => l.id === lightSelection.id) : null;
+  const commitLighting = (updater) => { if (displayScene) updateSceneLighting(displayScene.id, updater); };
+  const lightingMapRect = (() => {
+      const natural = hasMapSize ? { w: mapSize.w, h: mapSize.h } : displayScene?.mapNaturalSize;
+      return natural ? { x: 0, y: 0, w: natural.w * effectiveMapScale, h: natural.h * effectiveMapScale } : null;
+  })();
+
   const expectedMapId = displayScene?.mapImageId || (displayScene?.mapImage ? 'legacy' : null);
   const showMap = !!mapParams.url && mapParams.id === expectedMapId;
   const showMapPreview = !showMap && isPlayer && !!mapPreview && mapPreview.imageId === displayScene?.mapImageId && !!displayScene?.mapNaturalSize;
@@ -971,6 +1020,7 @@ const Board = ({ showUI }) => {
     <div 
         className={`w-full h-full relative overflow-hidden bg-[#15151a] transition-colors duration-300 touch-none ${
             interaction.mode === 'PANNING' ? 'cursor-grabbing' :
+            activeTool === 'lighting' ? (lightTool === 'select' ? 'cursor-default' : 'cursor-crosshair') :
             activeTool === 'fogOfWar' ? 'cursor-crosshair' :
             (activeTool === 'brush' || activeTool === 'eraser' ? 'cursor-none' : 'cursor-default')
         }`}
@@ -1043,6 +1093,7 @@ const Board = ({ showUI }) => {
                         isDragging={isBeingDragged} 
                         isSelected={selectedIds.has(t.id)} 
                         onMouseDown={handleTokenDown} 
+                        interactive={activeTool !== 'lighting'}
                     />
                 );
             })}
@@ -1055,6 +1106,7 @@ const Board = ({ showUI }) => {
                     isGM={seesAsGM} 
                     isSelected={selectedPinIds.has(pin.id)} 
                     onMouseDown={handlePinDown}
+                    interactive={activeTool !== 'lighting'}
                     onDoubleClick={() => { if (!isPlayer) openPinModal(pin); }}
                 />
             ))}
@@ -1076,6 +1128,30 @@ const Board = ({ showUI }) => {
                 <div className="absolute pointer-events-none fog-area" style={{ left: Math.min(fogDrawing.startX, fogDrawing.currentX), top: Math.min(fogDrawing.startY, fogDrawing.currentY), width: Math.abs(fogDrawing.currentX - fogDrawing.startX), height: Math.abs(fogDrawing.currentY - fogDrawing.startY), backgroundColor: 'rgba(0, 0, 0, 0.7)', border: '2px dashed rgba(255, 255, 255, 0.3)', zIndex: 15 }} />
             )}
             
+            {lightingActive && (
+                <LightingLayer
+                    lighting={sceneLighting}
+                    mapRect={lightingMapRect}
+                    seesAsGM={seesAsGM}
+                    previewAsPlayer={previewAsPlayer && activeTool === 'lighting'}
+                    interactive={lightingInteractive}
+                />
+            )}
+
+            {isLightingMode && (
+                <LightingEditor
+                    ref={lightingEditorRef}
+                    lighting={sceneLighting}
+                    viewScale={view.scale}
+                    tool={lightTool}
+                    setTool={setLightTool}
+                    selection={lightSelection}
+                    setSelection={setLightSelection}
+                    commit={commitLighting}
+                    onInteractiveChange={setLightingInteractive}
+                />
+            )}
+
             {displayScene?.fogOfWar?.map(fog => (
                 <div key={fog.id} className={`fog-area absolute ${selectedFogIds.has(fog.id) ? 'ring-2 ring-yellow-400' : ''} ${activeTool === 'select' ? 'cursor-move' : 'cursor-default'}`}
                     style={{
@@ -1123,7 +1199,19 @@ const Board = ({ showUI }) => {
                 alertMessage={alertMessage}
                 setAlertMessage={setAlertMessage}
                 clearAlert={clearAlert}
+                lightingControls={isLightingMode ? {
+                    lighting: sceneLighting,
+                    setLighting: commitLighting,
+                    tool: lightTool,
+                    setTool: setLightTool,
+                    previewAsPlayer,
+                    setPreviewAsPlayer
+                } : null}
             />}
+            {isLightingMode && sceneLighting.enabled && <LightingHints tool={lightTool} selection={lightSelection} visible={showUI} />}
+            {isLightingMode && selectedLight && showUI && (
+                <LightPropertiesPanel light={selectedLight} setLighting={commitLighting} onSelect={setLightSelection} onClose={() => setLightSelection(null)} />
+            )}
             {contextMenu && <ContextMenu x={contextMenu.x} y={contextMenu.y} onOptionClick={(opt) => { if (opt === 'add_pin') openPinModal(null, { x: contextMenu.worldX, y: contextMenu.worldY }); setContextMenu(null); }} onClose={() => setContextMenu(null)} />}
             {pinModal.open && <PinModal initialData={pinModal.data} position={pinModal.position} onSave={handlePinSave} onClose={() => setPinModal({ open: false, data: null, position: { x: 0, y: 0 } })} />}
         </div>

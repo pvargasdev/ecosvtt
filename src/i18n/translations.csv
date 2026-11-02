@@ -234,3 +234,49 @@ network.errors.kicked,Você foi removido da sala pelo mestre.,You were removed f
 network.errors.roomClosed,O mestre encerrou a sala.,The game master closed the room.
 network.errors.protocol,Sua versão do ECOS é diferente da do mestre. Atualizem para a mesma versão.,Your ECOS version differs from the game master's. Update to the same version.
 network.errors.connectionLost,A conexão com o mestre foi perdida.,The connection to the game master was lost.
+toolbar.lighting,Iluminação,Lighting
+lighting.on,Luz ligada,Lighting on
+lighting.off,Luz desligada,Lighting off
+lighting.enableTitle,Ativar iluminação nesta cena,Enable lighting in this scene
+lighting.disableTitle,Desativar iluminação nesta cena (o mapa volta ao normal),Disable lighting in this scene (the map goes back to normal)
+lighting.offHint,Ative para escurecer a cena e usar luzes e paredes.,Turn on to darken the scene and use lights and walls.
+lighting.tools.select,Selecionar e editar (V),Select and edit (V)
+lighting.tools.wall,Desenhar paredes (W),Draw walls (W)
+lighting.tools.point,Luz pontual (L),Point light (L)
+lighting.tools.spot,Holofote (H),Spotlight (H)
+lighting.ambientTitle,Iluminação base,Base lighting
+lighting.ambientLevel,Intensidade,Intensity
+lighting.ambientColor,Cor,Color
+lighting.presets.day,Dia,Day
+lighting.presets.dusk,Crepúsculo,Dusk
+lighting.presets.night,Noite,Night
+lighting.presets.dark,Breu,Pitch dark
+lighting.stats,{lights} luzes · {walls} paredes,{lights} lights · {walls} walls
+lighting.previewAsPlayer,Ver como os jogadores veem,Preview as players see it
+lighting.pointLight,Luz pontual,Point light
+lighting.spotLight,Holofote,Spotlight
+lighting.point,Pontual,Point
+lighting.spot,Holofote,Spotlight
+lighting.turnOn,Acender,Turn on
+lighting.turnOff,Apagar,Turn off
+lighting.color,Cor,Color
+lighting.customColor,Cor personalizada,Custom color
+lighting.colors.torch,Tocha,Torch
+lighting.colors.candle,Vela,Candle
+lighting.colors.white,Branca,White
+lighting.colors.moon,Luar,Moonlight
+lighting.colors.green,Verde,Green
+lighting.colors.red,Vermelha,Red
+lighting.colors.arcane,Arcana,Arcane
+lighting.intensity,Intensidade,Intensity
+lighting.radius,Alcance,Range
+lighting.softness,Suavidade,Softness
+lighting.angle,Abertura,Cone angle
+lighting.direction,Direção,Direction
+lighting.castShadows,Paredes bloqueiam a luz,Walls block the light
+lighting.hints.select,[Arraste] luzes e pontos para mover | [Arraste o losango] de uma parede para curvar | [Duplo clique] na parede para dividir | [Arrastar no vazio] move a tela,[Drag] lights and points to move | [Drag the diamond] on a wall to curve it | [Double click] a wall to split it | [Drag empty space] to pan
+lighting.hints.wall,[Clique] para adicionar pontos | [Clique num ponto ou parede] para conectar | [Shift] trava ângulos de 15° | [Duplo clique] ou [Esc] termina,[Click] to add points | [Click a point or wall] to connect | [Shift] snaps to 15° | [Double click] or [Esc] to finish
+lighting.hints.point,[Clique] no mapa para colocar uma luz pontual | [Arrastar] move a tela,[Click] the map to place a point light | [Drag] to pan
+lighting.hints.spot,[Clique] no mapa para colocar um holofote | depois [arraste a alça amarela] para apontar,[Click] the map to place a spotlight | then [drag the yellow handle] to aim it
+lighting.hints.segmentSelected,Parede selecionada | [Delete] remove | [Arraste] para mover | [Duplo clique no losango] deixa reta,Wall selected | [Delete] removes it | [Drag] to move | [Double click the diamond] to straighten
+lighting.hints.vertexSelected,Ponto selecionado | [Arraste sobre outro ponto] para unir | [Delete] remove (une as paredes vizinhas),Point selected | [Drag onto another point] to join | [Delete] removes it (joins neighbouring walls)

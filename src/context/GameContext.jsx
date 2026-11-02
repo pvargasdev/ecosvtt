@@ -5,6 +5,7 @@ import JSZip from 'jszip';
 import { saveAs } from 'file-saver'; 
 import { getSystemDefaultState } from '../systems';
 import { translate } from '../i18n'; 
+import { getLighting } from '../lighting/model';
 
 const STORAGE_CHARACTERS_KEY = 'ecos_vtt_chars_v6';
 const STORAGE_ADVENTURES_KEY = 'ecos_vtt_adventures_v3'; 
@@ -925,6 +926,18 @@ export const GameProvider = ({ children }) => {
       }));
   }, [internalActiveAdventureId]);
 
+  // Atualiza a iluminação da cena com uma função (lighting atual -> novo lighting).
+  const updateSceneLighting = useCallback((sceneId, updater) => {
+      if (!internalActiveAdventureId) return;
+      setAdventures(prev => prev.map(adv => {
+          if (adv.id !== internalActiveAdventureId) return adv;
+          return {
+              ...adv,
+              scenes: adv.scenes.map(s => s.id === sceneId ? { ...s, lighting: updater(getLighting(s)) } : s)
+          };
+      }));
+  }, [internalActiveAdventureId]);
+
   const addSceneFolder = useCallback((name, parentId = null) => {
       if (!internalActiveAdventureId) return;
       const newFolder = {
@@ -1336,7 +1349,7 @@ export const GameProvider = ({ children }) => {
     resetAllData, getAudioDurationFromId, deleteGlobalAudio, remapAdventureAudioIds,
     availableFiles, refreshAudioSystem, toggleAdventurePinVisibility,
     addSceneFolder, moveSceneItem,
-    brushSize, setBrushSize, brushColor, setBrushColor, updateSceneDrawing,
+    brushSize, setBrushSize, brushColor, setBrushColor, updateSceneDrawing, updateSceneLighting,
     customSystems, addCustomSystem, updateCustomSystem, deleteCustomSystem,
     isSystemBuilderOpen, setIsSystemBuilderOpen,
     renameTrackItem, setCrossWindowSyncEnabled

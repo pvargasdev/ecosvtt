@@ -1,9 +1,10 @@
 import React, { useState, useRef, useEffect, useCallback, memo } from 'react';
 import { useGame } from '../../context/GameContext';
-import { Settings, Image as ImageIcon, Box, ArrowLeft, Map, Plus, Trash2, X, ChevronDown, LogOut, Edit2, RotateCcw, Check, Search, Square, MousePointer, AlertTriangle, Folder, FolderPlus, CornerLeftUp, Copy, HelpCircle, Import, Speaker, Dices, MapPin, MapPinOff, File as FileIcon, PenTool, Eraser, } from 'lucide-react';
+import { Settings, Image as ImageIcon, Box, ArrowLeft, Map, Plus, Trash2, X, ChevronDown, LogOut, Edit2, RotateCcw, Check, Search, Square, MousePointer, AlertTriangle, Folder, FolderPlus, CornerLeftUp, Copy, HelpCircle, Import, Speaker, Dices, MapPin, MapPinOff, File as FileIcon, PenTool, Eraser, Lightbulb, } from 'lucide-react';
 import { imageDB } from '../../context/db';
 import SoundboardWindow from '../Soundboard/SoundboardWindow';
 import HostControls from '../Network/HostControls';
+import LightingToolbar from '../Lighting/LightingToolbar';
 import { useNetwork } from '../../network';
 import DiceWindow from '../DiceRoller/DiceWindow';
 import { useTranslation } from '../../i18n';
@@ -935,7 +936,7 @@ const HelpWindow = ({ isOpen, onClose }) => {
 };
 
 
-export const VTTLayout = ({ zoomValue, onZoomChange, activeTool, setActiveTool, showUI, setIsResizingBrush, alertMessage, setAlertMessage, clearAlert }) => {
+export const VTTLayout = ({ zoomValue, onZoomChange, activeTool, setActiveTool, showUI, setIsResizingBrush, alertMessage, setAlertMessage, clearAlert, lightingControls }) => {
   const { 
       activeAdventure, 
       activeScene, 
@@ -985,12 +986,13 @@ export const VTTLayout = ({ zoomValue, onZoomChange, activeTool, setActiveTool, 
   }, []);
 
   const isDrawingMode = activeTool === 'brush' || activeTool === 'eraser';
+  const isLightingMode = activeTool === 'lighting' && !!lightingControls;
 
   useEffect(() => {
-      if (isDrawingMode) {
+      if (isDrawingMode || isLightingMode) {
           closeAllMenus();
       }
-  }, [isDrawingMode, closeAllMenus]);
+  }, [isDrawingMode, isLightingMode, closeAllMenus]);
 
   useEffect(() => {
       const handleOutsideInteraction = (event) => {
@@ -1097,10 +1099,20 @@ export const VTTLayout = ({ zoomValue, onZoomChange, activeTool, setActiveTool, 
                     <Eraser size={18}/>
                 </button>
 
+                <button 
+                    onClick={() => { setActiveTool('lighting'); closeAllMenus(); }} 
+                    className={`p-2 rounded hover:bg-white/10 transition ${activeTool === 'lighting' ? 'bg-white/20 text-yellow-300' : 'text-text-muted'}`} 
+                    title={t('toolbar.lighting')}
+                >
+                    <Lightbulb size={18}/>
+                </button>
+
                 <div className="w-px h-6 bg-glass-border mx-1"></div>
 
                 <div className="flex-1 flex items-center min-w-[501px]">
-                    {isDrawingMode ? (
+                    {isLightingMode ? (
+                        <LightingToolbar {...lightingControls} />
+                    ) : isDrawingMode ? (
                         <div className="flex-1 flex items-center gap-3 px-2 w-full">
                                 
                                 {activeTool === 'brush' && (

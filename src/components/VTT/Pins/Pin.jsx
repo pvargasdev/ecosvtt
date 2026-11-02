@@ -3,7 +3,7 @@ import { useTranslation } from '../../../i18n';
 import { useGame } from '../../../context/GameContext';
 import * as Icons from 'lucide-react';
 
-const Pin = ({ data, viewScale, onMouseDown, onDoubleClick, isGM, isSelected, isGhost = false }) => {
+const Pin = ({ data, viewScale, onMouseDown, onDoubleClick, isGM, isSelected, isGhost = false, interactive = true }) => {
     const { setActiveScene } = useGame();
     const [isHovered, setIsHovered] = useState(false);
     const t = useTranslation();
@@ -57,7 +57,8 @@ const Pin = ({ data, viewScale, onMouseDown, onDoubleClick, isGM, isSelected, is
                     transform: `translate(-50%, -100%) scale(${inverseScale})`,
                     cursor: isGhost ? 'default' : 'pointer',
                     zIndex: zIndex,
-                    ...ghostStyles
+                    ...ghostStyles,
+                    ...(interactive ? {} : { pointerEvents: 'none' })
                 }}
                 onMouseDown={(e) => { 
                     if (isGhost) return;

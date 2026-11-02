@@ -632,7 +632,7 @@ const NetworkProvider = ({ children }) => {
             'addScene', 'duplicateScene', 'updateScene', 'updateSceneMap', 'setActiveScene', 'deleteScene', 'addSceneFolder', 'moveSceneItem',
             'addFogArea', 'updateFogArea', 'deleteFogArea', 'deleteMultipleFogAreas',
             'addTokenInstance', 'deleteTokenInstance', 'deleteMultipleTokenInstances', 'importCharacterAsToken', 'addTokenToLibrary',
-            'addPin', 'updatePin', 'deletePin', 'deleteMultiplePins', 'updateSceneDrawing', 'toggleAdventurePinVisibility',
+            'addPin', 'updatePin', 'deletePin', 'deleteMultiplePins', 'updateSceneDrawing', 'updateSceneLighting', 'toggleAdventurePinVisibility',
             'setActiveTool', 'playTrack', 'stopTrack', 'triggerSfxRemote'
         ].forEach(k => { blocked[k] = noop; });
         return {
