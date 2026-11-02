@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { Howl, Howler } from 'howler';
 import { useGame } from '../context/GameContext';
 import { audioDB } from '../context/audioDb'; 
+import { audioTap } from '../network/audioTap';
 
 export const useAudioEngine = () => {
     const { soundboard, isGMWindow } = useGame();
@@ -24,8 +25,15 @@ export const useAudioEngine = () => {
 
     useEffect(() => {
         return () => {
+            // Descarrega só os sons deste motor. Howler.unload() recriaria o AudioContext,
+            // o que quebraria a transmissão de áudio para os jogadores numa sala online.
             Howler.stop();
-            Howler.unload();
+            currentMusicRef.current?.unload();
+            oldMusicRef.current?.unload();
+            Object.values(activeSfxInstances.current).forEach(sfx => sfx?.unload());
+            currentMusicRef.current = null;
+            oldMusicRef.current = null;
+            activeSfxInstances.current = {};
             if (currentBlobUrl.current) URL.revokeObjectURL(currentBlobUrl.current);
         };
     }, []);
@@ -66,6 +74,7 @@ export const useAudioEngine = () => {
                 currentBlobUrl.current = url;
                 const newHowl = new Howl({ src: [url], html5: true, loop: true, volume: 0 });
                 newHowl._fileId = track.fileId;
+                audioTap.setCurrentMusic(newHowl);
                 if (track.isPlaying) { newHowl.play(); newHowl.fade(0, track.volume || 1, fadeTime); }
                 currentMusicRef.current = newHowl;
             } catch (e) { console.error("Erro música:", e); }

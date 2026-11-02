@@ -11,6 +11,8 @@ import ContextMenu from './Pins/ContextMenu';
 import AudioController from '../../components/AudioController';
 import MainMenu from '../../components/MainMenu/MainMenu';
 import { useTranslation } from '../../i18n';
+import { useNetwork } from '../../network';
+import PlayerHUD from '../Network/PlayerHUD';
 
 const MIN_SCALE = 0.1;
 const MAX_SCALE = 5.0;
@@ -55,6 +57,9 @@ const Board = ({ showUI }) => {
     brushSize, brushColor, updateSceneDrawing
   } = useGame();
   const t = useTranslation();
+  const { isPlayer, isHost, shareView } = useNetwork();
+  // Numa sala online, a tela do mestre (host) é a tela de mestre: vê através da fog.
+  const seesAsGM = isGMWindow || isHost;
 
   const containerRef = useRef(null);
   const importInputRef = useRef(null);
@@ -105,6 +110,8 @@ const Board = ({ showUI }) => {
   
   const [mapParams, setMapParams] = useState({ url: null, id: null });
   const [mapSize, setMapSize] = useState({ url: null, w: 0, h: 0 });
+  const [mapPreview, setMapPreview] = useState(null); // miniatura exibida enquanto o mapa baixa (jogador)
+  const mapLoadingRef = useRef(null);
 
   const [contextMenu, setContextMenu] = useState(null);
   const [pinModal, setPinModal] = useState({ open: false, data: null, position: { x: 0, y: 0 } });
@@ -128,7 +135,7 @@ const Board = ({ showUI }) => {
   const clearAlert = useCallback(() => setAlertMessage(null), []);
 
   const arePinsVisible = activeAdventure?.pinSettings 
-      ? (isGMWindow ? activeAdventure.pinSettings.gm : activeAdventure.pinSettings.main)
+      ? (seesAsGM ? activeAdventure.pinSettings.gm : activeAdventure.pinSettings.main)
       : true;
       
   // Escala final do mapa no mundo: escala escolhida pelo usuário × compensação da
@@ -155,6 +162,7 @@ const Board = ({ showUI }) => {
       };
 
       if (hasMapSize) extend(0, 0, mapSize.w * effectiveMapScale, mapSize.h * effectiveMapScale);
+      else if (displayScene?.mapNaturalSize) extend(0, 0, displayScene.mapNaturalSize.w * effectiveMapScale, displayScene.mapNaturalSize.h * effectiveMapScale);
       else extend(-PAN_LIMIT, -PAN_LIMIT, PAN_LIMIT, PAN_LIMIT);
 
       displayScene?.tokens?.forEach(t => {
@@ -165,7 +173,7 @@ const Board = ({ showUI }) => {
       displayScene?.fogOfWar?.forEach(f => extend(f.x, f.y, f.x + f.width, f.y + f.height));
 
       return { minX: minX - PAN_PADDING, minY: minY - PAN_PADDING, maxX: maxX + PAN_PADDING, maxY: maxY + PAN_PADDING };
-  }, [hasMapSize, mapSize.w, mapSize.h, effectiveMapScale, displayScene?.tokens, displayScene?.pins, displayScene?.fogOfWar]);
+  }, [hasMapSize, mapSize.w, mapSize.h, effectiveMapScale, displayScene?.mapNaturalSize, displayScene?.tokens, displayScene?.pins, displayScene?.fogOfWar]);
 
   useLayoutEffect(() => { boundsRef.current = contentBounds; }, [contentBounds]);
 
@@ -339,15 +347,33 @@ const Board = ({ showUI }) => {
       const loadMap = async () => {
           if (displayScene.mapImageId !== mapParams.id) {
               if (displayScene.mapImageId) {
-                  const blob = await imageDB.getImage(displayScene.mapImageId);
-                  if (blob) setMapParams({ url: URL.createObjectURL(blob), id: displayScene.mapImageId });
-              } else setMapParams({ url: null, id: null });
+                  const wanted = displayScene.mapImageId;
+                  if (mapLoadingRef.current === wanted) return;
+                  mapLoadingRef.current = wanted;
+                  // Jogador: mostra a miniatura (poucos KB) na hora, enquanto o mapa completo baixa.
+                  if (isPlayer && displayScene.mapThumbnailId && displayScene.mapNaturalSize) {
+                      imageDB.getImage(displayScene.mapThumbnailId, { priority: 0 }).then(thumb => {
+                          if (!thumb || mapLoadingRef.current !== wanted) return;
+                          const url = URL.createObjectURL(thumb);
+                          setMapPreview(prev => { if (prev) URL.revokeObjectURL(prev.url); return { url, imageId: wanted }; });
+                      });
+                  }
+                  const blob = await imageDB.getImage(wanted, { priority: 0 });
+                  if (mapLoadingRef.current !== wanted) return;
+                  if (blob) {
+                      mapLoadingRef.current = null;
+                      setMapParams({ url: URL.createObjectURL(blob), id: wanted });
+                  }
+              } else {
+                  mapLoadingRef.current = null;
+                  setMapParams({ url: null, id: null });
+              }
           } else if (displayScene.mapImage && !displayScene.mapImageId && !mapParams.url) {
                setMapParams({ url: displayScene.mapImage, id: 'legacy' });
           }
       };
       loadMap();
-  }, [displayScene, mapParams.id, mapParams.url]);
+  }, [displayScene, mapParams.id, mapParams.url, isPlayer]);
 
   useEffect(() => { return () => { if (animationRef.current) cancelAnimationFrame(animationRef.current); }; }, []);
 
@@ -419,7 +445,8 @@ const Board = ({ showUI }) => {
             }
         }
         
-        if (selectedIds.size > 0 && activeScene) {
+        // Jogadores só podem rotacionar (Q/E) e mover tokens; o resto é exclusivo do mestre.
+        if (selectedIds.size > 0 && activeScene && !(isPlayer && key !== 'q' && key !== 'e')) {
             if (key === 'f') {
                 e.preventDefault();
                 selectedIds.forEach(id => {
@@ -537,7 +564,7 @@ const Board = ({ showUI }) => {
     
     window.addEventListener('keydown', handleKeyDown); window.addEventListener('keyup', handleKeyUp);
     return () => { window.removeEventListener('keydown', handleKeyDown); window.removeEventListener('keyup', handleKeyUp); };
-  }, [selectedIds, selectedFogIds, selectedPinIds, activeScene, deleteMultipleTokenInstances, deleteMultipleFogAreas, deleteMultiplePins, setActiveTool, addTokenInstance, updateTokenInstance, hasMapSize, mapSize.w, mapSize.h, effectiveMapScale, getMinScale]);
+  }, [isPlayer, selectedIds, selectedFogIds, selectedPinIds, activeScene, deleteMultipleTokenInstances, deleteMultipleFogAreas, deleteMultiplePins, setActiveTool, addTokenInstance, updateTokenInstance, hasMapSize, mapSize.w, mapSize.h, effectiveMapScale, getMinScale]);
 
   const animateCamera = useCallback(() => {
       const target = targetViewRef.current;
@@ -650,10 +677,37 @@ const Board = ({ showUI }) => {
     return () => node.removeEventListener('wheel', onWheel);
   }, [zoomAt, applyView, clampView, activeAdventureId]);
 
+  // Sala online: o mestre pode levar a câmera de todos os jogadores até a sua visão.
+  // A visão é enviada como centro + zoom em coordenadas do mundo, pois as telas têm tamanhos diferentes.
+  useEffect(() => {
+      if (isHost) {
+          const onShareRequest = () => {
+              const node = containerRef.current;
+              if (!node) return;
+              const v = targetViewRef.current;
+              shareView({ cx: (node.clientWidth / 2 - v.x) / v.scale, cy: (node.clientHeight / 2 - v.y) / v.scale, scale: v.scale });
+          };
+          window.addEventListener('ecos-share-view-request', onShareRequest);
+          return () => window.removeEventListener('ecos-share-view-request', onShareRequest);
+      }
+      if (isPlayer) {
+          const onRemoteView = (e) => {
+              const node = containerRef.current;
+              const { cx, cy, scale } = e.detail || {};
+              if (!node || ![cx, cy, scale].every(Number.isFinite)) return;
+              const newScale = clamp(scale, getMinScale(), MAX_SCALE);
+              setSliderValue(Math.round(newScale * 100));
+              applyView(clampView({ scale: newScale, x: node.clientWidth / 2 - cx * newScale, y: node.clientHeight / 2 - cy * newScale }));
+          };
+          window.addEventListener('ecos-remote-view', onRemoteView);
+          return () => window.removeEventListener('ecos-remote-view', onRemoteView);
+      }
+  }, [isHost, isPlayer, shareView, applyView, clampView, getMinScale]);
+
   const handleAuxClick = (e) => { if (e.button === 1) e.preventDefault(); };
 
   const handleBoardDoubleClick = (e) => {
-      if (activeTool !== 'select') return;
+      if (activeTool !== 'select' || isPlayer) return;
       const rect = containerRef.current.getBoundingClientRect();
       const worldX = (e.clientX - rect.left - view.x) / view.scale;
       const worldY = (e.clientY - rect.top - view.y) / view.scale;
@@ -667,7 +721,8 @@ const Board = ({ showUI }) => {
         setInteraction({ mode: 'PANNING', startX: e.clientX, startY: e.clientY, initialViewX: targetViewRef.current.x, initialViewY: targetViewRef.current.y });
         return;
     }
-    const isClickingElement = e.target.closest('.token') || e.target.closest('.fog-area') || e.target.closest('.pin-marker');
+    // Para o jogador a fog é só escuridão: arrastar sobre ela move a tela.
+    const isClickingElement = e.target.closest('.token') || (!isPlayer && e.target.closest('.fog-area')) || e.target.closest('.pin-marker');
     if (!isClickingElement && (!e.ctrlKey && !e.metaKey)) {
         if (activeTool === 'select') { setSelectedIds(new Set()); setSelectedFogIds(new Set()); setSelectedPinIds(new Set()); }
         else if (activeTool === 'fogOfWar') { setSelectedFogIds(new Set()); setSelectedIds(new Set()); }
@@ -719,7 +774,7 @@ const Board = ({ showUI }) => {
     if (e.button === 1 || e.button === 2 || isSpacePressed || activeTool !== 'select') return;
     e.stopPropagation();
 
-    if (activeScene && activeScene.tokens) {
+    if (activeScene && activeScene.tokens && !isPlayer) {
         const currentIndex = activeScene.tokens.findIndex(t => t.id === id);
         if (currentIndex !== -1 && currentIndex !== activeScene.tokens.length - 1) {
             const newTokens = [...activeScene.tokens];
@@ -740,7 +795,7 @@ const Board = ({ showUI }) => {
   };
 
   const handleFogDown = (e, id) => {
-    if (e.button === 1 || e.button === 2 || activeTool !== 'select') return;
+    if (e.button === 1 || e.button === 2 || activeTool !== 'select' || isPlayer) return;
     e.stopPropagation();
     const isMultiSelect = e.ctrlKey || e.metaKey;
     if (isMultiSelect) {
@@ -753,7 +808,7 @@ const Board = ({ showUI }) => {
   };
 
   const handlePinDown = (e, id) => {
-    if (e.button === 1 || e.button === 2 || activeTool !== 'select') return;
+    if (e.button === 1 || e.button === 2 || activeTool !== 'select' || isPlayer) return;
     e.stopPropagation();
     const isMultiSelect = e.ctrlKey || e.metaKey;
     let newSelection = new Set(selectedPinIds);
@@ -855,6 +910,7 @@ const Board = ({ showUI }) => {
 
   const handleDrop = async (e) => {
       e.preventDefault();
+      if (isPlayer) return;
       try {
           const dataString = e.dataTransfer.getData('application/json');
           if (!dataString) return;
@@ -892,6 +948,21 @@ const Board = ({ showUI }) => {
       setContextMenu(null);
   };
 
+  const expectedMapId = displayScene?.mapImageId || (displayScene?.mapImage ? 'legacy' : null);
+  const showMap = !!mapParams.url && mapParams.id === expectedMapId;
+  const showMapPreview = !showMap && isPlayer && !!mapPreview && mapPreview.imageId === displayScene?.mapImageId && !!displayScene?.mapNaturalSize;
+
+  const handleMapLoad = (e) => {
+      const w = e.currentTarget.naturalWidth;
+      const h = e.currentTarget.naturalHeight;
+      setMapSize({ url: mapParams.url, w, h });
+      // Guarda as dimensões na cena para os jogadores poderem dimensionar a miniatura
+      // corretamente antes de o mapa completo chegar.
+      if (!isPlayer && !isGMWindow && displayScene && (displayScene.mapNaturalSize?.w !== w || displayScene.mapNaturalSize?.h !== h)) {
+          updateScene(displayScene.id, { mapNaturalSize: { w, h } });
+      }
+  };
+
   if (!activeAdventureId || !activeAdventure) {
       return <MainMenu />;
   }
@@ -925,7 +996,19 @@ const Board = ({ showUI }) => {
             
             <div className="absolute -top-[50000px] -left-[50000px] w-[100000px] h-[100000px] opacity-20 pointer-events-none" style={{ backgroundImage: 'radial-gradient(circle, #555 1px, transparent 1px)', backgroundSize: '70px 70px' }} />
             
-            {mapParams.url && (
+            {showMapPreview && (
+                <div style={{ transform: `scale(${effectiveMapScale})`, transformOrigin: '0 0' }}>
+                    <img
+                        src={mapPreview.url}
+                        className="max-w-none pointer-events-none select-none opacity-90 shadow-2xl"
+                        style={{ width: displayScene.mapNaturalSize.w, height: displayScene.mapNaturalSize.h }}
+                        alt=""
+                        draggable={false}
+                    />
+                </div>
+            )}
+
+            {showMap && (
                 <div style={{ transform: `scale(${effectiveMapScale})`, transformOrigin: '0 0' }}>
                     <img
                         src={mapParams.url}
@@ -933,12 +1016,12 @@ const Board = ({ showUI }) => {
                         alt="Map Layer"
                         draggable={false}
                         decoding="async"
-                        onLoad={(e) => setMapSize({ url: mapParams.url, w: e.currentTarget.naturalWidth, h: e.currentTarget.naturalHeight })}
+                        onLoad={handleMapLoad}
                     />
                 </div>
             )}
 
-            {mapParams.url && (
+            {showMap && (
                 <canvas
                     ref={canvasRef}
                     className="absolute top-0 left-0 pointer-events-none z-[5]"
@@ -969,10 +1052,10 @@ const Board = ({ showUI }) => {
                     key={pin.id} 
                     data={pin} 
                     viewScale={view.scale}
-                    isGM={isGMWindow} 
+                    isGM={seesAsGM} 
                     isSelected={selectedPinIds.has(pin.id)} 
                     onMouseDown={handlePinDown}
-                    onDoubleClick={() => openPinModal(pin)}
+                    onDoubleClick={() => { if (!isPlayer) openPinModal(pin); }}
                 />
             ))}
 
@@ -981,7 +1064,7 @@ const Board = ({ showUI }) => {
                     key={pin.id} 
                     data={pin} 
                     viewScale={view.scale}
-                    isGM={isGMWindow}
+                    isGM={seesAsGM}
                     isGhost={true} 
                     isSelected={false}
                     onMouseDown={() => {}}
@@ -997,8 +1080,8 @@ const Board = ({ showUI }) => {
                 <div key={fog.id} className={`fog-area absolute ${selectedFogIds.has(fog.id) ? 'ring-2 ring-yellow-400' : ''} ${activeTool === 'select' ? 'cursor-move' : 'cursor-default'}`}
                     style={{
                         left: fog.x, top: fog.y, width: fog.width, height: fog.height,
-                        backgroundColor: isGMWindow ? 'rgba(0, 0, 0, 0.5)' : 'rgba(0, 0, 0, 1)',
-                        pointerEvents: (isGMWindow && activeTool !== 'fogOfWar') ? 'none' : 'auto',
+                        backgroundColor: seesAsGM ? 'rgba(0, 0, 0, 0.5)' : 'rgba(0, 0, 0, 1)',
+                        pointerEvents: (seesAsGM && activeTool !== 'fogOfWar') ? 'none' : 'auto',
                         zIndex: 15,
                     }}
                     onMouseDown={(e) => handleFogDown(e, fog.id)}
@@ -1030,7 +1113,7 @@ const Board = ({ showUI }) => {
         )}
 
         <div id="vtt-ui-root" data-ecos-ui="true" className="vtt-ui-layer absolute inset-0 pointer-events-none z-[50]" onMouseDown={(e) => e.stopPropagation()} onMouseUp={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()} onDoubleClick={(e) => e.stopPropagation()}>
-            <VTTLayout 
+            {isPlayer ? <PlayerHUD visible={showUI} /> : <VTTLayout 
                 zoomValue={sliderValue} 
                 onZoomChange={handleSliderZoom} 
                 activeTool={activeTool} 
@@ -1040,7 +1123,7 @@ const Board = ({ showUI }) => {
                 alertMessage={alertMessage}
                 setAlertMessage={setAlertMessage}
                 clearAlert={clearAlert}
-            />
+            />}
             {contextMenu && <ContextMenu x={contextMenu.x} y={contextMenu.y} onOptionClick={(opt) => { if (opt === 'add_pin') openPinModal(null, { x: contextMenu.worldX, y: contextMenu.worldY }); setContextMenu(null); }} onClose={() => setContextMenu(null)} />}
             {pinModal.open && <PinModal initialData={pinModal.data} position={pinModal.position} onSave={handlePinSave} onClose={() => setPinModal({ open: false, data: null, position: { x: 0, y: 0 } })} />}
         </div>

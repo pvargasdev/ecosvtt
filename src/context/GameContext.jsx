@@ -13,7 +13,9 @@ const ACTIVE_PRESET_KEY = 'ecos_vtt_active_preset_id';
 const ACTIVE_TOOL_KEY = 'ecos_vtt_active_tool';
 const STORAGE_CUSTOM_SYSTEMS_KEY = 'ecos_vtt_custom_systems_v1';
 
-const GameContext = createContext({});
+// Exportado para a camada de rede poder fornecer uma versão do jogo vista pelo jogador.
+// eslint-disable-next-line react-refresh/only-export-components
+export const GameContext = createContext({});
 
 export const GameProvider = ({ children }) => {
   const queryParams = new URLSearchParams(window.location.search);
@@ -39,6 +41,10 @@ export const GameProvider = ({ children }) => {
 
   const broadcastChannel = useRef(null);
   const isRemoteUpdate = useRef(false); 
+  // Sincronização entre janelas (principal ↔ Janela do Mestre). Desligada quando este
+  // app é um jogador numa sala online, que não deve ler nem alterar os dados locais.
+  const crossWindowSyncRef = useRef(true);
+  const setCrossWindowSyncEnabled = useCallback((enabled) => { crossWindowSyncRef.current = enabled; }, []);
 
   const [brushSize, setBrushSize] = useState(5);
   const [brushColor, setBrushColor] = useState('#ffffffff');
@@ -50,6 +56,7 @@ export const GameProvider = ({ children }) => {
   }, [adventures, characters, presets, customSystems, internalActiveAdventureId, isDataLoaded]);
 
   const handleIncomingMessage = useCallback((type, data) => {
+      if (!crossWindowSyncRef.current) return;
       if (type === 'REQUEST_FULL_SYNC') {
           const current = stateRef.current;
           if (!isGMWindow && current.isDataLoaded) {
@@ -63,7 +70,7 @@ export const GameProvider = ({ children }) => {
               if (window.electron) {
                   window.electron.sendSync('FULL_SYNC_RESPONSE', payload);
               } else if (broadcastChannel.current) {
-                  broadcastChannel.current.postMessage({ type: 'FULL_SYNC_RESPONSE', data: payload });
+                  broadcastChannel.current.postMessage({ type: 'FULL_SYNC_RESPONSE', data: payload, from: isGMWindow ? 'gm' : 'main' });
               }
           }
           return;
@@ -97,7 +104,11 @@ export const GameProvider = ({ children }) => {
 
   useEffect(() => {
       broadcastChannel.current = new BroadcastChannel('ecos_vtt_sync');
+      const ownRole = isGMWindow ? 'gm' : 'main';
       broadcastChannel.current.onmessage = (event) => {
+          // A sincronização é entre a janela principal e a Janela do Mestre; duas abas
+          // principais abertas ao mesmo tempo não devem sobrescrever uma à outra.
+          if (event.data.from === ownRole) return;
           handleIncomingMessage(event.data.type, event.data.data);
       };
 
@@ -111,7 +122,7 @@ export const GameProvider = ({ children }) => {
           if (window.electron && window.electron.sendSync) {
               window.electron.sendSync('REQUEST_FULL_SYNC', null);
           } else {
-              broadcastChannel.current.postMessage({ type: 'REQUEST_FULL_SYNC' });
+              broadcastChannel.current.postMessage({ type: 'REQUEST_FULL_SYNC', from: 'gm' });
           }
       }
 
@@ -125,12 +136,12 @@ export const GameProvider = ({ children }) => {
   }, [handleIncomingMessage, isGMWindow]); 
 
   const broadcast = (type, data) => {
-      if (!isRemoteUpdate.current && isDataLoaded) {
+      if (!isRemoteUpdate.current && isDataLoaded && crossWindowSyncRef.current) {
           if (window.electron && window.electron.sendSync) {
               window.electron.sendSync(type, data);
           } 
           else if (broadcastChannel.current) {
-              broadcastChannel.current.postMessage({ type, data });
+              broadcastChannel.current.postMessage({ type, data, from: isGMWindow ? 'gm' : 'main' });
           }
       }
   };
@@ -1328,7 +1339,7 @@ export const GameProvider = ({ children }) => {
     brushSize, setBrushSize, brushColor, setBrushColor, updateSceneDrawing,
     customSystems, addCustomSystem, updateCustomSystem, deleteCustomSystem,
     isSystemBuilderOpen, setIsSystemBuilderOpen,
-    renameTrackItem
+    renameTrackItem, setCrossWindowSyncEnabled
   };
 
   return <GameContext.Provider value={value}>{children}</GameContext.Provider>;

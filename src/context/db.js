@@ -104,6 +104,8 @@ const optimizeMapImage = async (file) => {
     return { blob, resolutionScale: width / targetW, width: targetW, height: targetH, originalWidth: width, originalHeight: height };
 };
 
+let remoteSource = null;
+
 export const imageDB = {
     generateThumbnail: generateThumbnailBlob,
     optimizeMapImage,
@@ -137,8 +139,13 @@ export const imageDB = {
         }
     },
 
-    getImage: async (id) => {
+    // Em uma sala online o jogador não tem as imagens localmente: elas vêm do mestre
+    // sob demanda. A fonte remota é registrada pela camada de rede.
+    setRemoteSource: (source) => { remoteSource = source; },
+
+    getImage: async (id, options) => {
         if (!id) return null;
+        if (remoteSource) return remoteSource(id, options);
 
         if (window.electron) {
             try {

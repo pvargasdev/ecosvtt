@@ -49,12 +49,16 @@ rows.forEach(([key, ...values], index) => {
 });
 
 const usedKeys = new Map();
+const usedPrefixes = new Set();
 const KEY_REGEX = /\b(?:t|translate)\(\s*['"`]([\w.-]+)['"`]/g;
+// Chaves montadas dinamicamente, ex: t(`network.errors.${code}`)
+const PREFIX_REGEX = /\b(?:t|translate)\(\s*`([\w.-]+)\$\{/g;
 for (const file of walk(path.join(ROOT, 'src'))) {
     const content = fs.readFileSync(file, 'utf8');
     for (const m of content.matchAll(KEY_REGEX)) {
         if (!usedKeys.has(m[1])) usedKeys.set(m[1], path.relative(ROOT, file));
     }
+    for (const m of content.matchAll(PREFIX_REGEX)) usedPrefixes.add(m[1]);
 }
 
 for (const [key, file] of usedKeys) {
@@ -63,7 +67,7 @@ for (const [key, file] of usedKeys) {
 
 // Variantes de plural (chave_one, chave_other...) contam como usadas junto com a chave base.
 const PLURAL_SUFFIX = /_(zero|one|two|few|many|other)$/;
-const unused = [...csvKeys.keys()].filter(k => !k.startsWith('_meta.') && !usedKeys.has(k) && !usedKeys.has(k.replace(PLURAL_SUFFIX, '')));
+const unused = [...csvKeys.keys()].filter(k => !k.startsWith('_meta.') && !usedKeys.has(k) && !usedKeys.has(k.replace(PLURAL_SUFFIX, '')) && ![...usedPrefixes].some(p => k.startsWith(p)));
 
 console.log(`Idiomas: ${languages.join(', ')} | chaves no CSV: ${csvKeys.size} | chaves usadas: ${usedKeys.size}`);
 if (unused.length) console.log(`\nChaves não usadas no código (${unused.length}):\n  ${unused.join('\n  ')}`);

@@ -3,6 +3,8 @@ import { useGame } from '../../context/GameContext';
 import { Settings, Image as ImageIcon, Box, ArrowLeft, Map, Plus, Trash2, X, ChevronDown, LogOut, Edit2, RotateCcw, Check, Search, Square, MousePointer, AlertTriangle, Folder, FolderPlus, CornerLeftUp, Copy, HelpCircle, Import, Speaker, Dices, MapPin, MapPinOff, File as FileIcon, PenTool, Eraser, } from 'lucide-react';
 import { imageDB } from '../../context/db';
 import SoundboardWindow from '../Soundboard/SoundboardWindow';
+import HostControls from '../Network/HostControls';
+import { useNetwork } from '../../network';
 import DiceWindow from '../DiceRoller/DiceWindow';
 import { useTranslation } from '../../i18n';
 
@@ -943,6 +945,8 @@ export const VTTLayout = ({ zoomValue, onZoomChange, activeTool, setActiveTool, 
       brushSize, setBrushSize,
       brushColor, setBrushColor,
   } = useGame();
+  const { isHost } = useNetwork();
+  const seesAsGM = isGMWindow || isHost;
 
   useEffect(() => {
       setBrushColor('#ffffff');
@@ -1043,7 +1047,7 @@ export const VTTLayout = ({ zoomValue, onZoomChange, activeTool, setActiveTool, 
   };
   
   const arePinsVisible = activeAdventure?.pinSettings 
-      ? (isGMWindow ? activeAdventure.pinSettings.gm : activeAdventure.pinSettings.main)
+      ? (seesAsGM ? activeAdventure.pinSettings.gm : activeAdventure.pinSettings.main)
       : true; 
 
   return (
@@ -1064,6 +1068,13 @@ export const VTTLayout = ({ zoomValue, onZoomChange, activeTool, setActiveTool, 
 
 
               <div className="flex items-center gap-1 p-1.5">
+
+                {isHost && (
+                    <>
+                        <HostControls />
+                        <div className="w-px h-6 bg-glass-border mx-1"></div>
+                    </>
+                )}
 
                 <button onClick={() => { setActiveTool('select'); closeAllMenus(); }} className={`p-2 rounded hover:bg-white/10 transition ${activeTool === 'select' ? 'bg-white/20 text-neon-green' : 'text-text-muted'}`} title={t('toolbar.select')}><MousePointer size={18}/></button>
                 <button onClick={() => { setActiveTool('fogOfWar'); closeAllMenus(); }} className={`p-2 rounded hover:bg-white/10 transition ${activeTool === 'fogOfWar' ? 'bg-white/20 text-neon-purple' : 'text-text-muted'}`} title={t('toolbar.fogOfWar')}><Square size={18}/></button>
@@ -1142,7 +1153,7 @@ export const VTTLayout = ({ zoomValue, onZoomChange, activeTool, setActiveTool, 
 
                             <div className="w-px h-6 bg-glass-border mx-1"></div>
 
-                            <button onClick={() => toggleAdventurePinVisibility(isGMWindow)} className={`p-2 rounded hover:bg-white/10 transition ${arePinsVisible ? 'text-text-muted' : 'text-text-muted opacity-50'}`} title={arePinsVisible ? t('toolbar.hidePins') : t('toolbar.showPins')}>
+                            <button onClick={() => toggleAdventurePinVisibility(seesAsGM)} className={`p-2 rounded hover:bg-white/10 transition ${arePinsVisible ? 'text-text-muted' : 'text-text-muted opacity-50'}`} title={arePinsVisible ? t('toolbar.hidePins') : t('toolbar.showPins')}>
                                 {arePinsVisible ? <MapPin size={18}/> : <MapPinOff size={18}/>}
                             </button>
 

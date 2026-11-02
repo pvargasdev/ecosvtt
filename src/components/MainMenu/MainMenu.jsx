@@ -1,10 +1,12 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useGame } from '../../context/GameContext';
-import { Plus, Search, Monitor, Import, Loader2, X, AlertTriangle, Maximize, LogOut, Check, Settings } from 'lucide-react';
+import { Plus, Search, Monitor, Import, Loader2, X, AlertTriangle, Maximize, LogOut, Check, Settings, Home, Wifi, WifiOff, Users, Power, RotateCcw } from 'lucide-react';
 import AdventureCard from './AdventureCard';
 import EditAdventureModal from './EditAdventureModal';
 import SettingsModal from './SettingsModal';
 import { useTranslation } from '../../i18n';
+import { useNetwork } from '../../network';
+import { CopyCodeButton } from '../Network/HostControls';
 import Logo from '../../assets/logo2.png'; 
 
 const APP_VERSION = "v1.1.0"; 
@@ -57,6 +59,7 @@ const MainMenu = () => {
         isGMWindow, isGMWindowOpen 
     } = useGame() || {}; 
     const t = useTranslation();
+    const network = useNetwork();
 
     const [searchTerm, setSearchTerm] = useState("");
     const [isCreating, setIsCreating] = useState(false);
@@ -213,6 +216,36 @@ const MainMenu = () => {
                 </div>
             </div>
 
+            {network.isHost && (
+                <div className="relative z-10 mx-8 mb-2 shrink-0 animate-in fade-in slide-in-from-top-2 duration-500">
+                    <div className={`flex flex-wrap items-center gap-x-6 gap-y-2 px-5 py-3 rounded-xl border ${network.status === 'error' ? 'border-red-500/40 bg-red-500/5' : 'border-neon-blue/30 bg-neon-blue/5'}`}>
+                        {network.status === 'error' ? (
+                            <>
+                                <span className="flex items-center gap-2 text-xs text-red-300 font-bold"><WifiOff size={16} /> {t(`network.errors.${network.error || 'server'}`)}</span>
+                                <button onClick={network.startHosting} className="flex items-center gap-1.5 text-xs font-bold text-white hover:text-neon-blue transition uppercase tracking-wider"><RotateCcw size={14} /> {t('host.retry')}</button>
+                            </>
+                        ) : network.status !== 'open' ? (
+                            <span className="flex items-center gap-2 text-xs text-gray-300 font-bold"><Loader2 size={16} className="animate-spin text-neon-blue" /> {t('host.opening')}</span>
+                        ) : (
+                            <>
+                                <span className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-neon-blue"><Wifi size={16} /> {t('host.roomOpen')}</span>
+                                <span className="flex items-center gap-2 text-xs text-gray-400">
+                                    {t('host.codeLabel')}
+                                    <CopyCodeButton code={network.roomCode} className="text-lg text-white hover:text-neon-blue" />
+                                </span>
+                                <span className="flex items-center gap-2 text-xs text-gray-400" title={network.players.map(p => p.name).join(', ')}>
+                                    <Users size={14} /> {t('host.playersConnected', { count: network.players.length })}
+                                </span>
+                                <span className="text-xs text-gray-500 hidden lg:inline">{t('host.chooseAdventure')}</span>
+                            </>
+                        )}
+                        <button onClick={network.backToStart} className="ml-auto flex items-center gap-1.5 text-xs font-bold text-gray-400 hover:text-red-400 transition uppercase tracking-wider">
+                            <Power size={14} /> {t('host.closeRoom')}
+                        </button>
+                    </div>
+                </div>
+            )}
+
             <div className="flex-1 overflow-y-auto px-8 pb-4 relative z-10 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
                 
                 {isCreating && (
@@ -278,6 +311,11 @@ const MainMenu = () => {
 
             <div className="relative z-10 px-8 py-6 flex items-center justify-between shrink-0 text-xs text-gray-600">
                  <div className="flex items-center gap-2 select-none">
+                    {!network.isHost && (
+                        <button onClick={network.backToStart} className="flex items-center gap-1.5 p-2 -ml-2 rounded text-gray-600 hover:text-white hover:bg-white/5 transition text-[10px] font-bold uppercase tracking-widest" title={t('mainMenu.backToStart')}>
+                            <Home size={14}/> {t('mainMenu.home')}
+                        </button>
+                    )}
                     <span className="text-[10px] font-mono uppercase tracking-widest transition-opacity cursor-default">
                         {APP_VERSION}
                     </span>
