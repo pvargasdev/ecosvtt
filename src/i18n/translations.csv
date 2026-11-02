@@ -306,3 +306,9 @@ netcheck.symmetricTitle,Sua rede pode dificultar o jogo online,Your network may 
 netcheck.symmetricDetail,"Ela troca a porta de cada conexão (NAT simétrico), comum em redes de empresas, faculdades e internet móvel. Conectar com jogadores em redes parecidas pode falhar. Se der problema, tente outra rede, como o Wi-Fi de casa.","It changes the port for each connection (symmetric NAT), common on company, university and mobile networks. Connecting with players on similar networks may fail. If you run into problems, try another network, such as your home Wi-Fi."
 netcheck.blockedTitle,Sua rede bloqueia o jogo online,Your network blocks online play
 netcheck.blockedDetail,"Não foi possível fazer conexões ponto a ponto (UDP bloqueado, provavelmente por um firewall ou VPN). O jogo online provavelmente não vai funcionar nesta rede.","Peer-to-peer connections could not be made (UDP blocked, likely by a firewall or VPN). Online play will most likely not work on this network."
+start.eyebrow,Bem-vindo à mesa,Welcome to the table
+start.choose,Escolher,Choose
+start.shortcutHint,Atalho: tecla {key},Shortcut: key {key}
+start.tags.local,Offline,Offline
+start.tags.host,Online · Mestre,Online · GM
+start.tags.join,Online · Jogador,Online · Player
