@@ -9,6 +9,7 @@ const LightingHints = ({ tool, selection, visible }) => {
     const editsWalls = tool === 'select' || tool === 'wall';
     if (editsWalls && selection?.kind === 'segment') hint = 'segmentSelected';
     if (editsWalls && selection?.kind === 'vertex') hint = 'vertexSelected';
+    if (tool === 'select' && (selection?.kind === 'token' || selection?.kind === 'tokenLight')) hint = 'tokenSelected';
     const parts = t(`lighting.hints.${hint}`).split('|');
 
     return (

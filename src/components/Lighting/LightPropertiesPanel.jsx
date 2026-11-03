@@ -1,25 +1,13 @@
 import React from 'react';
-import { Lightbulb, Flashlight, Copy, Trash2, Power } from 'lucide-react';
+import { Lightbulb, Flashlight, Copy, Trash2, Power, Link2 } from 'lucide-react';
 import { useTranslation } from '../../i18n';
-import { newId } from '../../lighting/geometry';
 import LightSettings from './LightSettings';
 
 // Janela de propriedades da luz selecionada (no mesmo padrão das outras janelas).
-const LightPropertiesPanel = ({ light, setLighting, onSelect, onClose }) => {
+// Serve para luzes do mapa e para luzes presas a um token (`attached`): nessas o tipo
+// é fixo (cada token tem uma vaga por tipo) e não há duplicar.
+const LightPropertiesPanel = ({ light, onChange, onRemove, onDuplicate, attached = false, direction }) => {
     const t = useTranslation();
-    const update = (changes) => setLighting(l => ({ ...l, lights: l.lights.map(x => (x.id === light.id ? { ...x, ...changes } : x)) }));
-
-    const duplicate = () => {
-        const copy = { ...light, id: newId(), x: light.x + 60, y: light.y + 60 };
-        setLighting(l => ({ ...l, lights: [...l.lights, copy] }));
-        onSelect({ kind: 'light', id: copy.id });
-    };
-
-    const remove = () => {
-        setLighting(l => ({ ...l, lights: l.lights.filter(x => x.id !== light.id) }));
-        onClose();
-    };
-
     const isSpot = light.type === 'spot';
 
     return (
@@ -36,27 +24,34 @@ const LightPropertiesPanel = ({ light, setLighting, onSelect, onClose }) => {
                     {isSpot ? t('lighting.spotLight') : t('lighting.pointLight')}
                 </h3>
                 <div className="flex gap-1">
-                    <button onClick={() => update({ enabled: !light.enabled })} className={`p-1 rounded hover:bg-white/10 ${light.enabled ? 'text-yellow-300' : 'text-text-muted'}`} title={light.enabled ? t('lighting.turnOff') : t('lighting.turnOn')}><Power size={14} /></button>
-                    <button onClick={duplicate} className="p-1 rounded hover:bg-white/10 text-text-muted hover:text-white" title={t('common.duplicate')}><Copy size={14} /></button>
-                    <button onClick={remove} className="p-1 rounded hover:bg-red-500/20 text-text-muted hover:text-red-500" title={t('common.delete')}><Trash2 size={14} /></button>
+                    <button onClick={() => onChange({ enabled: !light.enabled })} className={`p-1 rounded hover:bg-white/10 ${light.enabled ? 'text-yellow-300' : 'text-text-muted'}`} title={light.enabled ? t('lighting.turnOff') : t('lighting.turnOn')}><Power size={14} /></button>
+                    {onDuplicate && <button onClick={onDuplicate} className="p-1 rounded hover:bg-white/10 text-text-muted hover:text-white" title={t('common.duplicate')}><Copy size={14} /></button>}
+                    <button onClick={onRemove} className="p-1 rounded hover:bg-red-500/20 text-text-muted hover:text-red-500" title={attached ? t('lighting.token.detach') : t('common.delete')}><Trash2 size={14} /></button>
                 </div>
             </div>
 
             <div className="p-4 space-y-4 bg-black/20 rounded-b-xl overflow-y-auto scrollbar-thin">
-                <div className="grid grid-cols-2 gap-1 p-1 bg-black/40 rounded-lg">
-                    {['point', 'spot'].map(type => (
-                        <button
-                            key={type}
-                            onClick={() => update({ type })}
-                            className={`flex items-center justify-center gap-1.5 py-1.5 rounded text-[10px] font-bold uppercase transition ${light.type === type ? 'bg-white/15 text-white' : 'text-text-muted hover:text-white'}`}
-                        >
-                            {type === 'spot' ? <Flashlight size={12} /> : <Lightbulb size={12} />}
-                            {type === 'spot' ? t('lighting.spot') : t('lighting.point')}
-                        </button>
-                    ))}
-                </div>
+                {attached ? (
+                    <div className="flex items-center gap-2 rounded-lg border border-yellow-300/20 bg-yellow-300/[0.06] px-3 py-2 text-[11px] text-yellow-100/80">
+                        <Link2 size={13} className="shrink-0 text-yellow-300" />
+                        {isSpot ? t('lighting.token.spotAttachedHint') : t('lighting.token.pointAttachedHint')}
+                    </div>
+                ) : (
+                    <div className="grid grid-cols-2 gap-1 p-1 bg-black/40 rounded-lg">
+                        {['point', 'spot'].map(type => (
+                            <button
+                                key={type}
+                                onClick={() => onChange({ type })}
+                                className={`flex items-center justify-center gap-1.5 py-1.5 rounded text-[10px] font-bold uppercase transition ${light.type === type ? 'bg-white/15 text-white' : 'text-text-muted hover:text-white'}`}
+                            >
+                                {type === 'spot' ? <Flashlight size={12} /> : <Lightbulb size={12} />}
+                                {type === 'spot' ? t('lighting.spot') : t('lighting.point')}
+                            </button>
+                        ))}
+                    </div>
+                )}
 
-                <LightSettings light={light} update={update} />
+                <LightSettings light={light} update={onChange} direction={direction} />
             </div>
         </div>
     );

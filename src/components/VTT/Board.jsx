@@ -19,8 +19,7 @@ import LightPropertiesPanel from '../Lighting/LightPropertiesPanel';
 import LightingHints from '../Lighting/LightingHints';
 import WallPanel from '../Lighting/WallPanel';
 import DoorControls from '../Lighting/DoorControls';
-import TokenLightMenu from '../Lighting/TokenLightMenu';
-import { getLighting, collectTokenLights, DEFAULT_TOKEN_LIGHT_DIRECTION } from '../../lighting/model';
+import { getLighting, collectTokenLights, createTokenLight, DEFAULT_TOKEN_LIGHT_DIRECTION } from '../../lighting/model';
 import { useSmoothLightDirections } from '../../lighting/useSmoothLightDirections';
 import { newId as newLightingId, toggleDoor } from '../../lighting/geometry';
 
@@ -30,7 +29,7 @@ const PAN_LIMIT = 3000; // área navegável quando a cena não tem mapa
 const PAN_PADDING = 200; // folga (em px do mundo) ao redor do conteúdo da cena
 const CAMERA_SMOOTHING = 0.2;
 const ZOOM_SPEED_FACTOR = 0.001;
-const PINCH_ZOOM_SPEED = 0.02;
+const PINCH_ZOOM_SPEED = 0.01;
 const TRACKPAD_GESTURE_GAP = 150; // ms sem eventos de wheel para considerar um novo gesto
 const DRAW_MAX_DIMENSION = 4096; // resolução máxima da camada de desenho
 const TOKEN_BASE_SIZE = 70;
@@ -48,12 +47,18 @@ const isTypingTarget = (el) => {
 
 // Chromium não diferencia mouse de touchpad no evento wheel, então usamos heurística:
 // roda do mouse gera deltas em múltiplos de 120 (wheelDelta) sem eixo X; touchpad gera
-// deltas pequenos/fracionados e frequentemente com X.
+// deltas pequenos/fracionados e frequentemente com X. Um "clique" de roda nunca vale
+// menos que ~100px, então deltas pequenos também indicam touchpad.
+// No Windows a pinça do touchpad chega com wheelDeltaY = ±120 (igual a um clique de
+// roda) e deltaY fracionado, por isso o deltaY é verificado antes do wheelDeltaY.
+const MOUSE_NOTCH_MIN_DELTA = 50;
 const looksLikeTrackpad = (e) => {
     if (e.deltaMode !== 0) return false;
     if (e.deltaX !== 0) return true;
+    if (!Number.isInteger(e.deltaY)) return true;
+    if (e.deltaY !== 0 && Math.abs(e.deltaY) < MOUSE_NOTCH_MIN_DELTA) return true;
     if (typeof e.wheelDeltaY === 'number' && e.wheelDeltaY !== 0) return Math.abs(e.wheelDeltaY) % 120 !== 0;
-    return !Number.isInteger(e.deltaY);
+    return false;
 };
 
 const TOKEN_ROTATION_STEP = 45; // 8 passos = uma volta completa
@@ -165,7 +170,6 @@ const Board = ({ showUI }) => {
   const [lightSelection, setLightSelection] = useState(null);
   const [lightingInteractive, setLightingInteractive] = useState(false);
   const [previewAsPlayer, setPreviewAsPlayer] = useState(false);
-  const [tokenLightMenu, setTokenLightMenu] = useState(null); // { tokenId, x, y }
 
   const [alertMessage, setAlertMessage] = useState(null);
   const clearAlert = useCallback(() => setAlertMessage(null), []);
@@ -768,9 +772,10 @@ const Board = ({ showUI }) => {
         gesture.lastTime = now;
 
         const currentTarget = targetViewRef.current;
+        const zoomGesture = e.ctrlKey || e.metaKey;
 
         if (gesture.isTrackpad) {
-            if (e.ctrlKey || e.metaKey) {
+            if (zoomGesture) {
                 // Pinça no touchpad (o Chromium entrega como wheel + ctrlKey).
                 const factor = Math.pow(2, -clamp(dy, -50, 50) * PINCH_ZOOM_SPEED);
                 zoomAt(currentTarget.scale * factor, mouseX, mouseY, true);
@@ -911,15 +916,6 @@ const Board = ({ showUI }) => {
     } else { if (!selectedIds.has(id)) setSelectedIds(new Set([id])); }
     setSelectedFogIds(new Set()); setSelectedPinIds(new Set());
     setInteraction({ mode: 'DRAGGING', activeTokenId: id, startX: e.clientX, startY: e.clientY });
-  };
-
-  // Botão direito num token (com a iluminação da cena ativa): menu de luzes do token.
-  const handleTokenContextMenu = (e, id) => {
-    if (isPlayer || activeTool !== 'select' || !sceneLighting.enabled) return;
-    const rect = containerRef.current.getBoundingClientRect();
-    setSelectedIds(new Set([id])); setSelectedFogIds(new Set()); setSelectedPinIds(new Set());
-    setContextMenu(null);
-    setTokenLightMenu({ tokenId: id, x: e.clientX - rect.left + 8, y: e.clientY - rect.top + 8 });
   };
 
   const handleFogDown = (e, id) => {
@@ -1116,7 +1112,33 @@ const Board = ({ showUI }) => {
   const lightingActive = !!displayScene?.lighting?.enabled;
   // Botões de porta: na tela de quem conduz o jogo (não na tela exibida aos jogadores).
   const showDoorControls = lightingActive && !isPlayer && activeTool !== 'lighting' && (seesAsGM || !isGMWindowOpen);
-  const menuToken = tokenLightMenu ? displayScene?.tokens.find(t => t.id === tokenLightMenu.tokenId) : null;
+  // Luzes presas a tokens, editadas pelo modo de iluminação.
+  const lightToken = (lightSelection?.kind === 'token' || lightSelection?.kind === 'tokenLight')
+      ? displayScene?.tokens.find(t => t.id === lightSelection.id) : null;
+  const tokenLightSize = (token) => TOKEN_BASE_SIZE * (token.scale || 1);
+  const attachTokenLight = (tokenId, type) => {
+      const token = displayScene?.tokens.find(t => t.id === tokenId);
+      if (!token) return;
+      const updates = { lights: { ...(token.lights || {}), [type]: createTokenLight(type) } };
+      if (type === 'spot' && token.lightDirection === undefined) updates.lightDirection = DEFAULT_TOKEN_LIGHT_DIRECTION;
+      updateTokenInstance(displayScene.id, tokenId, updates);
+      setLightSelection({ kind: 'tokenLight', id: tokenId, type });
+  };
+  const removeTokenLight = (tokenId, type) => {
+      const token = displayScene?.tokens.find(t => t.id === tokenId);
+      if (token) updateTokenInstance(displayScene.id, tokenId, { lights: { ...(token.lights || {}), [type]: null } });
+  };
+  const updateTokenLight = (tokenId, type, changes) => {
+      const token = displayScene?.tokens.find(t => t.id === tokenId);
+      if (token?.lights?.[type]) updateTokenInstance(displayScene.id, tokenId, { lights: { ...token.lights, [type]: { ...token.lights[type], ...changes } } });
+  };
+  const onTokenLightSlot = (type) => {
+      if (!lightToken) return;
+      if (lightToken.lights?.[type]) setLightSelection({ kind: 'tokenLight', id: lightToken.id, type });
+      else attachTokenLight(lightToken.id, type);
+  };
+  const selectedTokenLight = lightSelection?.kind === 'tokenLight' && lightToken?.lights?.[lightSelection.type]
+      ? { ...lightToken.lights[lightSelection.type], type: lightSelection.type } : null;
   const isLightingMode = activeTool === 'lighting' && !isPlayer && !!displayScene;
   const selectedLight = lightSelection?.kind === 'light' ? sceneLighting.lights.find(l => l.id === lightSelection.id) : null;
   const commitLighting = (updater) => { if (displayScene) updateSceneLighting(displayScene.id, updater); };
@@ -1221,7 +1243,6 @@ const Board = ({ showUI }) => {
                         isDragging={isBeingDragged} 
                         isSelected={selectedIds.has(t.id)} 
                         onMouseDown={handleTokenDown}
-                        onContextMenu={handleTokenContextMenu} 
                         interactive={activeTool !== 'lighting'}
                     />
                 );
@@ -1286,6 +1307,10 @@ const Board = ({ showUI }) => {
                     setSelection={setLightSelection}
                     commit={commitLighting}
                     onInteractiveChange={setLightingInteractive}
+                    tokens={displayScene.tokens}
+                    tokenSize={tokenLightSize}
+                    onAttachLight={attachTokenLight}
+                    onRemoveTokenLight={removeTokenLight}
                 />
             )}
 
@@ -1342,7 +1367,10 @@ const Board = ({ showUI }) => {
                     tool: lightTool,
                     setTool: setLightTool,
                     previewAsPlayer,
-                    setPreviewAsPlayer
+                    setPreviewAsPlayer,
+                    selectedToken: lightToken,
+                    activeTokenLightType: lightSelection?.kind === 'tokenLight' ? lightSelection.type : null,
+                    onTokenLightSlot
                 } : null}
             />}
             {isLightingMode && sceneLighting.enabled && <LightingHints tool={lightTool} selection={lightSelection} visible={showUI} />}
@@ -1356,15 +1384,27 @@ const Board = ({ showUI }) => {
                 />
             )}
             {isLightingMode && selectedLight && showUI && (
-                <LightPropertiesPanel light={selectedLight} setLighting={commitLighting} onSelect={setLightSelection} onClose={() => setLightSelection(null)} />
+                <LightPropertiesPanel
+                    light={selectedLight}
+                    onChange={(changes) => commitLighting(l => ({ ...l, lights: l.lights.map(x => (x.id === selectedLight.id ? { ...x, ...changes } : x)) }))}
+                    onDuplicate={() => {
+                        const copy = { ...selectedLight, id: newLightingId(), x: selectedLight.x + 60, y: selectedLight.y + 60 };
+                        commitLighting(l => ({ ...l, lights: [...l.lights, copy] }));
+                        setLightSelection({ kind: 'light', id: copy.id });
+                    }}
+                    onRemove={() => { commitLighting(l => ({ ...l, lights: l.lights.filter(x => x.id !== selectedLight.id) })); setLightSelection(null); }}
+                />
             )}
-            {menuToken && showUI && (
-                <TokenLightMenu
-                    token={menuToken}
-                    x={tokenLightMenu.x}
-                    y={tokenLightMenu.y}
-                    onUpdateToken={(updates) => updateTokenInstance(displayScene.id, menuToken.id, updates)}
-                    onClose={() => setTokenLightMenu(null)}
+            {isLightingMode && selectedTokenLight && showUI && (
+                <LightPropertiesPanel
+                    attached
+                    light={selectedTokenLight}
+                    onChange={(changes) => updateTokenLight(lightToken.id, selectedTokenLight.type, changes)}
+                    onRemove={() => { removeTokenLight(lightToken.id, selectedTokenLight.type); setLightSelection({ kind: 'token', id: lightToken.id }); }}
+                    direction={selectedTokenLight.type === 'spot' ? {
+                        value: ((Math.round(lightToken.lightDirection ?? DEFAULT_TOKEN_LIGHT_DIRECTION) % 360) + 360) % 360,
+                        onChange: v => updateTokenInstance(displayScene.id, lightToken.id, { lightDirection: v })
+                    } : undefined}
                 />
             )}
             {contextMenu && <ContextMenu x={contextMenu.x} y={contextMenu.y} onOptionClick={(opt) => { if (opt === 'add_pin') openPinModal(null, { x: contextMenu.worldX, y: contextMenu.worldY }); setContextMenu(null); }} onClose={() => setContextMenu(null)} />}

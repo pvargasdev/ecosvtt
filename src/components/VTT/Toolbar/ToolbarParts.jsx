@@ -102,23 +102,14 @@ export const Switch = ({ checked, onChange, label, accent = '#fde047', title }) 
     </TipButton>
 );
 
-// Barra contextual (abaixo da principal): etiqueta do modo na cor do modo, à esquerda,
-// seguida das ferramentas. Fica visivelmente separada da barra principal.
-export const ContextBar = ({ accent, icon, title, children }) => {
-    const Icon = icon;
-    return (
-        <div
-            className="relative flex items-center gap-1.5 rounded-xl border bg-black/85 py-1.5 pl-1.5 pr-2 shadow-[0_8px_24px_rgba(0,0,0,0.45)] backdrop-blur-sm animate-in fade-in slide-in-from-top-2 duration-200"
-            style={{ borderColor: `${accent}40` }}
-        >
-            <div
-                className="flex h-8 items-center gap-2 rounded-lg px-2.5"
-                style={{ color: accent, background: `${accent}1a`, boxShadow: `inset 0 0 0 1px ${accent}33` }}
-            >
-                <Icon size={15} />
-                <span className="font-rajdhani text-[12px] font-bold uppercase tracking-[0.18em]">{title}</span>
-            </div>
-            {children}
-        </div>
-    );
-};
+// Barra contextual (abaixo da principal) com as ferramentas do modo atual. Não repete
+// o nome do modo (ele já está destacado na barra principal); a borda na cor do modo
+// liga visualmente as duas.
+export const ContextBar = ({ accent, children }) => (
+    <div
+        className="relative flex items-center gap-1 rounded-xl border bg-black/85 p-1.5 shadow-[0_8px_24px_rgba(0,0,0,0.45)] backdrop-blur-sm animate-in fade-in slide-in-from-top-2 duration-200"
+        style={{ borderColor: `${accent}40` }}
+    >
+        {children}
+    </div>
+);

@@ -276,8 +276,8 @@ lighting.direction,Direção,Direction
 lighting.castShadows,Paredes bloqueiam a luz,Walls block the light
 lighting.hints.select,[Arraste] luzes e pontos para mover | [Puxe uma parede] para curvá-la | [Shift + arrastar] move a parede | [Ctrl+C / Ctrl+V] copia e cola | [Delete] exclui,[Drag] lights and points to move | [Pull a wall] to curve it | [Shift + drag] moves the wall | [Ctrl+C / Ctrl+V] copy and paste | [Delete] removes
 lighting.hints.wall,[Clique] adiciona pontos | [Clique e arraste] faz uma parede curva | [Clique num ponto] para continuar dele | [Arraste um ponto] para movê-lo | [Puxe uma parede] para curvá-la | [Shift] trava 15° | [Esc] termina,[Click] adds points | [Click and drag] draws a curved wall | [Click a point] to continue from it | [Drag a point] to move it | [Pull a wall] to curve it | [Shift] snaps to 15° | [Esc] finishes
-lighting.hints.point,[Clique] no mapa para colocar uma luz pontual | [Arrastar] move a tela,[Click] the map to place a point light | [Drag] to pan
-lighting.hints.spot,[Clique] no mapa para colocar um holofote | depois [arraste a alça amarela] para apontar,[Click] the map to place a spotlight | then [drag the yellow handle] to aim it
+lighting.hints.point,[Clique] no mapa para posicionar a luz | [Clique num token] para conectá-la ao token | [Esc] cancela,[Click] the map to place the light | [Click a token] to attach it to the token | [Esc] cancels
+lighting.hints.spot,[Clique] no mapa para posicionar o holofote | [Clique num token] para conectá-lo ao token | [Esc] cancela,[Click] the map to place the spotlight | [Click a token] to attach it to the token | [Esc] cancels
 lighting.hints.segmentSelected,Parede selecionada | [Puxe] para curvar | [Ctrl+D] duplica | [Delete] exclui | vire [porta] no painel,Wall selected | [Pull] to curve | [Ctrl+D] duplicates | [Delete] removes | turn it into a [door] in the panel
 lighting.hints.vertexSelected,Ponto selecionado | [Arraste] para mover | [Solte sobre outro ponto] para unir | [Delete] remove o ponto e abre um vão,Point selected | [Drag] to move | [Drop onto another point] to join | [Delete] removes the point and opens a gap
 files.openFile,Abrir arquivo,Open file
@@ -317,7 +317,6 @@ toolbar.modes.fog,Névoa,Fog
 toolbar.modes.draw,Desenho,Draw
 toolbar.modes.lighting,Iluminação,Lighting
 toolbar.scenes,Cenas e mapas,Scenes and maps
-lighting.ambientShort,Luz base,Base light
 lighting.wall.title,Parede,Wall
 lighting.wall.pointTitle,Ponto da parede,Wall point
 lighting.wall.curved,Curva,Curved
@@ -346,9 +345,18 @@ lighting.flicker.interval,Intervalo entre piscadas,Time between flickers
 lighting.flicker.duration,Duração da piscada,Flicker duration
 lighting.flicker.irregular,Irregular (falhando),Irregular (faulty)
 lighting.colors.off,Apagada (preto),Off (black)
-lighting.token.title,Luzes do token,Token lights
-lighting.token.attach,Montar esta luz no token,Attach this light to the token
-lighting.token.attached,Luz montada no token,Light attached to the token
-lighting.token.pointHint,"Uma luz pontual acompanha o token para onde ele for, como uma tocha.","A point light follows the token wherever it goes, like a torch."
-lighting.token.spotHint,"Um holofote funciona como uma lanterna: gira com o token, e Shift+Q / Shift+E apontam só a luz.","A spotlight works like a flashlight: it turns with the token, and Shift+Q / Shift+E aim just the light."
 help.rotateTokenLight,Girar a lanterna do token,Aim the token flashlight
+lighting.add.button,Luz,Light
+lighting.add.title,Adicionar luz,Add light
+lighting.add.pointDesc,"Ilumina em todas as direções, como uma tocha ou lâmpada.","Lights every direction, like a torch or a lamp."
+lighting.add.spotDesc,"Ilumina num cone, como uma lanterna ou farol.","Lights a cone, like a flashlight or a headlight."
+lighting.add.placing,Posicionando: {light},Placing: {light}
+lighting.add.attachToToken,Conectar ao token,Attach to token
+lighting.add.replaceOnToken,Substituir a luz do token,Replace the token light
+lighting.token.selected,Token,Token
+lighting.token.addLight,Adicionar {light} ao token,Add {light} to the token
+lighting.token.editLight,Editar {light} do token,Edit the token {light}
+lighting.token.detach,Remover do token,Remove from token
+lighting.token.pointAttachedHint,Presa ao token: acompanha o token para onde ele for.,Attached to the token: it follows the token wherever it goes.
+lighting.token.spotAttachedHint,Presa ao token: gira com ele. Shift+Q / Shift+E apontam só a luz.,Attached to the token: it turns with it. Shift+Q / Shift+E aim just the light.
+lighting.hints.tokenSelected,Token selecionado | adicione ou edite as luzes dele na barra acima | [Delete] remove a luz selecionada,Token selected | add or edit its lights in the bar above | [Delete] removes the selected light

@@ -5,6 +5,7 @@ import {
     removeSegment, removeVertex, setSegmentCurve, snapAngle
 } from '../../lighting/geometry';
 import { createLight } from '../../lighting/model';
+import { useTranslation } from '../../i18n';
 
 // Tolerâncias de clique em pixels de tela (convertidas para o mundo pela escala).
 const TOL_LIGHT = 14;
@@ -24,7 +25,11 @@ const toRad = (deg) => (deg * Math.PI) / 180;
 // Editor de iluminação. Fica dentro da camada do mundo (mesma transformação da
 // câmera) e recebe os eventos do Board pelos métodos expostos via ref. Todo o teste
 // de clique é feito em coordenadas do mundo, com tolerância constante na tela.
-const LightingEditor = forwardRef(({ lighting, viewScale, tool, setTool, selection, setSelection, commit, onInteractiveChange }, ref) => {
+const LightingEditor = forwardRef(({
+    lighting, viewScale, tool, setTool, selection, setSelection, commit, onInteractiveChange,
+    tokens = [], tokenSize, onAttachLight, onRemoveTokenLight
+}, ref) => {
+    const t = useTranslation();
     const [hover, setHover] = useState(null);
     const [cursor, setCursor] = useState(null);
     const [snapTarget, setSnapTarget] = useState(null);
@@ -59,6 +64,19 @@ const LightingEditor = forwardRef(({ lighting, viewScale, tool, setTool, selecti
         return best;
     };
 
+    // Token sob o cursor (o de cima primeiro). Tokens não recebem cliques no modo de
+    // luz; o editor faz o teste pela área deles.
+    const hitToken = (p) => {
+        for (let i = tokens.length - 1; i >= 0; i--) {
+            const tk = tokens[i];
+            const size = tokenSize(tk);
+            if (p.x >= tk.x && p.x <= tk.x + size && p.y >= tk.y && p.y <= tk.y + size) return tk;
+        }
+        return null;
+    };
+
+    const isPlacing = tool === 'point' || tool === 'spot';
+
     // O que está sob o cursor, na ordem de prioridade da ferramenta de seleção.
     const pick = (p) => {
         const selLight = selection?.kind === 'light' ? lighting.lights.find(l => l.id === selection.id) : null;
@@ -75,6 +93,8 @@ const LightingEditor = forwardRef(({ lighting, viewScale, tool, setTool, selecti
         if (handleSeg) return { kind: 'curve', id: handleSeg.id };
         const seg = hitSegment(walls, p, tol(TOL_SEGMENT));
         if (seg) return { kind: 'segment', id: seg.segId, t: seg.t, point: seg.point };
+        const token = hitToken(p);
+        if (token) return { kind: 'token', id: token.id };
         return null;
     };
 
@@ -126,6 +146,7 @@ const LightingEditor = forwardRef(({ lighting, viewScale, tool, setTool, selecti
 
     const deleteSelection = () => {
         if (!selection) return false;
+        if (selection.kind === 'tokenLight') { onRemoveTokenLight(selection.id, selection.type); setSelection({ kind: 'token', id: selection.id }); return true; }
         if (selection.kind === 'light') commit(l => ({ ...l, lights: l.lights.filter(x => x.id !== selection.id) }));
         else if (selection.kind === 'segment') commit(l => ({ ...l, walls: removeSegment(l.walls, selection.id) }));
         else if (selection.kind === 'vertex') {
@@ -199,7 +220,9 @@ const LightingEditor = forwardRef(({ lighting, viewScale, tool, setTool, selecti
             const target = pick(p);
             if (!target) { setSelection(null); return false; }
 
-            if (target.kind === 'light') {
+            if (target.kind === 'token') {
+                setSelection({ kind: 'token', id: target.id });
+            } else if (target.kind === 'light') {
                 const light = lighting.lights.find(l => l.id === target.id);
                 setSelection({ kind: 'light', id: light.id });
                 startDrag({ kind: 'light', id: light.id, dx: light.x - p.x, dy: light.y - p.y });
@@ -256,6 +279,10 @@ const LightingEditor = forwardRef(({ lighting, viewScale, tool, setTool, selecti
             const drag = dragRef.current;
             if (!drag) {
                 if (tool === 'select') setHover(pick(p));
+                else if (isPlacing) {
+                    const token = hitToken(p);
+                    setHover(token ? { kind: 'token', id: token.id } : null);
+                }
                 else if (tool === 'wall') {
                     const r = resolveWallPoint(p, e.shiftKey);
                     setSnapTarget(chain && r.kind !== 'free' ? r : null);
@@ -338,7 +365,15 @@ const LightingEditor = forwardRef(({ lighting, viewScale, tool, setTool, selecti
 
         // Clique sem arrastar (as ferramentas de criação usam isso; arrastar move a câmera).
         click(p) {
-            if (tool === 'point' || tool === 'spot') {
+            if (isPlacing) {
+                // Em cima de um token, a luz é presa a ele.
+                const token = hitToken(p);
+                if (token) {
+                    onAttachLight(token.id, tool);
+                    setTool('select');
+                    setHover(null);
+                    return;
+                }
                 const light = createLight(tool, Math.round(p.x), Math.round(p.y));
                 commit(l => ({ ...l, lights: [...l.lights, light] }));
                 setSelection({ kind: 'light', id: light.id });
@@ -376,6 +411,7 @@ const LightingEditor = forwardRef(({ lighting, viewScale, tool, setTool, selecti
         keyDown(e) {
             const key = e.key.toLowerCase();
             if (key === 'escape') {
+                if (isPlacing) { setTool('select'); setHover(null); return true; }
                 if (chain) finishChain();
                 setSelection(null);
                 return true;
@@ -498,6 +534,51 @@ const LightingEditor = forwardRef(({ lighting, viewScale, tool, setTool, selecti
                     </g>
                 );
             })}
+
+            {tokens.map(tk => {
+                const selected = (selection?.kind === 'token' || selection?.kind === 'tokenLight') && selection.id === tk.id;
+                const hovered = isHovered('token', tk.id);
+                if (!selected && !hovered) return null;
+                const size = tokenSize(tk);
+                const color = selected || isPlacing ? SELECT_COLOR : '#ffffff';
+                return (
+                    <rect key={`tk-${tk.id}`} x={tk.x - px(4)} y={tk.y - px(4)} width={size + px(8)} height={size + px(8)} rx={px(6)}
+                        fill={isPlacing ? 'rgba(250,204,21,0.12)' : 'none'} stroke={color} strokeOpacity={selected || isPlacing ? 1 : 0.5}
+                        strokeWidth={2} strokeDasharray={selected ? undefined : '6 4'} vectorEffect="non-scaling-stroke" />
+                );
+            })}
+
+            {isPlacing && cursor && (() => {
+                const token = hover?.kind === 'token' ? tokens.find(tk => tk.id === hover.id) : null;
+                const size = token ? tokenSize(token) : 0;
+                const at = token ? { x: token.x + size / 2, y: token.y + size / 2 } : cursor;
+                const preview = createLight(tool, at.x, at.y);
+                const r = token ? Math.min(preview.radius, size * 2.5) : preview.radius;
+                const half = toRad(preview.angle) / 2;
+                const dir = token ? toRad(-90) : 0;
+                const ghost = tool === 'spot'
+                    ? <path d={`M${at.x},${at.y} L${at.x + Math.cos(dir - half) * r},${at.y + Math.sin(dir - half) * r} A${r},${r} 0 0 1 ${at.x + Math.cos(dir + half) * r},${at.y + Math.sin(dir + half) * r} Z`}
+                        fill="rgba(253,224,71,0.08)" stroke={SELECT_COLOR} strokeWidth={1.5} strokeDasharray="5 5" vectorEffect="non-scaling-stroke" />
+                    : <circle cx={at.x} cy={at.y} r={r} fill="rgba(253,224,71,0.06)" stroke={SELECT_COLOR} strokeWidth={1.5} strokeDasharray="5 5" vectorEffect="non-scaling-stroke" />;
+                const label = token
+                    ? ((token.lights?.[tool]) ? t('lighting.add.replaceOnToken') : t('lighting.add.attachToToken'))
+                    : null;
+                const labelW = label ? px(label.length * 6.8 + 28) : 0;
+                return (
+                    <g pointerEvents="none">
+                        {ghost}
+                        <circle cx={at.x} cy={at.y} r={px(8)} fill={preview.color} stroke="#ffffff" strokeWidth={2} vectorEffect="non-scaling-stroke" opacity={0.9} />
+                        {label && (
+                            <g transform={`translate(${at.x - labelW / 2}, ${token.y - px(40)})`}>
+                                <rect width={labelW} height={px(26)} rx={px(13)} fill="#0a0a0c" fillOpacity={0.92} stroke={SELECT_COLOR} strokeWidth={1.5} vectorEffect="non-scaling-stroke" />
+                                <text x={labelW / 2} y={px(17)} textAnchor="middle" fill="#fde68a" fontSize={px(12)} fontWeight="700" fontFamily="Inter, system-ui, sans-serif">
+                                    {label}
+                                </text>
+                            </g>
+                        )}
+                    </g>
+                );
+            })()}
         </svg>
     );
 });

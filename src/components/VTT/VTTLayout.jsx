@@ -1126,7 +1126,7 @@ export const VTTLayout = ({ zoomValue, onZoomChange, activeTool, setActiveTool, 
 
               {currentMode === 'draw' && (
                   <div className="pointer-events-auto">
-                      <ContextBar accent={MODE_ACCENTS.draw} icon={Pencil} title={t('toolbar.modes.draw')}>
+                      <ContextBar accent={MODE_ACCENTS.draw}>
                           <DrawingToolbar
                               activeTool={activeTool}
                               setActiveTool={setActiveTool}
@@ -1142,7 +1142,7 @@ export const VTTLayout = ({ zoomValue, onZoomChange, activeTool, setActiveTool, 
               )}
               {currentMode === 'lighting' && isLightingMode && (
                   <div className="pointer-events-auto">
-                      <ContextBar accent={MODE_ACCENTS.lighting} icon={Lightbulb} title={t('toolbar.modes.lighting')}>
+                      <ContextBar accent={MODE_ACCENTS.lighting}>
                           <LightingToolbar {...lightingControls} />
                       </ContextBar>
                   </div>
