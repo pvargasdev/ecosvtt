@@ -6,7 +6,7 @@ import SoundboardWindow from '../Soundboard/SoundboardWindow';
 import HostControls from '../Network/HostControls';
 import LightingToolbar from '../Lighting/LightingToolbar';
 import DrawingToolbar from './Toolbar/DrawingToolbar';
-import { SegmentedControl, ToolbarButton, ToolbarDivider, Tooltip, ContextBar } from './Toolbar/ToolbarParts';
+import { SegmentedControl, ToolbarButton, ToolbarDivider, TipButton, ContextBar } from './Toolbar/ToolbarParts';
 import { MODE_ACCENTS } from './Toolbar/theme';
 import { useNetwork } from '../../network';
 import DiceWindow from '../DiceRoller/DiceWindow';
@@ -915,6 +915,7 @@ const HelpWindow = ({ isOpen, onClose }) => {
         { key: "Ctrl + C / V / D", desc: t('help.copyPaste') },
         { key: "F", desc: t('help.mirror') },
         { key: "Q / E", desc: t('help.rotate') },
+        { key: "Shift + Q / E", desc: t('help.rotateTokenLight') },
         { key: "+ / -", desc: t('help.resize') },
         { key: "Backspace", desc: t('help.deleteSelection') },
     ];
@@ -1000,7 +1001,7 @@ export const VTTLayout = ({ zoomValue, onZoomChange, activeTool, setActiveTool, 
       setActiveTool(toolByMode[mode]);
       closeAllMenus();
   };
-  const hasContextBar = currentMode !== 'select';
+  const hasContextBar = currentMode === 'draw' || isLightingMode;
 
   useEffect(() => {
       if (isDrawingMode || isLightingMode) {
@@ -1077,10 +1078,10 @@ export const VTTLayout = ({ zoomValue, onZoomChange, activeTool, setActiveTool, 
           <div
              ref={headerRef}
              data-ecos-ui="true"
-             className={`absolute top-4 right-4 z-40 flex flex-col items-end gap-2 scale-90 origin-top-right transition-all duration-300 cursor-default ${showUI ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-10 pointer-events-none'}`}
+             className={`absolute top-4 right-4 z-[60] flex flex-col items-end gap-3 scale-90 origin-top-right transition-all duration-300 cursor-default ${showUI ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-10 pointer-events-none'}`}
              onClick={e => e.stopPropagation()} onMouseDown={e => e.stopPropagation()}
           >
-              <div className="flex items-center gap-1 rounded-lg border border-glass-border bg-black/80 p-1.5 shadow-lg backdrop-blur-sm pointer-events-auto">
+              <div className="flex items-center gap-1 rounded-xl border border-glass-border bg-black/85 p-1.5 shadow-[0_8px_24px_rgba(0,0,0,0.45)] backdrop-blur-sm pointer-events-auto">
                 {isHost && (
                     <>
                         <HostControls />
@@ -1101,14 +1102,13 @@ export const VTTLayout = ({ zoomValue, onZoomChange, activeTool, setActiveTool, 
 
                 <ToolbarDivider />
 
-                <button onClick={(e) => toggle('menuOpen', e)} aria-pressed={uiState.menuOpen} className={`group/tip relative flex h-9 items-center gap-2 rounded-md px-3 transition-colors ${uiState.menuOpen ? 'bg-white/15 text-white' : 'text-white hover:bg-white/10'}`}>
+                <TipButton onClick={(e) => toggle('menuOpen', e)} aria-pressed={uiState.menuOpen} tip={uiState.menuOpen ? null : t('toolbar.scenes')} className={`flex h-9 items-center gap-2 rounded-lg px-3 transition-colors ${uiState.menuOpen ? 'bg-white/15 text-white' : 'text-white hover:bg-white/10'}`}>
                     <Map size={16} className="text-neon-green"/>
                     <span className="font-rajdhani font-bold uppercase text-sm truncate max-w-[130px]">
                         {activeScene?.name || t('toolbar.noScene')}
                     </span>
                     <ChevronDown size={14} className={`text-text-muted transition-transform ${uiState.menuOpen ? 'rotate-180' : ''}`}/>
-                    <Tooltip label={t('toolbar.scenes')} />
-                </button>
+                </TipButton>
 
                 <ToolbarDivider />
 
@@ -1140,13 +1140,6 @@ export const VTTLayout = ({ zoomValue, onZoomChange, activeTool, setActiveTool, 
                       </ContextBar>
                   </div>
               )}
-              {currentMode === 'fog' && (
-                  <div className="pointer-events-auto">
-                      <ContextBar accent={MODE_ACCENTS.fog} icon={CloudFog} title={t('toolbar.modes.fog')}>
-                          <span className="px-2 text-[11px] text-text-muted">{t('toolbar.fogHint')}</span>
-                      </ContextBar>
-                  </div>
-              )}
               {currentMode === 'lighting' && isLightingMode && (
                   <div className="pointer-events-auto">
                       <ContextBar accent={MODE_ACCENTS.lighting} icon={Lightbulb} title={t('toolbar.modes.lighting')}>
@@ -1157,7 +1150,7 @@ export const VTTLayout = ({ zoomValue, onZoomChange, activeTool, setActiveTool, 
           </div>
 
           {showUI && (
-            <div className="absolute inset-0 pointer-events-none transition-transform duration-200" style={{ transform: hasContextBar ? 'translateY(52px)' : 'none' }}>
+            <div className="absolute inset-0 pointer-events-none transition-transform duration-200" style={{ transform: hasContextBar ? 'translateY(53px)' : 'none' }}>
               <MapConfigModal isOpen={uiState.mapConfigOpen} onClose={() => setUiState(p => ({...p, mapConfigOpen: false}))} />
               <AssetDock isOpen={uiState.libraryOpen} onClose={() => setUiState(p => ({...p, libraryOpen: false}))} />
               

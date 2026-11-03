@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Move, Spline, Flashlight, Sun, Eye, EyeOff, Contrast } from 'lucide-react';
-import { SegmentedControl, Switch, ToolbarButton, ToolbarDivider, Tooltip } from '../VTT/Toolbar/ToolbarParts';
+import { SegmentedControl, Switch, ToolbarButton, ToolbarDivider, TipButton } from '../VTT/Toolbar/ToolbarParts';
 import { useTranslation } from '../../i18n';
 import { AMBIENT_PRESETS } from '../../lighting/model';
 import { MODE_ACCENTS } from '../VTT/Toolbar/theme';
@@ -122,18 +122,19 @@ const LightingToolbar = ({ lighting, setLighting, tool, setTool, previewAsPlayer
                     />
 
                     <ToolbarDivider />
-                    <button
-                        ref={ambientRef}
-                        onClick={toggleAmbient}
-                        aria-pressed={ambientOpen}
-                        className={`group/tip relative flex h-8 items-center gap-2 rounded-md px-2 transition-colors ${ambientOpen ? 'bg-white/15 text-white' : 'text-text-muted hover:bg-white/10 hover:text-white'}`}
-                    >
-                        <Contrast size={16} />
-                        <span className="font-rajdhani text-[13px] font-bold uppercase tracking-wider">{t('lighting.ambientShort')}</span>
-                        <span className="font-mono text-[11px] text-white">{Math.round(lighting.ambientLevel * 100)}%</span>
-                        <span className="h-3 w-3 rounded-full border border-white/30" style={{ background: lighting.ambientColor }} />
-                        <Tooltip label={t('lighting.ambientTitle')} />
-                    </button>
+                    <div ref={ambientRef}>
+                        <TipButton
+                            onClick={toggleAmbient}
+                            aria-pressed={ambientOpen}
+                            tip={ambientOpen ? null : t('lighting.ambientTitle')}
+                            className={`flex h-8 items-center gap-2 rounded-md px-2 transition-colors ${ambientOpen ? 'bg-white/15 text-white' : 'text-text-muted hover:bg-white/10 hover:text-white'}`}
+                        >
+                            <Contrast size={16} />
+                            <span className="font-rajdhani text-[13px] font-bold uppercase tracking-wider">{t('lighting.ambientShort')}</span>
+                            <span className="font-mono text-[11px] text-white">{Math.round(lighting.ambientLevel * 100)}%</span>
+                            <span className="h-3 w-3 rounded-full border border-white/30" style={{ background: lighting.ambientColor }} />
+                        </TipButton>
+                    </div>
 
                     <ToolbarButton
                         icon={previewAsPlayer ? Eye : EyeOff}

@@ -200,6 +200,7 @@ const NetworkProvider = ({ children }) => {
         if (Number.isFinite(msg.x)) updates.x = msg.x;
         if (Number.isFinite(msg.y)) updates.y = msg.y;
         if (Number.isFinite(msg.rotation)) updates.rotation = msg.rotation;
+        if (Number.isFinite(msg.lightDirection) && token.lights?.spot) updates.lightDirection = msg.lightDirection;
         if (Object.keys(updates).length) updateTokenInstance(activeScene.id, token.id, updates);
     }, []);
 
@@ -377,7 +378,7 @@ const NetworkProvider = ({ children }) => {
                 const editedAt = localEditsRef.current.get(t.id);
                 if (!editedAt || now - editedAt > LOCAL_EDIT_GRACE_MS) return t;
                 const local = prevTokens.find(lt => lt.id === t.id);
-                return local ? { ...t, x: local.x, y: local.y, rotation: local.rotation } : t;
+                return local ? { ...t, x: local.x, y: local.y, rotation: local.rotation, lightDirection: local.lightDirection } : t;
             });
             const drawingLayer = prev?.scene?.drawingId === incoming.scene.drawingId ? prev.scene.drawingLayer : (prev?.scene?.id === incoming.scene.id ? prev.scene.drawingLayer : null);
             return { adventure: incoming.adventure, scene: { ...incoming.scene, tokens, drawingLayer } };
@@ -586,7 +587,7 @@ const NetworkProvider = ({ children }) => {
 
     const playerUpdateToken = useCallback((sceneId, tokenId, updates) => {
         const allowed = {};
-        ['x', 'y', 'rotation'].forEach(k => { if (updates[k] !== undefined) allowed[k] = updates[k]; });
+        ['x', 'y', 'rotation', 'lightDirection'].forEach(k => { if (updates[k] !== undefined) allowed[k] = updates[k]; });
         if (!Object.keys(allowed).length) return;
         localEditsRef.current.set(tokenId, Date.now());
         setRemote(prev => {

@@ -14,7 +14,10 @@ const TOL_SEGMENT = 7;
 const HANDLE_DIST = 46;
 
 const WALL_COLOR = '#22d3ee';
+const DOOR_COLOR = '#f59e0b';
 const SELECT_COLOR = '#facc15';
+
+const clampT = (t) => Math.min(0.85, Math.max(0.15, t));
 
 const toRad = (deg) => (deg * Math.PI) / 180;
 
@@ -75,6 +78,22 @@ const LightingEditor = forwardRef(({ lighting, viewScale, tool, setTool, selecti
         return null;
     };
 
+    // Ferramenta de parede: pontos e paredes existentes também podem ser agarrados
+    // (mover ponto, curvar parede), para não ser preciso trocar de ferramenta.
+    // Enquanto uma sequência está sendo desenhada, a alça de curva é ignorada para
+    // que clicar no meio de uma parede conecte a linha nova a ela.
+    const pickWall = (p) => {
+        const v = hitVertex(walls, p, tol(TOL_VERTEX));
+        if (v) return { kind: 'vertex', id: v.id };
+        if (!chain) {
+            const handleSeg = hitHandle(walls, p, tol(TOL_HANDLE));
+            if (handleSeg) return { kind: 'curve', id: handleSeg.id };
+        }
+        const seg = hitSegment(walls, p, tol(TOL_SEGMENT));
+        if (seg) return { kind: 'segment', id: seg.segId, t: seg.t, point: seg.point };
+        return null;
+    };
+
     // Onde um novo ponto de parede vai cair: num vértice existente, sobre uma parede
     // existente (que será dividida) ou num ponto livre (com Shift: ângulos de 15°).
     const resolveWallPoint = (p, shiftKey) => {
@@ -109,7 +128,10 @@ const LightingEditor = forwardRef(({ lighting, viewScale, tool, setTool, selecti
         if (!selection) return false;
         if (selection.kind === 'light') commit(l => ({ ...l, lights: l.lights.filter(x => x.id !== selection.id) }));
         else if (selection.kind === 'segment') commit(l => ({ ...l, walls: removeSegment(l.walls, selection.id) }));
-        else if (selection.kind === 'vertex') commit(l => ({ ...l, walls: removeVertex(l.walls, selection.id) }));
+        else if (selection.kind === 'vertex') {
+            commit(l => ({ ...l, walls: removeVertex(l.walls, selection.id) }));
+            if (chain && (chain.lastId === selection.id || chain.startId === selection.id)) finishChain();
+        }
         else return false;
         setSelection(null);
         return true;
@@ -152,7 +174,7 @@ const LightingEditor = forwardRef(({ lighting, viewScale, tool, setTool, selecti
             const seg = walls.segments.find(sg => sg.id === selection.id);
             const verts = vertexMap(walls);
             if (!seg) return null;
-            return { lights: [], segments: [{ a: { ...verts.get(seg.a) }, b: { ...verts.get(seg.b) }, c: seg.c ? { ...seg.c } : null }] };
+            return { lights: [], segments: [{ a: { ...verts.get(seg.a) }, b: { ...verts.get(seg.b) }, c: seg.c ? { ...seg.c } : null, door: !!seg.door }] };
         }
         return null;
     };
@@ -161,7 +183,15 @@ const LightingEditor = forwardRef(({ lighting, viewScale, tool, setTool, selecti
         // true = o editor tratou o clique (o Board não deve mover a câmera).
         pointerDown(p, e) {
             if (tool === 'wall') {
-                pendingWallRef.current = { point: resolveWallPoint(p, e.shiftKey), start: p };
+                const target = pickWall(p);
+                if (target?.kind === 'curve') {
+                    setSelection({ kind: 'segment', id: target.id });
+                    startDrag({ kind: 'curve', id: target.id });
+                } else {
+                    // A decisão (novo ponto, selecionar, mover ponto ou curvar) fica para o
+                    // movimento/soltura do mouse.
+                    pendingWallRef.current = { point: resolveWallPoint(p, e.shiftKey), start: p, target };
+                }
                 e.preventDefault();
                 return true;
             }
@@ -193,7 +223,7 @@ const LightingEditor = forwardRef(({ lighting, viewScale, tool, setTool, selecti
                     });
                 } else {
                     // Arrastar a parede a curva no ponto onde ela foi agarrada.
-                    startDrag({ kind: 'bend', id: target.id, t: Math.min(0.85, Math.max(0.15, target.t)) });
+                    startDrag({ kind: 'bend', id: target.id, t: clampT(target.t) });
                 }
             }
             e.preventDefault();
@@ -202,19 +232,34 @@ const LightingEditor = forwardRef(({ lighting, viewScale, tool, setTool, selecti
 
         pointerMove(p, e) {
             setCursor(p);
-            const drag = dragRef.current;
             const pending = pendingWallRef.current;
             if (tool === 'wall' && pending) {
                 const moved = Math.hypot(p.x - pending.start.x, p.y - pending.start.y) > tol(5);
-                setCurvePreview(moved && chain?.lastId ? { through: p, end: pending.point } : null);
-                return;
+                const target = pending.target;
+                if (moved && target?.kind === 'vertex') {
+                    // Arrastar um ponto o move (e ele vira a origem da próxima linha).
+                    pendingWallRef.current = null;
+                    setCurvePreview(null);
+                    setSelection({ kind: 'vertex', id: target.id });
+                    if (!chain) setChain({ startId: target.id, lastId: target.id });
+                    startDrag({ kind: 'vertex', id: target.id });
+                } else if (moved && !chain && target?.kind === 'segment') {
+                    // Sem linha em andamento, puxar uma parede a curva (como no modo Editar).
+                    pendingWallRef.current = null;
+                    setSelection({ kind: 'segment', id: target.id });
+                    startDrag({ kind: 'bend', id: target.id, t: clampT(target.t) });
+                } else {
+                    setCurvePreview(moved && chain?.lastId ? { through: p, end: pending.point } : null);
+                    return;
+                }
             }
+            const drag = dragRef.current;
             if (!drag) {
                 if (tool === 'select') setHover(pick(p));
                 else if (tool === 'wall') {
                     const r = resolveWallPoint(p, e.shiftKey);
-                    setSnapTarget(r.kind === 'free' ? null : r);
-                    setHover(null);
+                    setSnapTarget(chain && r.kind !== 'free' ? r : null);
+                    setHover(chain ? null : pickWall(p));
                 } else setHover(null);
                 return;
             }
@@ -266,6 +311,19 @@ const LightingEditor = forwardRef(({ lighting, viewScale, tool, setTool, selecti
                 pendingWallRef.current = null;
                 const bend = curvePreview?.through || null;
                 setCurvePreview(null);
+                const target = pending.target;
+                // Clicar num ponto o seleciona e faz dele a origem da próxima linha.
+                if (target?.kind === 'vertex' && (!chain || chain.lastId === target.id)) {
+                    setSelection({ kind: 'vertex', id: target.id });
+                    setChain({ startId: target.id, lastId: target.id });
+                    return;
+                }
+                // Sem linha em andamento, clicar numa parede a seleciona (curvar, porta...).
+                if (!chain && target?.kind === 'segment') {
+                    setSelection({ kind: 'segment', id: target.id });
+                    return;
+                }
+                setSelection(null);
                 addWallPoint(pending.point, bend);
                 return;
             }
@@ -290,7 +348,20 @@ const LightingEditor = forwardRef(({ lighting, viewScale, tool, setTool, selecti
         },
 
         doubleClick(p) {
-            if (tool === 'wall') { finishChain(); return; }
+            if (tool === 'wall') {
+                if (chain) { finishChain(); return; }
+                // Duplo clique numa parede cria um ponto nela, já como origem de uma nova linha.
+                const seg = hitSegment(walls, p, tol(TOL_SEGMENT));
+                if (seg) {
+                    const res = splitSegment(walls, seg.segId, seg.t);
+                    commit(l => ({ ...l, walls: res.walls }));
+                    if (res.vertex) {
+                        setSelection({ kind: 'vertex', id: res.vertex.id });
+                        setChain({ startId: res.vertex.id, lastId: res.vertex.id });
+                    }
+                }
+                return;
+            }
             if (tool !== 'select') return;
             const handleSeg = hitHandle(walls, p, tol(TOL_HANDLE));
             if (handleSeg?.c) { commit(l => ({ ...l, walls: setSegmentCurve(l.walls, handleSeg.id, null) })); return; }
@@ -305,7 +376,8 @@ const LightingEditor = forwardRef(({ lighting, viewScale, tool, setTool, selecti
         keyDown(e) {
             const key = e.key.toLowerCase();
             if (key === 'escape') {
-                if (chain) finishChain(); else setSelection(null);
+                if (chain) finishChain();
+                setSelection(null);
                 return true;
             }
             if (key === 'enter' && chain) { finishChain(); return true; }
@@ -339,15 +411,17 @@ const LightingEditor = forwardRef(({ lighting, viewScale, tool, setTool, selecti
                 const d = seg.c ? `M${a.x},${a.y} Q${seg.c.x},${seg.c.y} ${b.x},${b.y}` : `M${a.x},${a.y} L${b.x},${b.y}`;
                 const selected = isSelected('segment', seg.id);
                 const hovered = isHovered('segment', seg.id) || isHovered('curve', seg.id);
+                const color = selected ? SELECT_COLOR : seg.door ? DOOR_COLOR : WALL_COLOR;
                 return (
                     <g key={seg.id}>
-                        <path d={d} fill="none" stroke="rgba(0,0,0,0.7)" strokeWidth={6} strokeLinecap="round" vectorEffect="non-scaling-stroke" />
-                        <path d={d} fill="none" stroke={selected ? SELECT_COLOR : WALL_COLOR} strokeOpacity={hovered || selected ? 1 : 0.85} strokeWidth={hovered || selected ? 3.5 : 2.5} strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+                        <path d={d} fill="none" stroke="rgba(0,0,0,0.7)" strokeWidth={seg.door ? 8 : 6} strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+                        <path d={d} fill="none" stroke={color} strokeOpacity={hovered || selected ? 1 : 0.85} strokeWidth={hovered || selected ? 3.5 : seg.door ? 4 : 2.5} strokeLinecap="round"
+                            strokeDasharray={seg.door && seg.open ? '4 6' : undefined} vectorEffect="non-scaling-stroke" />
                     </g>
                 );
             })}
 
-            {tool === 'select' && walls.segments.map(seg => {
+            {(tool === 'select' || (tool === 'wall' && !chain)) && walls.segments.map(seg => {
                 const a = verts.get(seg.a), b = verts.get(seg.b);
                 if (!a || !b) return null;
                 const showHandle = isHovered('segment', seg.id) || isHovered('curve', seg.id) || isSelected('segment', seg.id);
@@ -362,6 +436,10 @@ const LightingEditor = forwardRef(({ lighting, viewScale, tool, setTool, selecti
                         opacity={active ? 1 : 0.7} />
                 );
             })}
+
+            {tool === 'wall' && lastVertex && (
+                <circle cx={lastVertex.x} cy={lastVertex.y} r={px(10)} fill="none" stroke={WALL_COLOR} strokeWidth={2} strokeDasharray="3 3" vectorEffect="non-scaling-stroke" />
+            )}
 
             {walls.vertices.map(v => {
                 const selected = isSelected('vertex', v.id);

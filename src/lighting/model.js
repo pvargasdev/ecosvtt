@@ -41,5 +41,59 @@ export const createLight = (type, x, y) => ({
     angle: 60,            // abertura do holofote, em graus
     direction: 0,         // direção do holofote, em graus (0 = direita)
     castShadows: true,
-    enabled: true
+    enabled: true,
+    flicker: { ...DEFAULT_FLICKER }
 });
+
+// Piscar: a luz fica `interval` segundos na cor normal e `duration` segundos na cor
+// do piscar, em ciclo. Ex.: sirene (azul/vermelho), lâmpada falhando (branco/preto).
+// `irregular` sorteia o momento e a duração de cada piscada.
+export const DEFAULT_FLICKER = { enabled: false, color: '#000000', interval: 1, duration: 0.15, irregular: false };
+export const getFlicker = (light) => ({ ...DEFAULT_FLICKER, ...(light?.flicker || {}) });
+
+export const FLICKER_PRESETS = [
+    { key: 'siren', color: '#3b82f6', flicker: { color: '#ef4444', interval: 0.5, duration: 0.5, irregular: false } },
+    { key: 'faulty', color: '#ffffff', flicker: { color: '#000000', interval: 1.4, duration: 0.12, irregular: true } },
+    { key: 'alarm', color: '#ff3b30', flicker: { color: '#000000', interval: 0.6, duration: 0.6, irregular: false } }
+];
+
+// --- Luzes presas a tokens --------------------------------------------------
+// token.lights = { point: {...}|null, spot: {...}|null } (mesmas propriedades de uma
+// luz, sem id/posição). A posição vem do centro do token; a direção do holofote é
+// token.rotation + token.lightDirection, então ele gira junto com o token e Shift+Q/E
+// gira só a "lanterna".
+export const TOKEN_LIGHT_TYPES = ['point', 'spot'];
+export const DEFAULT_TOKEN_LIGHT_DIRECTION = -90;
+
+export const createTokenLight = (type) => {
+    const { id: _ID, x: _X, y: _Y, ...props } = createLight(type, 0, 0);
+    return type === 'spot'
+        ? { ...props, color: '#fff1d6', radius: 700, angle: 50, softness: 0.5 }
+        : { ...props, radius: 350 };
+};
+
+export const tokenLightDirection = (token) => (token.rotation || 0) + (token.lightDirection ?? DEFAULT_TOKEN_LIGHT_DIRECTION);
+
+export const collectTokenLights = (tokens, baseSize) => {
+    const out = [];
+    (tokens || []).forEach(token => {
+        if (!token.lights) return;
+        const size = baseSize * (token.scale || 1);
+        const cx = token.x + size / 2, cy = token.y + size / 2;
+        TOKEN_LIGHT_TYPES.forEach(type => {
+            const light = token.lights[type];
+            if (!light) return;
+            out.push({
+                ...light, type, id: `${token.id}:${type}`, x: cx, y: cy,
+                direction: type === 'spot' ? tokenLightDirection(token) : 0
+            });
+        });
+    });
+    return out;
+};
+
+// Iluminação da cena com as luzes dos tokens incluídas (usada só na renderização).
+export const withTokenLights = (lighting, tokens, baseSize) => {
+    const tokenLights = collectTokenLights(tokens, baseSize);
+    return tokenLights.length ? { ...lighting, lights: [...lighting.lights, ...tokenLights] } : lighting;
+};

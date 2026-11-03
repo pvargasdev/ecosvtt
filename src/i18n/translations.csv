@@ -275,11 +275,11 @@ lighting.angle,Abertura,Cone angle
 lighting.direction,Direção,Direction
 lighting.castShadows,Paredes bloqueiam a luz,Walls block the light
 lighting.hints.select,[Arraste] luzes e pontos para mover | [Puxe uma parede] para curvá-la | [Shift + arrastar] move a parede | [Ctrl+C / Ctrl+V] copia e cola | [Delete] exclui,[Drag] lights and points to move | [Pull a wall] to curve it | [Shift + drag] moves the wall | [Ctrl+C / Ctrl+V] copy and paste | [Delete] removes
-lighting.hints.wall,[Clique] para adicionar pontos | [Clique e arraste] para fazer uma parede curva | [Clique num ponto ou parede] para conectar | [Shift] trava ângulos de 15° | [Duplo clique] ou [Esc] termina,[Click] to add points | [Click and drag] to draw a curved wall | [Click a point or wall] to connect | [Shift] snaps to 15° | [Double click] or [Esc] to finish
+lighting.hints.wall,[Clique] adiciona pontos | [Clique e arraste] faz uma parede curva | [Clique num ponto] para continuar dele | [Arraste um ponto] para movê-lo | [Puxe uma parede] para curvá-la | [Shift] trava 15° | [Esc] termina,[Click] adds points | [Click and drag] draws a curved wall | [Click a point] to continue from it | [Drag a point] to move it | [Pull a wall] to curve it | [Shift] snaps to 15° | [Esc] finishes
 lighting.hints.point,[Clique] no mapa para colocar uma luz pontual | [Arrastar] move a tela,[Click] the map to place a point light | [Drag] to pan
 lighting.hints.spot,[Clique] no mapa para colocar um holofote | depois [arraste a alça amarela] para apontar,[Click] the map to place a spotlight | then [drag the yellow handle] to aim it
-lighting.hints.segmentSelected,Parede selecionada | [Puxe] para curvar | [Shift + arrastar] move | [Ctrl+D] duplica | [Delete] exclui,Wall selected | [Pull] to curve | [Shift + drag] moves | [Ctrl+D] duplicates | [Delete] removes
-lighting.hints.vertexSelected,Ponto selecionado | [Arraste sobre outro ponto] para unir | [Delete] remove (une as paredes vizinhas),Point selected | [Drag onto another point] to join | [Delete] removes it (joins neighbouring walls)
+lighting.hints.segmentSelected,Parede selecionada | [Puxe] para curvar | [Ctrl+D] duplica | [Delete] exclui | vire [porta] no painel,Wall selected | [Pull] to curve | [Ctrl+D] duplicates | [Delete] removes | turn it into a [door] in the panel
+lighting.hints.vertexSelected,Ponto selecionado | [Arraste] para mover | [Solte sobre outro ponto] para unir | [Delete] remove o ponto e abre um vão,Point selected | [Drag] to move | [Drop onto another point] to join | [Delete] removes the point and opens a gap
 files.openFile,Abrir arquivo,Open file
 files.openFileTitle,Abrir uma aventura .ecosvtt (ou importar um .zip antigo),Open an .ecosvtt adventure (or import an old .zip)
 files.dropToOpen,Solte para abrir a aventura,Drop to open the adventure
@@ -317,7 +317,6 @@ toolbar.modes.fog,Névoa,Fog
 toolbar.modes.draw,Desenho,Draw
 toolbar.modes.lighting,Iluminação,Lighting
 toolbar.scenes,Cenas e mapas,Scenes and maps
-toolbar.fogHint,"Arraste no mapa para cobrir uma área com névoa. Para remover, selecione a névoa no modo Selecionar e aperte Delete.","Drag on the map to cover an area with fog. To remove it, select the fog in Select mode and press Delete."
 lighting.ambientShort,Luz base,Base light
 lighting.wall.title,Parede,Wall
 lighting.wall.pointTitle,Ponto da parede,Wall point
@@ -332,4 +331,27 @@ lighting.wall.duplicate,Duplicar,Duplicate
 lighting.wall.delete,Excluir parede,Delete wall
 lighting.wall.deletePoint,Excluir ponto,Delete point
 lighting.wall.tip,Dica: puxe a parede com o mouse para ajustar a curva no ponto que quiser.,Tip: pull the wall with the mouse to shape the curve wherever you want.
-lighting.wall.pointTip,Arraste o ponto até outro ponto para uni-los. Excluir um ponto entre duas paredes retas une as duas.,Drag the point onto another point to join them. Deleting a point between two straight walls joins them.
+lighting.wall.pointTip,Excluir um ponto remove as paredes ligadas a ele sem reconectar os vizinhos (bom para abrir passagens). Arraste o ponto até outro para uni-los.,Deleting a point removes the walls attached to it without reconnecting the neighbours (good for opening passages). Drag the point onto another to join them.
+lighting.door.title,Porta,Door
+lighting.door.make,Transformar em porta,Turn into a door
+lighting.door.makeWall,Voltar a ser parede,Turn back into a wall
+lighting.door.open,Abrir porta,Open door
+lighting.door.close,Fechar porta,Close door
+lighting.door.isOpen,Aberta,Open
+lighting.door.isClosed,Fechada,Closed
+lighting.door.tip,"Durante o jogo, o mestre vê um botão redondo sobre a porta para abri-la ou fechá-la. Aberta, ela deixa a luz passar.","During play, the GM sees a round button over the door to open or close it. When open, it lets light through."
+lighting.flicker.title,Piscar,Flicker
+lighting.flicker.color,Cor do piscar,Flicker color
+lighting.flicker.interval,Intervalo entre piscadas,Time between flickers
+lighting.flicker.duration,Duração da piscada,Flicker duration
+lighting.flicker.irregular,Irregular (falhando),Irregular (faulty)
+lighting.flicker.presets.siren,Sirene,Siren
+lighting.flicker.presets.faulty,Falhando,Faulty
+lighting.flicker.presets.alarm,Alarme,Alarm
+lighting.colors.off,Apagada (preto),Off (black)
+lighting.token.title,Luzes do token,Token lights
+lighting.token.attach,Montar esta luz no token,Attach this light to the token
+lighting.token.attached,Luz montada no token,Light attached to the token
+lighting.token.pointHint,"Uma luz pontual acompanha o token para onde ele for, como uma tocha.","A point light follows the token wherever it goes, like a torch."
+lighting.token.spotHint,"Um holofote funciona como uma lanterna: gira com o token, e Shift+Q / Shift+E apontam só a luz.","A spotlight works like a flashlight: it turns with the token, and Shift+Q / Shift+E aim just the light."
+help.rotateTokenLight,Girar a lanterna do token,Aim the token flashlight

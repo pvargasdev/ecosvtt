@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef } from 'react';
 import { computeLightingExtent, createVisibilityCache, renderLightMap } from '../../lighting/renderLightMap';
+import { applyFlicker, flickerKey, hasFlicker } from '../../lighting/flicker';
 
 const GM_DARKNESS_OPACITY = 0.55;
 const FULL_QUALITY_DELAY = 180;
@@ -7,12 +8,14 @@ const FULL_QUALITY_DELAY = 180;
 // Camada de luz da cena (no espaço do mundo, dentro da transformação da câmera).
 // O mestre vê a escuridão atenuada, para conseguir trabalhar no mapa; os jogadores
 // veem a escuridão real. Durante arrastos o mapa de luz é redesenhado em resolução
-// menor e volta à qualidade total logo que a interação para.
+// menor e volta à qualidade total logo que a interação para. Luzes que piscam fazem
+// a camada ser redesenhada só quando alguma delas troca de cor.
 const LightingLayer = ({ lighting, mapRect, seesAsGM, previewAsPlayer, interactive }) => {
     const canvasRef = useRef(null);
     const cacheRef = useRef(createVisibilityCache());
     const frameRef = useRef(null);
     const fullQualityTimerRef = useRef(null);
+    const flickerKeyRef = useRef('');
 
     const extent = useMemo(
         () => computeLightingExtent(lighting, mapRect),
@@ -24,15 +27,28 @@ const LightingLayer = ({ lighting, mapRect, seesAsGM, previewAsPlayer, interacti
         if (!canvas) return;
         cancelAnimationFrame(frameRef.current);
         clearTimeout(fullQualityTimerRef.current);
-        frameRef.current = requestAnimationFrame(() => {
-            renderLightMap(canvas, lighting, extent, { cache: cacheRef.current, interactive });
-        });
+        const draw = (quality) => renderLightMap(canvas, applyFlicker(lighting, flickerKeyRef.current), extent, { cache: cacheRef.current, interactive: quality });
+        frameRef.current = requestAnimationFrame(() => draw(interactive));
         if (interactive) {
-            fullQualityTimerRef.current = setTimeout(() => {
-                renderLightMap(canvas, lighting, extent, { cache: cacheRef.current, interactive: false });
-            }, FULL_QUALITY_DELAY);
+            fullQualityTimerRef.current = setTimeout(() => draw(false), FULL_QUALITY_DELAY);
         }
-        return () => { cancelAnimationFrame(frameRef.current); clearTimeout(fullQualityTimerRef.current); };
+
+        let flickerFrame = null;
+        if (lighting.lights.some(hasFlicker)) {
+            const tick = (now) => {
+                const key = flickerKey(lighting.lights, now / 1000);
+                if (key !== flickerKeyRef.current) { flickerKeyRef.current = key; draw(interactive); }
+                flickerFrame = requestAnimationFrame(tick);
+            };
+            flickerFrame = requestAnimationFrame(tick);
+        } else {
+            flickerKeyRef.current = '';
+        }
+        return () => {
+            cancelAnimationFrame(frameRef.current);
+            cancelAnimationFrame(flickerFrame);
+            clearTimeout(fullQualityTimerRef.current);
+        };
     }, [lighting, extent, interactive]);
 
     // Limpa do cache luzes que não existem mais.

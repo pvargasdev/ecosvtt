@@ -1,7 +1,7 @@
 import React from 'react';
-import { Spline, Minus, Scissors, Trash2, Copy, CircleDot } from 'lucide-react';
+import { Spline, Minus, Scissors, Trash2, Copy, CircleDot, DoorClosed, DoorOpen, BrickWall } from 'lucide-react';
 import { useTranslation } from '../../i18n';
-import { vertexMap, splitSegment, setSegmentCurve, removeSegment, removeVertex } from '../../lighting/geometry';
+import { vertexMap, splitSegment, setSegmentCurve, removeSegment, removeVertex, setSegmentDoor, toggleDoor } from '../../lighting/geometry';
 
 const ActionButton = ({ icon, label, shortcut, onClick, danger }) => {
     const Icon = icon;
@@ -43,6 +43,8 @@ const WallPanel = ({ lighting, selection, setLighting, onSelect, onCopy }) => {
         setLighting(l => ({ ...l, walls: res.walls }));
         if (res.vertex) onSelect({ kind: 'vertex', id: res.vertex.id });
     };
+    const setDoor = (isDoor) => setLighting(l => ({ ...l, walls: setSegmentDoor(l.walls, seg.id, isDoor) }));
+    const toggleOpen = () => setLighting(l => ({ ...l, walls: toggleDoor(l.walls, seg.id) }));
     const remove = () => {
         setLighting(l => ({ ...l, walls: isSegment ? removeSegment(l.walls, seg.id) : removeVertex(l.walls, vertex.id) }));
         onSelect(null);
@@ -54,20 +56,33 @@ const WallPanel = ({ lighting, selection, setLighting, onSelect, onCopy }) => {
         <div
             data-ecos-window="true"
             data-ecos-ui="true"
-            className="absolute top-[7.5rem] right-4 w-64 bg-black/90 border border-glass-border backdrop-blur-sm rounded-xl shadow-2xl z-50 pointer-events-auto cursor-default animate-in fade-in"
+            className="absolute top-[8rem] right-4 w-64 bg-black/90 border border-glass-border backdrop-blur-sm rounded-xl shadow-2xl z-50 pointer-events-auto cursor-default animate-in fade-in"
             onMouseDown={e => e.stopPropagation()}
             onWheel={e => e.stopPropagation()}
         >
             <div className="p-3 border-b border-glass-border bg-white/5 rounded-t-xl flex items-center gap-2">
-                {isSegment ? <Spline size={16} className="text-cyan-400" /> : <CircleDot size={16} className="text-cyan-400" />}
-                <h3 className="font-rajdhani font-bold text-white">{isSegment ? t('lighting.wall.title') : t('lighting.wall.pointTitle')}</h3>
+                {isSegment
+                    ? (seg.door ? <DoorClosed size={16} className="text-amber-400" /> : <Spline size={16} className="text-cyan-400" />)
+                    : <CircleDot size={16} className="text-cyan-400" />}
+                <h3 className="font-rajdhani font-bold text-white">{isSegment ? (seg.door ? t('lighting.door.title') : t('lighting.wall.title')) : t('lighting.wall.pointTitle')}</h3>
                 <span className="ml-auto text-[10px] font-bold uppercase text-text-muted">
-                    {isSegment ? (seg.c ? t('lighting.wall.curved') : t('lighting.wall.straight')) : t('lighting.wall.links', { count: linkedCount })}
+                    {isSegment
+                        ? (seg.door ? (seg.open ? t('lighting.door.isOpen') : t('lighting.door.isClosed')) : (seg.c ? t('lighting.wall.curved') : t('lighting.wall.straight')))
+                        : t('lighting.wall.links', { count: linkedCount })}
                 </span>
             </div>
             <div className="p-2 space-y-0.5 bg-black/20 rounded-b-xl">
                 {isSegment && (
                     <>
+                        {seg.door ? (
+                            <>
+                                <ActionButton icon={seg.open ? DoorClosed : DoorOpen} label={seg.open ? t('lighting.door.close') : t('lighting.door.open')} onClick={toggleOpen} />
+                                <ActionButton icon={BrickWall} label={t('lighting.door.makeWall')} onClick={() => setDoor(false)} />
+                            </>
+                        ) : (
+                            <ActionButton icon={DoorClosed} label={t('lighting.door.make')} onClick={() => setDoor(true)} />
+                        )}
+                        <div className="my-1 h-px bg-white/5" />
                         {seg.c
                             ? <ActionButton icon={Minus} label={t('lighting.wall.straighten')} onClick={straighten} />
                             : <ActionButton icon={Spline} label={t('lighting.wall.curve')} onClick={curve} />}
@@ -77,7 +92,7 @@ const WallPanel = ({ lighting, selection, setLighting, onSelect, onCopy }) => {
                 )}
                 <ActionButton icon={Trash2} label={isSegment ? t('lighting.wall.delete') : t('lighting.wall.deletePoint')} shortcut="Del" onClick={remove} danger />
                 <p className="px-3 pt-2 pb-1 text-[10px] leading-relaxed text-text-muted">
-                    {isSegment ? t('lighting.wall.tip') : t('lighting.wall.pointTip')}
+                    {isSegment ? (seg.door ? t('lighting.door.tip') : t('lighting.wall.tip')) : t('lighting.wall.pointTip')}
                 </p>
             </div>
         </div>

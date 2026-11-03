@@ -6,8 +6,9 @@ import { useTranslation } from '../../i18n';
 const LightingHints = ({ tool, selection, visible }) => {
     const t = useTranslation();
     let hint = tool;
-    if (tool === 'select' && selection?.kind === 'segment') hint = 'segmentSelected';
-    if (tool === 'select' && selection?.kind === 'vertex') hint = 'vertexSelected';
+    const editsWalls = tool === 'select' || tool === 'wall';
+    if (editsWalls && selection?.kind === 'segment') hint = 'segmentSelected';
+    if (editsWalls && selection?.kind === 'vertex') hint = 'vertexSelected';
     const parts = t(`lighting.hints.${hint}`).split('|');
 
     return (

@@ -5,7 +5,7 @@ import { imageDB } from '../../context/db';
 const ANIMATION_SPEED_ROTATION = '0.4s';
 const ANIMATION_EASING = 'cubic-bezier(0.25, 0.46, 0.45, 0.94)';
 
-const Token = ({ data, isSelected, isDragging, onMouseDown, interactive = true }) => {
+const Token = ({ data, isSelected, isDragging, onMouseDown, onContextMenu, interactive = true }) => {
   const BASE_SIZE = 70;
   const widthPx = BASE_SIZE * (data.scale || 1);
   const rotation = data.rotation || 0;
@@ -48,6 +48,12 @@ const Token = ({ data, isSelected, isDragging, onMouseDown, interactive = true }
           if (e.button === 1) return;
           e.stopPropagation(); 
           onMouseDown(e, data.id); 
+      }}
+      onContextMenu={(e) => {
+          if (!onContextMenu) return;
+          e.preventDefault();
+          e.stopPropagation();
+          onContextMenu(e, data.id);
       }}
       style={{
         transform: `translate(${data.x}px, ${data.y}px)`,

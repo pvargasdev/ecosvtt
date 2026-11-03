@@ -7,7 +7,9 @@
 //
 // scene.lighting.walls = {
 //   vertices: [{ id, x, y }],
-//   segments: [{ id, a, b, c? }]   // a/b = ids de vértices, c = { x, y } ponto de controle
+//   segments: [{ id, a, b, c?, door?, open? }]
+//   // a/b = ids de vértices, c = { x, y } ponto de controle,
+//   // door = o trecho é uma porta; open = porta aberta (não bloqueia a luz)
 // }
 
 export const EMPTY_WALLS = { vertices: [], segments: [] };
@@ -44,7 +46,7 @@ export const flattenWalls = (walls) => {
     const out = [];
     walls.segments.forEach(seg => {
         const a = verts.get(seg.a), b = verts.get(seg.b);
-        if (!a || !b) return;
+        if (!a || !b || (seg.door && seg.open)) return;
         if (!seg.c) { out.push({ x1: a.x, y1: a.y, x2: b.x, y2: b.y, segId: seg.id }); return; }
         const approxLen = Math.hypot(seg.c.x - a.x, seg.c.y - a.y) + Math.hypot(b.x - seg.c.x, b.y - seg.c.y);
         const steps = Math.max(6, Math.min(32, Math.round(approxLen / 30)));
@@ -141,8 +143,10 @@ export const splitSegment = (walls, segId, t) => {
         point = lerp(a, b, t);
     }
     const v = { id: newId(), x: point.x, y: point.y };
-    const first = { id: newId(), a: seg.a, b: v.id, ...(c1 ? { c: c1 } : {}) };
-    const second = { id: newId(), a: v.id, b: seg.b, ...(c2 ? { c: c2 } : {}) };
+    // As duas metades herdam as propriedades do trecho original (ex.: porta).
+    const { id: _ID, c: _C, ...props } = seg;
+    const first = { ...props, id: newId(), a: seg.a, b: v.id, ...(c1 ? { c: c1 } : {}) };
+    const second = { ...props, id: newId(), a: v.id, b: seg.b, ...(c2 ? { c: c2 } : {}) };
     return {
         walls: {
             vertices: [...walls.vertices, v],
@@ -183,22 +187,27 @@ const dropOrphans = (walls) => {
 
 export const removeSegment = (walls, segId) => dropOrphans({ ...walls, segments: walls.segments.filter(s => s.id !== segId) });
 
-// Remover um vértice com exatamente duas paredes as une numa só (sem abrir buraco);
-// com outra quantidade, remove as paredes ligadas a ele.
-export const removeVertex = (walls, id) => {
-    const linked = walls.segments.filter(s => s.a === id || s.b === id);
-    if (linked.length === 2 && !linked[0].c && !linked[1].c) {
-        const other = (s) => (s.a === id ? s.b : s.a);
-        const a = other(linked[0]), b = other(linked[1]);
-        let next = { ...walls, segments: walls.segments.filter(s => s !== linked[0] && s !== linked[1]) };
-        next = addSegment(next, a, b);
-        return dropOrphans({ ...next, vertices: next.vertices.filter(v => v.id !== id) });
-    }
-    return dropOrphans({
-        vertices: walls.vertices.filter(v => v.id !== id),
-        segments: walls.segments.filter(s => s.a !== id && s.b !== id)
-    });
-};
+// Remover um vértice remove as paredes ligadas a ele, sem unir os vizinhos: assim
+// dá para abrir vãos (passagens, janelas) no meio de uma parede.
+export const removeVertex = (walls, id) => dropOrphans({
+    vertices: walls.vertices.filter(v => v.id !== id),
+    segments: walls.segments.filter(s => s.a !== id && s.b !== id)
+});
+
+// Portas: um trecho de parede que pode ser aberto (deixa a luz passar) e fechado.
+export const setSegmentDoor = (walls, segId, isDoor) => ({
+    ...walls,
+    segments: walls.segments.map(s => {
+        if (s.id !== segId) return s;
+        if (isDoor) return { ...s, door: true, open: false };
+        const rest = { ...s }; delete rest.door; delete rest.open; return rest;
+    })
+});
+
+export const toggleDoor = (walls, segId) => ({
+    ...walls,
+    segments: walls.segments.map(s => (s.id === segId && s.door ? { ...s, open: !s.open } : s))
+});
 
 export const setSegmentCurve = (walls, segId, midpoint) => {
     const verts = vertexMap(walls);

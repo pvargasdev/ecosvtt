@@ -18,8 +18,10 @@ import LightingEditor from '../Lighting/LightingEditor';
 import LightPropertiesPanel from '../Lighting/LightPropertiesPanel';
 import LightingHints from '../Lighting/LightingHints';
 import WallPanel from '../Lighting/WallPanel';
-import { getLighting } from '../../lighting/model';
-import { newId as newLightingId } from '../../lighting/geometry';
+import DoorControls from '../Lighting/DoorControls';
+import TokenLightMenu from '../Lighting/TokenLightMenu';
+import { getLighting, withTokenLights, DEFAULT_TOKEN_LIGHT_DIRECTION } from '../../lighting/model';
+import { newId as newLightingId, toggleDoor } from '../../lighting/geometry';
 
 const MIN_SCALE = 0.1;
 const MAX_SCALE = 5.0;
@@ -53,7 +55,8 @@ const looksLikeTrackpad = (e) => {
     return !Number.isInteger(e.deltaY);
 };
 
-const TOKEN_ROTATION_STEP = 30; 
+const TOKEN_ROTATION_STEP = 30;
+const TOKEN_LIGHT_ROTATION_STEP = 15;
 const FADE_DURATION = 600; 
 
 const Board = ({ showUI }) => {
@@ -154,6 +157,7 @@ const Board = ({ showUI }) => {
   const [lightSelection, setLightSelection] = useState(null);
   const [lightingInteractive, setLightingInteractive] = useState(false);
   const [previewAsPlayer, setPreviewAsPlayer] = useState(false);
+  const [tokenLightMenu, setTokenLightMenu] = useState(null); // { tokenId, x, y }
 
   const [alertMessage, setAlertMessage] = useState(null);
   const clearAlert = useCallback(() => setAlertMessage(null), []);
@@ -494,7 +498,7 @@ const Board = ({ showUI }) => {
               const a = { id: newLightingId(), x: sg.a.x + dx, y: sg.a.y + dy };
               const b = { id: newLightingId(), x: sg.b.x + dx, y: sg.b.y + dy };
               vertices.push(a, b);
-              return { id: newLightingId(), a: a.id, b: b.id, ...(sg.c ? { c: { x: sg.c.x + dx, y: sg.c.y + dy } } : {}) };
+              return { id: newLightingId(), a: a.id, b: b.id, ...(sg.c ? { c: { x: sg.c.x + dx, y: sg.c.y + dy } } : {}), ...(sg.door ? { door: true, open: false } : {}) };
           });
           updateSceneLighting(activeScene.id, l => ({
               ...l,
@@ -570,6 +574,17 @@ const Board = ({ showUI }) => {
                     const t = activeScene.tokens.find(token => token.id === id);
                     if (t) updateTokenInstance(activeScene.id, id, { mirrorX: !t.mirrorX });
                 });
+            }
+
+            // Shift+Q/E gira só o holofote do token (como uma lanterna), se houver um.
+            if ((key === 'q' || key === 'e') && e.shiftKey) {
+                const withSpot = activeScene.tokens.filter(t => selectedIds.has(t.id) && t.lights?.spot);
+                if (withSpot.length) {
+                    e.preventDefault();
+                    const delta = key === 'q' ? -TOKEN_LIGHT_ROTATION_STEP : TOKEN_LIGHT_ROTATION_STEP;
+                    withSpot.forEach(t => updateTokenInstance(activeScene.id, t.id, { lightDirection: (t.lightDirection ?? DEFAULT_TOKEN_LIGHT_DIRECTION) + delta }));
+                    return;
+                }
             }
 
             if (key === 'q') {
@@ -890,8 +905,26 @@ const Board = ({ showUI }) => {
     setInteraction({ mode: 'DRAGGING', activeTokenId: id, startX: e.clientX, startY: e.clientY });
   };
 
+  // Botão direito num token (com a iluminação da cena ativa): menu de luzes do token.
+  const handleTokenContextMenu = (e, id) => {
+    if (isPlayer || activeTool !== 'select' || !sceneLighting.enabled) return;
+    const rect = containerRef.current.getBoundingClientRect();
+    setSelectedIds(new Set([id])); setSelectedFogIds(new Set()); setSelectedPinIds(new Set());
+    setContextMenu(null);
+    setTokenLightMenu({ tokenId: id, x: e.clientX - rect.left + 8, y: e.clientY - rect.top + 8 });
+  };
+
   const handleFogDown = (e, id) => {
-    if (e.button === 1 || e.button === 2 || activeTool !== 'select' || isPlayer) return;
+    if (e.button !== 0 || isPlayer) return;
+    // No modo névoa, um clique seleciona a névoa (Delete a exclui); arrastar desenha
+    // uma área nova, mesmo começando em cima de outra.
+    if (activeTool === 'fogOfWar') {
+        e.stopPropagation();
+        const w = toWorld(e);
+        setFogDrawing({ isDrawing: true, startX: w.x, startY: w.y, currentX: w.x, currentY: w.y, clickedFogId: id, multi: e.ctrlKey || e.metaKey });
+        return;
+    }
+    if (activeTool !== 'select') return;
     e.stopPropagation();
     const isMultiSelect = e.ctrlKey || e.metaKey;
     if (isMultiSelect) {
@@ -988,6 +1021,15 @@ const Board = ({ showUI }) => {
           const h = currentY - startY;
           if (Math.abs(w) > 10 && Math.abs(h) > 10 && activeScene) {
               addFogArea(activeScene.id, { x: Math.min(startX, currentX), y: Math.min(startY, currentY), width: Math.abs(w), height: Math.abs(h), color: 'rgba(0, 0, 0, 0.85)' });
+          } else if (fogDrawing.clickedFogId) {
+              const id = fogDrawing.clickedFogId;
+              setSelectedFogIds(prev => {
+                  if (!fogDrawing.multi) return new Set([id]);
+                  const next = new Set(prev);
+                  if (next.has(id)) next.delete(id); else next.add(id);
+                  return next;
+              });
+              setSelectedIds(new Set()); setSelectedPinIds(new Set());
           }
           setFogDrawing({ isDrawing: false, startX: 0, startY: 0, currentX: 0, currentY: 0 });
       }
@@ -1054,8 +1096,16 @@ const Board = ({ showUI }) => {
       setContextMenu(null);
   };
 
-  const sceneLighting = getLighting(displayScene);
+  const sceneLighting = useMemo(() => getLighting(displayScene), [displayScene?.lighting]);
+  // O que é desenhado inclui as luzes presas aos tokens (o editor só vê as da cena).
+  const renderedLighting = useMemo(
+      () => withTokenLights(sceneLighting, displayScene?.tokens, TOKEN_BASE_SIZE),
+      [sceneLighting, displayScene?.tokens]
+  );
   const lightingActive = !!displayScene?.lighting?.enabled;
+  // Botões de porta: na tela de quem conduz o jogo (não na tela exibida aos jogadores).
+  const showDoorControls = lightingActive && !isPlayer && activeTool !== 'lighting' && (seesAsGM || !isGMWindowOpen);
+  const menuToken = tokenLightMenu ? displayScene?.tokens.find(t => t.id === tokenLightMenu.tokenId) : null;
   const isLightingMode = activeTool === 'lighting' && !isPlayer && !!displayScene;
   const selectedLight = lightSelection?.kind === 'light' ? sceneLighting.lights.find(l => l.id === lightSelection.id) : null;
   const commitLighting = (updater) => { if (displayScene) updateSceneLighting(displayScene.id, updater); };
@@ -1159,7 +1209,8 @@ const Board = ({ showUI }) => {
                         data={t} 
                         isDragging={isBeingDragged} 
                         isSelected={selectedIds.has(t.id)} 
-                        onMouseDown={handleTokenDown} 
+                        onMouseDown={handleTokenDown}
+                        onContextMenu={handleTokenContextMenu} 
                         interactive={activeTool !== 'lighting'}
                     />
                 );
@@ -1197,11 +1248,19 @@ const Board = ({ showUI }) => {
             
             {lightingActive && (
                 <LightingLayer
-                    lighting={sceneLighting}
+                    lighting={renderedLighting}
                     mapRect={lightingMapRect}
                     seesAsGM={seesAsGM}
                     previewAsPlayer={previewAsPlayer && activeTool === 'lighting'}
-                    interactive={lightingInteractive}
+                    interactive={lightingInteractive || interaction.mode === 'DRAGGING'}
+                />
+            )}
+
+            {showDoorControls && (
+                <DoorControls
+                    walls={sceneLighting.walls}
+                    viewScale={view.scale}
+                    onToggle={(segId) => commitLighting(l => ({ ...l, walls: toggleDoor(l.walls, segId) }))}
                 />
             )}
 
@@ -1287,6 +1346,15 @@ const Board = ({ showUI }) => {
             )}
             {isLightingMode && selectedLight && showUI && (
                 <LightPropertiesPanel light={selectedLight} setLighting={commitLighting} onSelect={setLightSelection} onClose={() => setLightSelection(null)} />
+            )}
+            {menuToken && showUI && (
+                <TokenLightMenu
+                    token={menuToken}
+                    x={tokenLightMenu.x}
+                    y={tokenLightMenu.y}
+                    onUpdateToken={(updates) => updateTokenInstance(displayScene.id, menuToken.id, updates)}
+                    onClose={() => setTokenLightMenu(null)}
+                />
             )}
             {contextMenu && <ContextMenu x={contextMenu.x} y={contextMenu.y} onOptionClick={(opt) => { if (opt === 'add_pin') openPinModal(null, { x: contextMenu.worldX, y: contextMenu.worldY }); setContextMenu(null); }} onClose={() => setContextMenu(null)} />}
             {pinModal.open && <PinModal initialData={pinModal.data} position={pinModal.position} onSave={handlePinSave} onClose={() => setPinModal({ open: false, data: null, position: { x: 0, y: 0 } })} />}
