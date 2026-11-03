@@ -2,7 +2,7 @@
   "name": "ecos-vtt",
   "productName": "EcosVTT",
   "private": true,
-  "version": "2.3.3",
+  "version": "2.3.4",
   "type": "module",
   "main": "electron/main.cjs",
   "description": "EcosVTT - Tabuleiro Virtual para RPG",

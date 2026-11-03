@@ -63,6 +63,9 @@ const looksLikeTrackpad = (e) => {
 
 const TOKEN_ROTATION_STEP = 45; // 8 passos = uma volta completa
 const TOKEN_LIGHT_ROTATION_STEP = 45;
+// Segurar Q/E gira continuamente: as repetições do teclado (~30 por segundo) viram
+// um passo a cada intervalo, num ritmo que a animação consegue acompanhar.
+const ROTATION_REPEAT_INTERVAL = 150;
 
 // Próximo ângulo na grade de `step` graus. Ângulos fora da grade (de versões antigas,
 // que giravam de 30° em 30°) encaixam no múltiplo seguinte naquela direção.
@@ -166,6 +169,7 @@ const Board = ({ showUI }) => {
   // Iluminação: ferramenta e seleção do modo de luz (compartilhadas com a barra superior).
   const lightingEditorRef = useRef(null);
   const lightClickStartRef = useRef(null);
+  const lastRotationStepRef = useRef(0);
   const [lightTool, setLightTool] = useState('select');
   const [lightSelection, setLightSelection] = useState(null);
   const [lightingInteractive, setLightingInteractive] = useState(false);
@@ -586,6 +590,12 @@ const Board = ({ showUI }) => {
                     const t = activeScene.tokens.find(token => token.id === id);
                     if (t) updateTokenInstance(activeScene.id, id, { mirrorX: !t.mirrorX });
                 });
+            }
+
+            if (key === 'q' || key === 'e') {
+                const now = performance.now();
+                if (e.repeat && now - lastRotationStepRef.current < ROTATION_REPEAT_INTERVAL) { e.preventDefault(); return; }
+                lastRotationStepRef.current = now;
             }
 
             // Shift+Q/E gira só o holofote do token (como uma lanterna), se houver um.

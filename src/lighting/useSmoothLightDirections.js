@@ -27,7 +27,8 @@ const ease = bezier(0.25, 0.46, 0.45, 0.94);
 export const useSmoothLightDirections = (lights) => {
     const [frame, setFrame] = useState({ values: new Map(), animating: false });
     const currentRef = useRef(new Map()); // id -> direção exibida
-    const animRef = useRef(new Map());    // id -> { from, to, target, start }
+    const animRef = useRef(new Map());    // id -> { from, to, start }
+    const targetRef = useRef(new Map());  // id -> última direção recebida
 
     useEffect(() => {
         const now = performance.now();
@@ -36,22 +37,29 @@ export const useSmoothLightDirections = (lights) => {
             if (l.type !== 'spot') return;
             ids.add(l.id);
             const cur = currentRef.current.get(l.id);
-            if (cur === undefined) { currentRef.current.set(l.id, l.direction); return; }
+            if (cur === undefined) { currentRef.current.set(l.id, l.direction); targetRef.current.set(l.id, l.direction); return; }
             const anim = animRef.current.get(l.id);
-            const target = anim ? anim.target : cur;
+            const target = targetRef.current.get(l.id);
             if (target === l.direction) return;
-            // Caminho mais curto (o controle deslizante pode pular de 359° para 0°).
-            const delta = ((((l.direction - cur) % 360) + 540) % 360) - 180;
-            animRef.current.set(l.id, { from: cur, to: cur + delta, target: l.direction, start: now });
+            // Caminho mais curto a partir do alvo anterior (o controle deslizante pode pular
+            // de 359° para 0°). Medir a partir do alvo, e não da posição exibida, mantém o
+            // giro contínuo quando a tecla é segurada: cada passo novo soma ao anterior em
+            // vez de a luz "voltar" pelo caminho mais curto.
+            const delta = ((((l.direction - target) % 360) + 540) % 360) - 180;
+            const base = anim ? anim.to : cur;
+            animRef.current.set(l.id, { from: cur, to: base + delta, start: now });
+            targetRef.current.set(l.id, l.direction);
         });
-        currentRef.current.forEach((_, id) => { if (!ids.has(id)) { currentRef.current.delete(id); animRef.current.delete(id); } });
+        currentRef.current.forEach((_, id) => {
+            if (!ids.has(id)) { currentRef.current.delete(id); animRef.current.delete(id); targetRef.current.delete(id); }
+        });
         if (!animRef.current.size) return;
 
         let raf;
         const tick = (t) => {
             animRef.current.forEach((a, id) => {
                 const k = Math.min(1, Math.max(0, (t - a.start) / DURATION));
-                currentRef.current.set(id, k >= 1 ? a.target : a.from + (a.to - a.from) * ease(k));
+                currentRef.current.set(id, a.from + (a.to - a.from) * ease(k));
                 if (k >= 1) animRef.current.delete(id);
             });
             const animating = animRef.current.size > 0;
