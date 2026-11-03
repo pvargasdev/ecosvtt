@@ -91,9 +91,3 @@ export const collectTokenLights = (tokens, baseSize) => {
     });
     return out;
 };
-
-// Iluminação da cena com as luzes dos tokens incluídas (usada só na renderização).
-export const withTokenLights = (lighting, tokens, baseSize) => {
-    const tokenLights = collectTokenLights(tokens, baseSize);
-    return tokenLights.length ? { ...lighting, lights: [...lighting.lights, ...tokenLights] } : lighting;
-};

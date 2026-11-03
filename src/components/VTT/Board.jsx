@@ -20,7 +20,8 @@ import LightingHints from '../Lighting/LightingHints';
 import WallPanel from '../Lighting/WallPanel';
 import DoorControls from '../Lighting/DoorControls';
 import TokenLightMenu from '../Lighting/TokenLightMenu';
-import { getLighting, withTokenLights, DEFAULT_TOKEN_LIGHT_DIRECTION } from '../../lighting/model';
+import { getLighting, collectTokenLights, DEFAULT_TOKEN_LIGHT_DIRECTION } from '../../lighting/model';
+import { useSmoothLightDirections } from '../../lighting/useSmoothLightDirections';
 import { newId as newLightingId, toggleDoor } from '../../lighting/geometry';
 
 const MIN_SCALE = 0.1;
@@ -55,8 +56,15 @@ const looksLikeTrackpad = (e) => {
     return !Number.isInteger(e.deltaY);
 };
 
-const TOKEN_ROTATION_STEP = 30;
-const TOKEN_LIGHT_ROTATION_STEP = 15;
+const TOKEN_ROTATION_STEP = 45; // 8 passos = uma volta completa
+const TOKEN_LIGHT_ROTATION_STEP = 45;
+
+// Próximo ângulo na grade de `step` graus. Ângulos fora da grade (de versões antigas,
+// que giravam de 30° em 30°) encaixam no múltiplo seguinte naquela direção.
+const stepAngle = (current, dir, step) => {
+    const snapped = dir > 0 ? Math.ceil(current / step) * step : Math.floor(current / step) * step;
+    return snapped !== current ? snapped : current + dir * step;
+};
 const FADE_DURATION = 600; 
 
 const Board = ({ showUI }) => {
@@ -581,8 +589,8 @@ const Board = ({ showUI }) => {
                 const withSpot = activeScene.tokens.filter(t => selectedIds.has(t.id) && t.lights?.spot);
                 if (withSpot.length) {
                     e.preventDefault();
-                    const delta = key === 'q' ? -TOKEN_LIGHT_ROTATION_STEP : TOKEN_LIGHT_ROTATION_STEP;
-                    withSpot.forEach(t => updateTokenInstance(activeScene.id, t.id, { lightDirection: (t.lightDirection ?? DEFAULT_TOKEN_LIGHT_DIRECTION) + delta }));
+                    const dir = key === 'q' ? -1 : 1;
+                    withSpot.forEach(t => updateTokenInstance(activeScene.id, t.id, { lightDirection: stepAngle(t.lightDirection ?? DEFAULT_TOKEN_LIGHT_DIRECTION, dir, TOKEN_LIGHT_ROTATION_STEP) }));
                     return;
                 }
             }
@@ -593,7 +601,7 @@ const Board = ({ showUI }) => {
                     const t = activeScene.tokens.find(token => token.id === id);
                     if (t) {
                         const currentRot = t.rotation || 0;
-                        updateTokenInstance(activeScene.id, id, { rotation: currentRot - TOKEN_ROTATION_STEP });
+                        updateTokenInstance(activeScene.id, id, { rotation: stepAngle(currentRot, -1, TOKEN_ROTATION_STEP) });
                     }
                 });
             }
@@ -603,7 +611,7 @@ const Board = ({ showUI }) => {
                     const t = activeScene.tokens.find(token => token.id === id);
                     if (t) {
                         const currentRot = t.rotation || 0;
-                        updateTokenInstance(activeScene.id, id, { rotation: currentRot + TOKEN_ROTATION_STEP });
+                        updateTokenInstance(activeScene.id, id, { rotation: stepAngle(currentRot, 1, TOKEN_ROTATION_STEP) });
                     }
                 });
             }
@@ -1098,9 +1106,12 @@ const Board = ({ showUI }) => {
 
   const sceneLighting = useMemo(() => getLighting(displayScene), [displayScene?.lighting]);
   // O que é desenhado inclui as luzes presas aos tokens (o editor só vê as da cena).
+  const tokenLights = useMemo(() => collectTokenLights(displayScene?.tokens, TOKEN_BASE_SIZE), [displayScene?.tokens]);
+  // A direção dos holofotes dos tokens gira suavemente, como a rotação do token.
+  const { lights: smoothTokenLights, animating: tokenLightsAnimating } = useSmoothLightDirections(tokenLights);
   const renderedLighting = useMemo(
-      () => withTokenLights(sceneLighting, displayScene?.tokens, TOKEN_BASE_SIZE),
-      [sceneLighting, displayScene?.tokens]
+      () => (smoothTokenLights.length ? { ...sceneLighting, lights: [...sceneLighting.lights, ...smoothTokenLights] } : sceneLighting),
+      [sceneLighting, smoothTokenLights]
   );
   const lightingActive = !!displayScene?.lighting?.enabled;
   // Botões de porta: na tela de quem conduz o jogo (não na tela exibida aos jogadores).
@@ -1252,7 +1263,7 @@ const Board = ({ showUI }) => {
                     mapRect={lightingMapRect}
                     seesAsGM={seesAsGM}
                     previewAsPlayer={previewAsPlayer && activeTool === 'lighting'}
-                    interactive={lightingInteractive || interaction.mode === 'DRAGGING'}
+                    interactive={lightingInteractive || interaction.mode === 'DRAGGING' || tokenLightsAnimating}
                 />
             )}
 

@@ -22,22 +22,35 @@ const LightingLayer = ({ lighting, mapRect, seesAsGM, previewAsPlayer, interacti
         [lighting, mapRect]
     );
 
-    useEffect(() => {
+    // Sempre desenha o estado mais recente. O quadro pendente nunca é cancelado por
+    // uma mudança nova: se fosse, mudanças a cada quadro (animações) impediriam o
+    // desenho até a animação acabar.
+    const latestRef = useRef(null);
+    const drawLatest = (quality) => {
         const canvas = canvasRef.current;
-        if (!canvas) return;
-        cancelAnimationFrame(frameRef.current);
+        const latest = latestRef.current;
+        if (!canvas || !latest) return;
+        renderLightMap(canvas, applyFlicker(latest.lighting, flickerKeyRef.current), latest.extent, {
+            cache: cacheRef.current,
+            interactive: quality ?? latest.interactive
+        });
+    };
+
+    useEffect(() => {
+        latestRef.current = { lighting, extent, interactive };
         clearTimeout(fullQualityTimerRef.current);
-        const draw = (quality) => renderLightMap(canvas, applyFlicker(lighting, flickerKeyRef.current), extent, { cache: cacheRef.current, interactive: quality });
-        frameRef.current = requestAnimationFrame(() => draw(interactive));
+        if (!frameRef.current) {
+            frameRef.current = requestAnimationFrame(() => { frameRef.current = null; drawLatest(); });
+        }
         if (interactive) {
-            fullQualityTimerRef.current = setTimeout(() => draw(false), FULL_QUALITY_DELAY);
+            fullQualityTimerRef.current = setTimeout(() => drawLatest(false), FULL_QUALITY_DELAY);
         }
 
         let flickerFrame = null;
         if (lighting.lights.some(hasFlicker)) {
             const tick = (now) => {
                 const key = flickerKey(lighting.lights, now / 1000);
-                if (key !== flickerKeyRef.current) { flickerKeyRef.current = key; draw(interactive); }
+                if (key !== flickerKeyRef.current) { flickerKeyRef.current = key; drawLatest(); }
                 flickerFrame = requestAnimationFrame(tick);
             };
             flickerFrame = requestAnimationFrame(tick);
@@ -45,11 +58,12 @@ const LightingLayer = ({ lighting, mapRect, seesAsGM, previewAsPlayer, interacti
             flickerKeyRef.current = '';
         }
         return () => {
-            cancelAnimationFrame(frameRef.current);
             cancelAnimationFrame(flickerFrame);
             clearTimeout(fullQualityTimerRef.current);
         };
     }, [lighting, extent, interactive]);
+
+    useEffect(() => () => { cancelAnimationFrame(frameRef.current); frameRef.current = null; }, []);
 
     // Limpa do cache luzes que não existem mais.
     useEffect(() => {
