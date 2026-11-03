@@ -46,16 +46,9 @@ export const createLight = (type, x, y) => ({
 });
 
 // Piscar: a luz fica `interval` segundos na cor normal e `duration` segundos na cor
-// do piscar, em ciclo. Ex.: sirene (azul/vermelho), lâmpada falhando (branco/preto).
-// `irregular` sorteia o momento e a duração de cada piscada.
+// do piscar, em ciclo. `irregular` sorteia o momento e a duração de cada piscada.
 export const DEFAULT_FLICKER = { enabled: false, color: '#000000', interval: 1, duration: 0.15, irregular: false };
 export const getFlicker = (light) => ({ ...DEFAULT_FLICKER, ...(light?.flicker || {}) });
-
-export const FLICKER_PRESETS = [
-    { key: 'siren', color: '#3b82f6', flicker: { color: '#ef4444', interval: 0.5, duration: 0.5, irregular: false } },
-    { key: 'faulty', color: '#ffffff', flicker: { color: '#000000', interval: 1.4, duration: 0.12, irregular: true } },
-    { key: 'alarm', color: '#ff3b30', flicker: { color: '#000000', interval: 0.6, duration: 0.6, irregular: false } }
-];
 
 // --- Luzes presas a tokens --------------------------------------------------
 // token.lights = { point: {...}|null, spot: {...}|null } (mesmas propriedades de uma

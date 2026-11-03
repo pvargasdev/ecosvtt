@@ -1,7 +1,7 @@
 import React from 'react';
 import { Zap } from 'lucide-react';
 import { useTranslation } from '../../i18n';
-import { LIGHT_COLORS, FLICKER_PRESETS, getFlicker } from '../../lighting/model';
+import { LIGHT_COLORS, getFlicker } from '../../lighting/model';
 
 export const Slider = ({ label, value, display, min, max, step = 1, onChange }) => (
     <div>
@@ -68,21 +68,6 @@ const FlickerSettings = ({ light, update }) => {
 
             {flicker.enabled && (
                 <>
-                    <div className="flex flex-wrap gap-1">
-                        {FLICKER_PRESETS.map(p => (
-                            <button
-                                key={p.key}
-                                onClick={() => update({ color: p.color, flicker: { ...flicker, ...p.flicker, enabled: true } })}
-                                className="flex items-center gap-1.5 px-2 py-1.5 rounded border border-white/5 text-[10px] font-bold uppercase text-text-muted hover:text-white hover:border-white/20 transition"
-                            >
-                                <span className="flex">
-                                    <span className="w-2.5 h-2.5 rounded-full border border-white/20" style={{ background: p.color }} />
-                                    <span className="w-2.5 h-2.5 rounded-full border border-white/20 -ml-1" style={{ background: p.flicker.color }} />
-                                </span>
-                                {t(`lighting.flicker.presets.${p.key}`)}
-                            </button>
-                        ))}
-                    </div>
                     <div>
                         <div className="text-[10px] font-bold uppercase text-text-muted mb-2">{t('lighting.flicker.color')}</div>
                         <ColorPicker value={flicker.color} onChange={color => setFlicker({ color })} extra={FLICKER_EXTRA_COLORS} />

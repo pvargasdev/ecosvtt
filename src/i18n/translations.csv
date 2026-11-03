@@ -345,9 +345,6 @@ lighting.flicker.color,Cor do piscar,Flicker color
 lighting.flicker.interval,Intervalo entre piscadas,Time between flickers
 lighting.flicker.duration,Duração da piscada,Flicker duration
 lighting.flicker.irregular,Irregular (falhando),Irregular (faulty)
-lighting.flicker.presets.siren,Sirene,Siren
-lighting.flicker.presets.faulty,Falhando,Faulty
-lighting.flicker.presets.alarm,Alarme,Alarm
 lighting.colors.off,Apagada (preto),Off (black)
 lighting.token.title,Luzes do token,Token lights
 lighting.token.attach,Montar esta luz no token,Attach this light to the token
