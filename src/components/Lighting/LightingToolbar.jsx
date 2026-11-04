@@ -171,7 +171,10 @@ const TokenLightSlots = ({ token, activeType, onSlot }) => {
 };
 
 // Conteúdo da barra contextual do modo de iluminação.
-const LightingToolbar = ({ lighting, setLighting, tool, setTool, previewAsPlayer, setPreviewAsPlayer, selectedToken, activeTokenLightType, onTokenLightSlot }) => {
+const LightingToolbar = ({
+    lighting, setLighting, tool, setTool, previewAsPlayer, setPreviewAsPlayer,
+    selectedToken, activeTokenLightType, onTokenLightSlot, selectionKey, onPopoverOpen
+}) => {
     const t = useTranslation();
     const [popover, setPopover] = useState(null); // { kind: 'ambient' | 'add', top, left }
     const ambientRef = useRef(null);
@@ -180,8 +183,18 @@ const LightingToolbar = ({ lighting, setLighting, tool, setTool, previewAsPlayer
     const placingType = tool === 'point' || tool === 'spot' ? tool : null;
     const placing = LIGHT_TYPES.find(l => l.id === placingType);
 
+    // Popovers e o painel do item selecionado ocupam o mesmo canto da tela, então nunca
+    // ficam abertos juntos: abrir um popover limpa a seleção, e selecionar algo fecha
+    // o popover (comparação durante a renderização, sem efeito).
+    const [seenSelection, setSeenSelection] = useState(selectionKey);
+    if (seenSelection !== selectionKey) {
+        setSeenSelection(selectionKey);
+        if (selectionKey && popover) setPopover(null);
+    }
+
     const togglePopover = (kind, ref, width) => {
         if (popover?.kind === kind) { setPopover(null); return; }
+        onPopoverOpen?.();
         setPopover({ kind, ...popoverPosition(ref.current, width) });
     };
     const closePopover = useCallback(() => setPopover(null), []);

@@ -14,7 +14,7 @@ const LightPropertiesPanel = ({ light, onChange, onRemove, onDuplicate, attached
         <div
             data-ecos-window="true"
             data-ecos-ui="true"
-            className="absolute top-[8rem] right-4 w-72 bg-black/90 border border-glass-border backdrop-blur-sm rounded-xl shadow-2xl z-50 pointer-events-auto cursor-default animate-in fade-in flex flex-col max-h-[calc(100vh-9.5rem)]"
+            className="absolute top-[8.75rem] right-4 w-72 bg-black/90 border border-glass-border backdrop-blur-sm rounded-xl shadow-2xl z-50 pointer-events-auto cursor-default animate-in fade-in flex flex-col max-h-[calc(100vh-10.25rem)]"
             onMouseDown={e => e.stopPropagation()}
             onWheel={e => e.stopPropagation()}
         >

@@ -1380,7 +1380,9 @@ const Board = ({ showUI }) => {
                     setPreviewAsPlayer,
                     selectedToken: lightToken,
                     activeTokenLightType: lightSelection?.kind === 'tokenLight' ? lightSelection.type : null,
-                    onTokenLightSlot
+                    onTokenLightSlot,
+                    selectionKey: lightSelection ? `${lightSelection.kind}:${lightSelection.id}:${lightSelection.type || ''}` : null,
+                    onPopoverOpen: () => setLightSelection(null)
                 } : null}
             />}
             {isLightingMode && sceneLighting.enabled && <LightingHints tool={lightTool} selection={lightSelection} visible={showUI} />}

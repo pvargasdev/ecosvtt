@@ -33,7 +33,7 @@ const SoundboardWindow = ({ onClose, containerRef, WindowWrapperComponent, curre
 
     return (
         <Wrapper containerRef={containerRef} 
-            className="absolute top-16 right-4 bottom-4 w-[437px] bg-black/90 border border-glass-border backdrop-blur-xl rounded-xl shadow-2xl z-40 flex flex-col animate-in fade-in overflow-hidden"
+            className="absolute top-20 right-4 bottom-4 w-[437px] bg-black/90 border border-glass-border backdrop-blur-xl rounded-xl shadow-2xl z-40 flex flex-col animate-in fade-in overflow-hidden"
         >
             <div className="flex items-center justify-between px-2 pt-2 border-b border-white/5 shrink-0 bg-[#0a0a0a]">
                 <div className="flex gap-1">

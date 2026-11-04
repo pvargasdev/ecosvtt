@@ -56,7 +56,7 @@ const WallPanel = ({ lighting, selection, setLighting, onSelect, onCopy }) => {
         <div
             data-ecos-window="true"
             data-ecos-ui="true"
-            className="absolute top-[8rem] right-4 w-64 bg-black/90 border border-glass-border backdrop-blur-sm rounded-xl shadow-2xl z-50 pointer-events-auto cursor-default animate-in fade-in"
+            className="absolute top-[8.75rem] right-4 w-64 bg-black/90 border border-glass-border backdrop-blur-sm rounded-xl shadow-2xl z-50 pointer-events-auto cursor-default animate-in fade-in"
             onMouseDown={e => e.stopPropagation()}
             onWheel={e => e.stopPropagation()}
         >

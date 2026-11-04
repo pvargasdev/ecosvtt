@@ -451,7 +451,7 @@ const AssetDock = ({ isOpen, onClose }) => {
     const showBreadcrumb = currentFolderId !== null;
 
     return (
-        <WindowWrapper containerRef={libraryRef} className="absolute top-16 right-4 w-[300px] bg-black/90 border border-glass-border backdrop-blur-sm rounded-xl flex flex-col max-h-[60vh] z-40 shadow-2xl animate-in fade-in">
+        <WindowWrapper containerRef={libraryRef} className="absolute top-20 right-4 w-[300px] bg-black/90 border border-glass-border backdrop-blur-sm rounded-xl flex flex-col max-h-[60vh] z-40 shadow-2xl animate-in fade-in">
             <div className="p-3 border-b border-glass-border flex justify-between items-center bg-white/5 rounded-t-xl shrink-0 z-20 relative">
                 <h3 className="font-rajdhani font-bold text-white flex items-center gap-2">
                     {t('library.title')}
@@ -739,7 +739,7 @@ const SceneSelector = ({ isOpen, currentFolderId, setCurrentFolderId }) => {
         : t('scenes.root');
 
     return (
-        <WindowWrapper containerRef={sceneRef} className="absolute top-16 right-4 w-80 bg-black/90 border border-glass-border backdrop-blur-sm rounded-xl shadow-2xl z-50 overflow-hidden animate-in fade-in flex flex-col max-h-[60vh]">
+        <WindowWrapper containerRef={sceneRef} className="absolute top-20 right-4 w-80 bg-black/90 border border-glass-border backdrop-blur-sm rounded-xl shadow-2xl z-50 overflow-hidden animate-in fade-in flex flex-col max-h-[60vh]">
             
             <div className="p-3 border-b border-glass-border bg-white/5 flex justify-between items-center shrink-0">
                 <h3 className="font-rajdhani font-bold text-white text-sm">{t('scenes.title')}</h3>
@@ -870,7 +870,7 @@ const MapConfigModal = ({ isOpen, onClose }) => {
     };
 
     return (
-        <WindowWrapper containerRef={mapConfigRef} className="absolute top-16 right-4 w-72 bg-black/90 border border-glass-border backdrop-blur-sm rounded-xl flex flex-col shadow-2xl z-50 animate-in fade-in">
+        <WindowWrapper containerRef={mapConfigRef} className="absolute top-20 right-4 w-72 bg-black/90 border border-glass-border backdrop-blur-sm rounded-xl flex flex-col shadow-2xl z-50 animate-in fade-in">
             <div className="p-3 border-b border-glass-border flex justify-between items-center bg-white/5 rounded-t-xl">
                 <h3 className="font-rajdhani font-bold text-white flex items-center gap-2">
                     {t('mapConfig.title')}
@@ -921,7 +921,7 @@ const HelpWindow = ({ isOpen, onClose }) => {
     ];
 
     return (
-        <WindowWrapper containerRef={helpRef} className="absolute top-16 right-4 w-[280px] max-h-[70vh] bg-black/90 border border-glass-border backdrop-blur-sm rounded-xl flex flex-col z-50 shadow-2xl animate-in fade-in">
+        <WindowWrapper containerRef={helpRef} className="absolute top-20 right-4 w-[280px] max-h-[70vh] bg-black/90 border border-glass-border backdrop-blur-sm rounded-xl flex flex-col z-50 shadow-2xl animate-in fade-in">
             <div className="p-3 border-b border-glass-border flex justify-between items-center bg-white/5 rounded-t-xl">
                 <h3 className="font-rajdhani font-bold text-white flex items-center gap-2">
                     <HelpCircle size={16}/> {t('help.title')}
@@ -1035,8 +1035,14 @@ export const VTTLayout = ({ zoomValue, onZoomChange, activeTool, setActiveTool, 
     { hex: '#eab308', label: t('colors.yellow') },
   ];
 
+  // Os botões da barra a partir do seletor de cenas (janelas, pins, ajuda, sair) voltam
+  // ao modo Selecionar: a barra contextual some e nada do modo anterior (painéis de luz,
+  // pincel...) fica por cima das janelas.
+  const backToSelect = () => { if (activeTool !== 'select') setActiveTool('select'); };
+
   const toggle = (key, e) => {
     if (e) e.stopPropagation();
+    backToSelect();
     setUiState(prev => ({
         menuOpen: key === 'menuOpen' ? !prev.menuOpen : false,
         libraryOpen: key === 'libraryOpen' ? !prev.libraryOpen : false,
@@ -1119,9 +1125,9 @@ export const VTTLayout = ({ zoomValue, onZoomChange, activeTool, setActiveTool, 
 
                 <ToolbarDivider />
 
-                <ToolbarButton icon={arePinsVisible ? MapPin : MapPinOff} label={arePinsVisible ? t('toolbar.hidePins') : t('toolbar.showPins')} onClick={() => toggleAdventurePinVisibility(seesAsGM)} />
+                <ToolbarButton icon={arePinsVisible ? MapPin : MapPinOff} label={arePinsVisible ? t('toolbar.hidePins') : t('toolbar.showPins')} onClick={() => { backToSelect(); toggleAdventurePinVisibility(seesAsGM); }} />
                 <ToolbarButton icon={HelpCircle} label={t('toolbar.help')} active={uiState.helpOpen} onClick={(e) => toggle('helpOpen', e)} tooltipAlign="right" />
-                <ToolbarButton icon={LogOut} label={t('toolbar.leave')} danger tooltipAlign="right" onClick={(e) => { e.stopPropagation(); closeAllMenus(); setConfirmModal({ open: true, message: t('toolbar.leaveAdventureQuestion'), onConfirm: () => setActiveAdventureId(null) }); }} />
+                <ToolbarButton icon={LogOut} label={t('toolbar.leave')} danger tooltipAlign="right" onClick={(e) => { e.stopPropagation(); backToSelect(); closeAllMenus(); setConfirmModal({ open: true, message: t('toolbar.leaveAdventureQuestion'), onConfirm: () => setActiveAdventureId(null) }); }} />
               </div>
 
               {currentMode === 'draw' && (
