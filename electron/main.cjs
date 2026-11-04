@@ -145,12 +145,24 @@ const VITE_DEV_SERVER_URL = 'http://localhost:5173';
 const INDEX_PATH = path.join(app.getAppPath(), 'dist/index.html');
 const PRELOAD_PATH = path.join(app.getAppPath(), 'electron', 'preload.cjs');
 
+// A janela principal só aparece depois de desenhada. Até lá, o executável portátil
+// mantém na tela a imagem de abertura (assets/splash.bmp, ver scripts/build-exe.cjs).
+const SHOW_FALLBACK_MS = 20000; // se algo travar, a janela aparece mesmo assim
+
+function revealMainWindow() {
+    if (!mainWindow || mainWindow.isDestroyed() || mainWindow.isVisible()) return;
+    mainWindow.show();
+    mainWindow.focus();
+}
+
 function createWindow() {
     mainWindow = new BrowserWindow({
         width: 1200, height: 800, minWidth: 800, minHeight: 600,
-        frame: true, autoHideMenuBar: true,
+        frame: true, autoHideMenuBar: true, show: false, backgroundColor: '#000000',
         webPreferences: { preload: PRELOAD_PATH, nodeIntegration: false, contextIsolation: true },
     });
+    mainWindow.once('ready-to-show', revealMainWindow);
+    setTimeout(revealMainWindow, SHOW_FALLBACK_MS);
 
     if (process.argv[2] === 'electron:start' || process.env.VITE_DEV) mainWindow.loadURL(VITE_DEV_SERVER_URL);
     else mainWindow.loadFile(INDEX_PATH);
@@ -170,7 +182,10 @@ function createWindow() {
         mainWindow.webContents.send('app:before-close');
     });
 
-    mainWindow.on('closed', () => { mainWindow = null; if (gmWindow) gmWindow.close(); });
+    mainWindow.on('closed', () => {
+        mainWindow = null;
+        if (gmWindow) gmWindow.close();
+    });
 }
 
 function createGMWindow(startAdventureId) {

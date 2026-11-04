@@ -2,7 +2,7 @@
   "name": "ecos-vtt",
   "productName": "EcosVTT",
   "private": true,
-  "version": "2.3.4",
+  "version": "2.4.2",
   "type": "module",
   "main": "electron/main.cjs",
   "description": "EcosVTT - Tabuleiro Virtual para RPG",
@@ -15,7 +15,7 @@
     "preview": "vite preview",
     "electron:dev": "concurrently \"npm run dev\" \"npm run electron:start\"",
     "electron:start": "wait-on tcp:5173 && electron .",
-    "electron:build": "npm run build && electron-builder"
+    "electron:build": "npm run build && node scripts/build-exe.cjs"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
@@ -67,7 +67,8 @@
       "icon": "assets/icon.ico"
     },
     "portable": {
-      "artifactName": "EcosVTT.exe"
+      "artifactName": "EcosVTT.exe",
+      "splashImage": "assets/splash.bmp"
     }
   }
 }
