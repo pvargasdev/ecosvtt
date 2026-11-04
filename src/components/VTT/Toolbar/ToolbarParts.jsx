@@ -107,6 +107,7 @@ export const Switch = ({ checked, onChange, label, accent = '#fde047', title }) 
 // liga visualmente as duas.
 export const ContextBar = ({ accent, children }) => (
     <div
+        data-context-bar=""
         className="relative flex items-center gap-1 rounded-xl border bg-black/85 p-1.5 shadow-[0_8px_24px_rgba(0,0,0,0.45)] backdrop-blur-sm animate-in fade-in slide-in-from-top-2 duration-200"
         style={{ borderColor: `${accent}40` }}
     >

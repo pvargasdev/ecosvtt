@@ -82,10 +82,13 @@ const LIGHT_TYPES = [
     { id: 'spot', icon: Flashlight, labelKey: 'lighting.tools.spot', descKey: 'lighting.add.spotDesc', shortcut: 'H' }
 ];
 
-// Posição de um popover logo abaixo do elemento (em coordenadas da tela).
+// Posição de um popover abaixo da barra contextual (mesma distância usada entre as
+// barras e as janelas), alinhado ao botão que o abriu.
+const POPOVER_GAP = 16;
 const popoverPosition = (el, width) => {
     const rect = el.getBoundingClientRect();
-    return { top: rect.bottom + 10, left: Math.max(8, Math.min(rect.left, window.innerWidth - width - 8)) };
+    const bar = el.closest('[data-context-bar]')?.getBoundingClientRect() || rect;
+    return { top: bar.bottom + POPOVER_GAP, left: Math.max(8, Math.min(rect.left, window.innerWidth - width - 8)) };
 };
 
 // Escolha do tipo de luz a adicionar. Depois de escolher, o cursor entra no modo de
